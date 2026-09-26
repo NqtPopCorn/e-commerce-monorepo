@@ -1,0 +1,26 @@
+{
+  "name": "fashion-shop",
+  "private": true,
+  "workspaces": [
+    "fashion-shop-fe",
+    "fashion-shop-be"
+  ],
+  "scripts": {
+    "dev:api": "npm run start:dev --workspace=fashion-shop-be",
+    "dev:web": "npm run dev --workspace=fashion-shop-fe",
+    "build:api": "npm run build --workspace=fashion-shop-be",
+    "build:web": "npm run build --workspace=fashion-shop-fe",
+    "lint:api": "npm run lint --workspace=fashion-shop-be",
+    "lint:web": "npm run lint --workspace=fashion-shop-fe",
+    "lint": "npm run lint:api && npm run lint:web",
+    "test:web": "npm run test --workspace=fashion-shop-fe",
+    "typecheck:web": "npm run typecheck --workspace=fashion-shop-fe",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "db:up": "docker-compose up -d postgres",
+    "db:down": "docker-compose down",
+    "prisma:generate": "npm run prisma:generate --workspace=fashion-shop-be",
+    "prisma:migrate": "npm run prisma:migrate --workspace=fashion-shop-be",
+    "prisma:seed": "npm run prisma:seed --workspace=fashion-shop-be",
+    "setup": "npm install && npm run db:up && npm run prisma:generate && npm run prisma:migrate"
+  }
+}
