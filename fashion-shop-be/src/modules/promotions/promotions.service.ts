@@ -122,7 +122,7 @@ export class PromotionsService {
 
   private async verifyVariantIdsExist(variantIds: number[]) {
     if (variantIds.length === 0) return;
-    const existing = await this.prisma.bookVariant.findMany({
+    const existing = await this.prisma.productVariant.findMany({
       where: { id: { in: variantIds } },
       select: { id: true },
     });
@@ -214,8 +214,8 @@ export class PromotionsService {
               include: {
                 variant: {
                   include: {
-                    book: {
-                      select: { id: true, title: true },
+                    product: {
+                      select: { id: true, name: true },
                     },
                   },
                 },

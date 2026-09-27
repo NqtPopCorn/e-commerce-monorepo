@@ -90,11 +90,16 @@ export default function CartPage() {
                     </div>
                     <div className="flex flex-col">
                       <Link
-                        href={`/books/${item.bookId}`}
-                        className="font-medium text-gray-800 hover:text-[#c92127] line-clamp-2"
+                        href={`/products/${item.productId || item.bookId}`}
+                        className="font-medium text-gray-800 hover:text-rose-600 line-clamp-2"
                       >
-                        {item.title}
+                        {item.productName || item.title}
                       </Link>
+                      {(item.size || item.color) && (
+                        <span className="text-xs text-gray-500 mt-0.5">
+                          Phân loại: {[item.size, item.color].filter(Boolean).join(" - ")}
+                        </span>
+                      )}
                       {qLine?.campaign && (
                         <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded w-fit mt-1">
                           {qLine.campaign.name}

@@ -7,34 +7,33 @@ import {
   ParseIntPipe,
   Patch,
   Post,
-  Query,
   UseGuards,
 } from "@nestjs/common";
 import { ApiTags, ApiBearerAuth } from "@nestjs/swagger";
-import { BooksService } from "./books.service";
-import { CreateBookDto } from "./dto/create-book.dto";
-import { UpdateBookDto } from "./dto/update-book.dto";
+import { BrandsService } from "./brands.service";
+import { CreateBrandDto } from "./dto/create-brand.dto";
+import { UpdateBrandDto } from "./dto/update-brand.dto";
 import { JwtAuthGuard } from "../auth/jwt.guard";
 import { RolesGuard } from "../auth/roles.guard";
 import { Roles } from "../auth/roles.decorator";
 import { Role } from "@prisma/client";
 
-@ApiTags("books")
-@Controller("books")
-export class BooksController {
-  constructor(private readonly service: BooksService) {}
+@ApiTags("brands")
+@Controller("brands")
+export class BrandsController {
+  constructor(private readonly service: BrandsService) {}
 
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
   @Post()
-  create(@Body() dto: CreateBookDto) {
+  create(@Body() dto: CreateBrandDto) {
     return this.service.create(dto);
   }
 
   @Get()
-  findAll(@Query("search") search?: string) {
-    return this.service.findAll(search);
+  findAll() {
+    return this.service.findAll();
   }
 
   @Get(":id")
@@ -46,7 +45,7 @@ export class BooksController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
   @Patch(":id")
-  update(@Param("id", ParseIntPipe) id: number, @Body() dto: UpdateBookDto) {
+  update(@Param("id", ParseIntPipe) id: number, @Body() dto: UpdateBrandDto) {
     return this.service.update(id, dto);
   }
 

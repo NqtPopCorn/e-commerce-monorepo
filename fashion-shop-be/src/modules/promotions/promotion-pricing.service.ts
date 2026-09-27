@@ -77,7 +77,7 @@ export class PromotionPricingService {
     }
 
     const variantIds = Array.from(new Set(items.map((i) => i.variantId)));
-    const variants = await client.bookVariant.findMany({
+    const variants = await client.productVariant.findMany({
       where: { id: { in: variantIds } },
     });
 

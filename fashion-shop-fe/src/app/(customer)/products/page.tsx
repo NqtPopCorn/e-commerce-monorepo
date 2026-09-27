@@ -3,90 +3,119 @@
 import { useState, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useGetBooks } from "@/hooks/useBooks";
-import { ChevronRight, Filter, Star } from "lucide-react";
+import { useGetProducts } from "@/hooks/useProducts";
+import { ChevronRight, Filter, Star, Sparkles } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { categoriesService } from "@/services/categories.service";
-import { Book, Category } from "@/types/book";
+import { brandsService } from "@/services/brands.service";
+import { Product, Category, Brand } from "@/types/product";
 
 function ProductsContent() {
   const searchParams = useSearchParams();
   const categoryParam = searchParams.get("category");
+  const brandParam = searchParams.get("brand");
   const searchQuery = searchParams.get("q");
 
-  const { data: booksData, isLoading: isLoadingBooks } = useGetBooks();
+  const { data: productsData, isLoading: isLoadingProducts } = useGetProducts();
 
-  // Fetch categories for sidebar
+  // Fetch categories & brands for sidebar
   const { data: categoriesData } = useQuery({
     queryKey: ["categories"],
     queryFn: categoriesService.getAll,
     staleTime: 5 * 60 * 1000,
   });
 
-  const mainCategories = Array.isArray(categoriesData) ? categoriesData : [];
+  const { data: brandsData } = useQuery({
+    queryKey: ["brands"],
+    queryFn: brandsService.getAll,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const categories = Array.isArray(categoriesData) ? categoriesData : [];
+  const brands = Array.isArray(brandsData) ? brandsData : [];
 
   // Lọc sản phẩm
-  let filteredBooks = Array.isArray(booksData) ? booksData : [];
+  let filteredProducts = Array.isArray(productsData) ? productsData : [];
+
   if (categoryParam) {
-    filteredBooks = filteredBooks.filter(
-      (book: Book) =>
-        book.categories?.some((c) => c.name === categoryParam)
+    filteredProducts = filteredProducts.filter((prod: Product) => {
+      if (prod.category?.name === categoryParam) return true;
+      if (prod.category?.parent?.name === categoryParam) return true;
+      return false;
+    });
+  }
+
+  if (brandParam) {
+    filteredProducts = filteredProducts.filter(
+      (prod: Product) => prod.brand?.name?.toLowerCase() === brandParam.toLowerCase()
     );
   }
+
   if (searchQuery) {
-    filteredBooks = filteredBooks.filter(
-      (book: Book) =>
-        book.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        book.authors?.some((a: string) =>
-          a.toLowerCase().includes(searchQuery.toLowerCase()),
-        ),
-    );
+    filteredProducts = filteredProducts.filter((prod: Product) => {
+      const nameMatch = prod.name?.toLowerCase().includes(searchQuery.toLowerCase());
+      const brandMatch = prod.brand?.name?.toLowerCase().includes(searchQuery.toLowerCase());
+      const matMatch = prod.material?.toLowerCase().includes(searchQuery.toLowerCase());
+      return nameMatch || brandMatch || matMatch;
+    });
   }
 
   return (
-    <div className="flex flex-col gap-4 max-w-7xl mx-auto">
+    <div className="flex flex-col gap-6 max-w-7xl mx-auto">
       {/* Breadcrumb */}
-      <nav className="text-sm text-gray-500 flex items-center gap-2 mb-2 bg-white p-3 rounded-lg shadow-sm border border-gray-100">
-        <Link href="/" className="hover:text-[#c92127]">
+      <nav className="text-sm text-gray-500 flex items-center gap-2 bg-white p-3.5 rounded-xl shadow-xs border border-gray-100">
+        <Link href="/" className="hover:text-rose-600 transition-colors">
           Trang chủ
         </Link>
         <ChevronRight className="w-4 h-4" />
-        <span className="text-gray-800 font-medium">
-          {categoryParam
-            ? `Thể loại: ${categoryParam}`
-            : searchQuery
-              ? `Tìm kiếm: ${searchQuery}`
-              : "Tất cả sản phẩm"}
-        </span>
+        <Link href="/products" className="hover:text-rose-600 transition-colors">
+          Thời trang
+        </Link>
+        {(categoryParam || brandParam || searchQuery) && (
+          <>
+            <ChevronRight className="w-4 h-4" />
+            <span className="text-gray-900 font-semibold">
+              {categoryParam
+                ? `Danh mục: ${categoryParam}`
+                : brandParam
+                  ? `Thương hiệu: ${brandParam}`
+                  : `Tìm kiếm: "${searchQuery}"`}
+            </span>
+          </>
+        )}
       </nav>
 
       <div className="flex flex-col md:flex-row gap-6">
         {/* Sidebar Filters */}
         <div className="w-full md:w-1/4 shrink-0">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden sticky top-24">
-            <div className="p-4 bg-gray-50 border-b flex items-center gap-2 font-bold text-gray-800 uppercase">
-              <Filter className="w-5 h-5" /> Tùy chọn lọc
+          <div className="bg-white rounded-xl shadow-xs border border-gray-100 overflow-hidden sticky top-24 divide-y divide-gray-100">
+            <div className="p-4 bg-slate-50 flex items-center gap-2 font-bold text-gray-800 uppercase tracking-wider text-xs">
+              <Filter className="w-4 h-4 text-rose-600" /> Bộ lọc thời trang
             </div>
 
             {/* Category List */}
-            <div className="p-4 border-b">
-              <h3 className="font-semibold text-gray-800 mb-3">
-                Nhóm sản phẩm
+            <div className="p-4">
+              <h3 className="font-semibold text-gray-800 text-sm mb-3">
+                Danh mục
               </h3>
-              <ul className="space-y-2 text-sm text-gray-600">
+              <ul className="space-y-1.5 text-sm">
                 <li>
                   <Link
                     href="/products"
-                    className={`hover:text-[#c92127] ${!categoryParam ? "font-bold text-[#c92127]" : ""}`}
+                    className={`block py-1 hover:text-rose-600 transition-colors ${
+                      !categoryParam && !brandParam ? "font-bold text-rose-600" : "text-gray-600"
+                    }`}
                   >
                     Tất cả sản phẩm
                   </Link>
                 </li>
-                {mainCategories.map((cat: Category) => (
+                {categories.map((cat: Category) => (
                   <li key={cat.id}>
                     <Link
                       href={`/products?category=${encodeURIComponent(cat.name)}`}
-                      className={`hover:text-[#c92127] ${categoryParam === cat.name ? "font-bold text-[#c92127]" : ""}`}
+                      className={`block py-1 hover:text-rose-600 transition-colors ${
+                        categoryParam === cat.name ? "font-bold text-rose-600" : "text-gray-600"
+                      }`}
                     >
                       {cat.name}
                     </Link>
@@ -95,91 +124,132 @@ function ProductsContent() {
               </ul>
             </div>
 
-            {/* Price Filter (Fake UI) */}
+            {/* Brand List */}
             <div className="p-4">
-              <h3 className="font-semibold text-gray-800 mb-3">Giá</h3>
-              <ul className="space-y-2 text-sm text-gray-600">
-                <li className="flex items-center gap-2 cursor-pointer hover:text-[#c92127]">
-                  <input type="checkbox" className="rounded" /> Dưới 50.000đ
-                </li>
-                <li className="flex items-center gap-2 cursor-pointer hover:text-[#c92127]">
-                  <input type="checkbox" className="rounded" /> 50.000đ -
-                  100.000đ
-                </li>
-                <li className="flex items-center gap-2 cursor-pointer hover:text-[#c92127]">
-                  <input type="checkbox" className="rounded" /> 100.000đ -
-                  200.000đ
-                </li>
-                <li className="flex items-center gap-2 cursor-pointer hover:text-[#c92127]">
-                  <input type="checkbox" className="rounded" /> Trên 200.000đ
-                </li>
-              </ul>
+              <h3 className="font-semibold text-gray-800 text-sm mb-3">
+                Thương hiệu
+              </h3>
+              <div className="flex flex-wrap gap-1.5">
+                {brands.map((b: Brand) => (
+                  <Link
+                    key={b.id}
+                    href={`/products?brand=${encodeURIComponent(b.name)}`}
+                    className={`px-2.5 py-1 rounded-md text-xs font-medium border transition-colors ${
+                      brandParam?.toLowerCase() === b.name.toLowerCase()
+                        ? "bg-rose-600 text-white border-rose-600"
+                        : "bg-gray-50 text-gray-700 border-gray-200 hover:border-gray-400"
+                    }`}
+                  >
+                    {b.name}
+                  </Link>
+                ))}
+              </div>
             </div>
           </div>
         </div>
 
         {/* Product Grid */}
         <div className="w-full md:w-3/4">
-          <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 mb-6 flex justify-between items-center">
-            <h1 className="font-bold text-gray-800 text-lg">
-              {categoryParam || searchQuery || "Tất cả sản phẩm"}
+          <div className="bg-white p-4 rounded-xl shadow-xs border border-gray-100 mb-6 flex justify-between items-center">
+            <h1 className="font-bold text-gray-900 text-lg">
+              {categoryParam || brandParam || (searchQuery ? `Kết quả: "${searchQuery}"` : "Bộ sưu tập thời trang")}
             </h1>
             <div className="text-sm text-gray-500">
-              Hiển thị {filteredBooks.length} sản phẩm
+              {filteredProducts.length} sản phẩm
             </div>
           </div>
 
-          {isLoadingBooks ? (
-            <div className="flex justify-center items-center py-20 bg-white rounded-lg shadow-sm">
-              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#c92127]"></div>
+          {isLoadingProducts ? (
+            <div className="flex justify-center items-center py-24 bg-white rounded-xl shadow-xs">
+              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-rose-600"></div>
             </div>
-          ) : filteredBooks.length === 0 ? (
-            <div className="bg-white p-10 rounded-lg shadow-sm text-center">
-              <p className="text-gray-500 text-lg">
-                Không tìm thấy sản phẩm nào phù hợp.
+          ) : filteredProducts.length === 0 ? (
+            <div className="bg-white p-12 rounded-xl shadow-xs text-center border border-gray-100">
+              <p className="text-gray-500 text-base">
+                Không tìm thấy sản phẩm thời trang nào phù hợp.
               </p>
+              <Link
+                href="/products"
+                className="mt-4 inline-block text-sm font-semibold text-rose-600 hover:underline"
+              >
+                Xem tất cả sản phẩm
+              </Link>
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {filteredBooks.map((book: Book) => {
-                const minPrice = Math.min(...(book.variants?.map((v) => v.sellingPrice) || [0]));
-                const maxOriginalPrice = Math.max(...(book.variants?.map((v) => v.listPrice || 0) || [0]));
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
+              {filteredProducts.map((prod: Product) => {
+                const minPrice = Math.min(...(prod.variants?.map((v) => Number(v.sellingPrice)) || [0]));
+                const maxListPrice = Math.max(...(prod.variants?.map((v) => Number(v.listPrice || 0)) || [0]));
+                const discount = maxListPrice > minPrice ? Math.round(((maxListPrice - minPrice) / maxListPrice) * 100) : 0;
+                const imageUrl = prod.images?.[0]?.url || prod.variants?.[0]?.imageUrl || "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=800&q=80";
+
+                // Unique sizes
+                const sizes = Array.from(new Set(prod.variants?.map((v) => v.size).filter(Boolean)));
+
                 return (
-                <Link key={book.id} href={`/books/${book.id}`}>
-                  <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-shadow h-full flex flex-col">
-                    <div className="aspect-[3/4] bg-gray-100 rounded-md mb-4 flex items-center justify-center">
-                      <span className="text-xs text-gray-400">No Image</span>
+                  <Link key={prod.id} href={`/products/${prod.id}`}>
+                    <div className="bg-white rounded-xl shadow-xs border border-gray-100 hover:shadow-lg transition-all h-full flex flex-col overflow-hidden group">
+                      <div className="aspect-3/4 bg-gray-50 overflow-hidden relative">
+                        <img
+                          src={imageUrl}
+                          alt={prod.name}
+                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        />
+                        {discount > 0 && (
+                          <span className="absolute top-2.5 left-2.5 bg-rose-600 text-white font-bold text-[11px] px-2 py-0.5 rounded-full shadow">
+                            -{discount}%
+                          </span>
+                        )}
+                        {prod.brand && (
+                          <span className="absolute bottom-2.5 left-2.5 bg-white/90 backdrop-blur-xs text-gray-800 text-[10px] font-bold px-2 py-0.5 rounded shadow-xs">
+                            {prod.brand.name}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="p-4 flex flex-col flex-1">
+                        <h3 className="font-semibold text-gray-900 text-sm line-clamp-2 mb-1.5 group-hover:text-rose-600 transition-colors">
+                          {prod.name}
+                        </h3>
+
+                        {/* Sizes tags */}
+                        {sizes.length > 0 && (
+                          <div className="flex gap-1 mb-3 flex-wrap">
+                            {sizes.slice(0, 4).map((s) => (
+                              <span
+                                key={s}
+                                className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded"
+                              >
+                                {s}
+                              </span>
+                            ))}
+                            {sizes.length > 4 && (
+                              <span className="text-[10px] text-slate-400">+{sizes.length - 4}</span>
+                            )}
+                          </div>
+                        )}
+
+                        <div className="mt-auto flex items-baseline gap-2">
+                          <span className="font-bold text-rose-600 text-base">
+                            {new Intl.NumberFormat("vi-VN", {
+                              style: "currency",
+                              currency: "VND",
+                            }).format(minPrice || 0)}
+                          </span>
+                          {maxListPrice > minPrice && (
+                            <span className="text-gray-400 text-xs line-through">
+                              {new Intl.NumberFormat("vi-VN", {
+                                style: "currency",
+                                currency: "VND",
+                              }).format(maxListPrice)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    <h3 className="font-medium text-gray-800 text-sm line-clamp-2 mb-2 min-h-[40px] hover:text-[#c92127]">
-                      {book.title}
-                    </h3>
-                    <div className="flex items-center gap-1 mb-2">
-                      <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
-                      <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
-                      <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
-                      <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
-                      <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
-                      <span className="text-xs text-gray-400 ml-1">(0)</span>
-                    </div>
-                    <div className="mt-auto flex items-center gap-2">
-                      <span className="font-bold text-[#c92127] text-lg">
-                        {new Intl.NumberFormat("vi-VN", {
-                          style: "currency",
-                          currency: "VND",
-                        }).format(minPrice || 0)}
-                      </span>
-                      {maxOriginalPrice > minPrice && (
-                        <span className="text-gray-400 text-sm line-through">
-                          {new Intl.NumberFormat("vi-VN", {
-                            style: "currency",
-                            currency: "VND",
-                          }).format(maxOriginalPrice)}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </Link>
-              )})}
+                  </Link>
+                );
+              })}
             </div>
           )}
         </div>
@@ -190,7 +260,7 @@ function ProductsContent() {
 
 export default function ProductsPage() {
   return (
-    <Suspense fallback={<div className="text-center py-20">Đang tải...</div>}>
+    <Suspense fallback={<div className="text-center py-20">Đang tải danh sách...</div>}>
       <ProductsContent />
     </Suspense>
   );

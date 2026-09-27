@@ -184,7 +184,8 @@ export default function OrdersPage() {
                           const prodDisc = Number(item.productDiscount || 0);
                           const finalPrice = Number(item.finalUnitPrice || item.unitPrice || 0);
                           const itemTotal = (finalPrice > 0 ? finalPrice : origPrice) * item.quantity;
-                          const bookTitle = item.variant?.book?.title || "Sản phẩm";
+                          const productTitle = item.variant?.product?.name || item.variant?.book?.title || "Sản phẩm";
+                          const variantInfo = [item.variant?.size, item.variant?.color].filter(Boolean).join(" - ");
 
                           return (
                             <div
@@ -196,7 +197,7 @@ export default function OrdersPage() {
                                   // eslint-disable-next-line @next/next/no-img-element
                                   <img
                                     src={item.variant.imageUrl}
-                                    alt={bookTitle}
+                                    alt={productTitle}
                                     className="w-full h-full object-cover"
                                   />
                                 ) : (
@@ -205,10 +206,10 @@ export default function OrdersPage() {
                               </div>
                               <div className="flex-1">
                                 <p className="font-medium text-gray-800 line-clamp-2">
-                                  {bookTitle}
+                                  {productTitle}
                                 </p>
                                 <p className="text-xs text-gray-500 mt-0.5">
-                                  SKU: {item.variant?.sku} | Số lượng: {item.quantity}
+                                  SKU: {item.variant?.sku} {variantInfo ? `| ${variantInfo} ` : ""}| Số lượng: {item.quantity}
                                 </p>
                               </div>
                               <div className="text-right">

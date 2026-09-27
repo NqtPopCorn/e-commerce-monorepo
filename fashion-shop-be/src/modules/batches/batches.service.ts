@@ -15,7 +15,7 @@ export class BatchesService {
     });
 
     // Tăng tồn kho variant
-    await this.prisma.bookVariant.update({
+    await this.prisma.productVariant.update({
       where: { id: data.variantId },
       data: { stock: { increment: data.quantity } },
     });
@@ -25,7 +25,7 @@ export class BatchesService {
 
   findAll() {
     return this.prisma.batch.findMany({
-      include: { variant: { include: { book: { select: { title: true } } } } },
+      include: { variant: { include: { product: { select: { name: true } } } } },
       orderBy: { createdAt: "desc" },
     });
   }

@@ -4,7 +4,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -32,66 +31,95 @@ enum UserStatus {
   BLOCKED
 }
 
-model Category {
-  id    Int    @id @default(autoincrement())
-  name  String @unique
-  books Book[]
+model Brand {
+  id       Int       @id @default(autoincrement())
+  name     String    @unique
+  slug     String    @unique
+  logo     String?
+  products Product[]
 
+  @@map("brands")
+}
+
+model Category {
+  id       Int        @id @default(autoincrement())
+  name     String     @unique
+  parentId Int?       @map("parent_id")
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children Category[] @relation("CategoryTree")
+  products Product[]
+
+  @@index([parentId])
   @@map("categories")
 }
 
-model Batch {
-  id        Int         @id @default(autoincrement())
-  code      String      @unique
-  quantity  Int         @default(0)
-  variantId Int         @map("variant_id")
-  variant   BookVariant @relation(fields: [variantId], references: [id])
-  createdAt DateTime    @default(now()) @map("created_at")
+model Product {
+  id               Int              @id @default(autoincrement())
+  name             String
+  slug             String           @unique
+  description      String?
+  brandId          Int?             @map("brand_id")
+  categoryId       Int?             @map("category_id")
+  material         String?
+  careInstructions String?          @map("care_instructions")
+  season           String?
+  provider         String?
+  brand            Brand?           @relation(fields: [brandId], references: [id])
+  category         Category?        @relation(fields: [categoryId], references: [id])
+  variants         ProductVariant[]
+  images           ProductImage[]
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
 
-  @@index([variantId])
-  @@map("batches")
-}
-
-model Book {
-  id           Int           @id @default(autoincrement())
-  title        String
-  description  String?
-  authors      Json?
-  categoryId   Int?          @map("category_id")
-  publisher    String?
-  translators  Json?
-  provider     String?
-  publishYear  Int?          @map("publish_year")
-  language     String?
-  category     Category?     @relation(fields: [categoryId], references: [id])
-  variants     BookVariant[]
-  createdAt    DateTime      @default(now()) @map("created_at")
-  updatedAt    DateTime      @updatedAt @map("updated_at")
-
+  @@index([brandId])
   @@index([categoryId])
-  @@map("books")
+  @@map("products")
 }
 
-model BookVariant {
+model ProductImage {
+  id        Int     @id @default(autoincrement())
+  productId Int     @map("product_id")
+  url       String
+  altText   String? @map("alt_text")
+  sortOrder Int     @default(0) @map("sort_order")
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@map("product_images")
+}
+
+model ProductVariant {
   id                Int                @id @default(autoincrement())
-  bookId            Int                @map("book_id")
+  productId         Int                @map("product_id")
   sku               String             @unique
-  isbn              String?            @unique
-  format            String?            // e.g., "Bìa cứng", "Bìa mềm"
+  barcode           String?            @unique
+  size              String?
+  color             String?
+  colorHex          String?            @map("color_hex")
   imageUrl          String?            @map("image_url")
   listPrice         Decimal            @db.Decimal(12, 2) @map("list_price")
   sellingPrice      Decimal            @db.Decimal(12, 2) @map("selling_price")
   stock             Int                @default(0)
   weight            Int?
-  dimensions        String?
-  pages             Int?
-  book              Book               @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  product           Product            @relation(fields: [productId], references: [id], onDelete: Cascade)
   batches           Batch[]
   orderItems        OrderItem[]
   promotionVariants PromotionVariant[]
 
-  @@index([bookId])
-  @@map("book_variants")
+  @@index([productId])
+  @@map("product_variants")
+}
+
+model Batch {
+  id        Int            @id @default(autoincrement())
+  code      String         @unique
+  quantity  Int            @default(0)
+  variantId Int            @map("variant_id")
+  variant   ProductVariant @relation(fields: [variantId], references: [id])
+  createdAt DateTime       @default(now()) @map("created_at")
+
+  @@index([variantId])
+  @@map("batches")
 }
 
 enum PromotionKind {
@@ -153,7 +181,7 @@ model PromotionVariant {
   groupId   Int            @map("group_id")
   variantId Int            @map("variant_id")
   group     PromotionGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  variant   BookVariant    @relation(fields: [variantId], references: [id])
+  variant   ProductVariant @relation(fields: [variantId], references: [id])
 
   @@id([groupId, variantId])
   @@index([variantId])
@@ -215,7 +243,7 @@ model OrderItem {
   finalUnitPrice        Decimal                @default(0) @map("final_unit_price") @db.Decimal(12, 2)
   unitPrice             Decimal                @default(0) @map("unit_price") @db.Decimal(12, 2)
   order                 Order                  @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  variant               BookVariant            @relation(fields: [variantId], references: [id])
+  variant               ProductVariant         @relation(fields: [variantId], references: [id])
   promotionApplications PromotionApplication[]
 
   @@unique([orderId, variantId])

@@ -17,7 +17,7 @@ export class OrdersService {
   async create(userId: number, dto: CreateOrderDto) {
     return this.prisma.$transaction(async (tx) => {
       const variantIds = Array.from(new Set(dto.items.map((i) => i.variantId)));
-      const variants = await tx.bookVariant.findMany({
+      const variants = await tx.productVariant.findMany({
         where: { id: { in: variantIds } },
       });
       const variantMap = new Map(variants.map((v) => [v.id, v]));
@@ -47,7 +47,7 @@ export class OrdersService {
       }
 
       for (const item of dto.items) {
-        await tx.bookVariant.update({
+        await tx.productVariant.update({
           where: { id: item.variantId },
           data: { stock: { decrement: item.quantity } },
         });
@@ -134,7 +134,7 @@ export class OrdersService {
           items: {
             include: {
               variant: {
-                include: { book: true },
+                include: { product: true },
               },
             },
           },
@@ -148,7 +148,7 @@ export class OrdersService {
     return this.prisma.order.findMany({
       where: { userId },
       include: {
-        items: { include: { variant: { include: { book: true } } } },
+        items: { include: { variant: { include: { product: true } } } },
         promotionApplications: true,
       },
       orderBy: { createdAt: "desc" },
@@ -159,7 +159,7 @@ export class OrdersService {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
       include: {
-        items: { include: { variant: { include: { book: true } } } },
+        items: { include: { variant: { include: { product: true } } } },
         promotionApplications: true,
       },
     });
@@ -175,7 +175,7 @@ export class OrdersService {
 
     return this.prisma.$transaction(async (tx) => {
       for (const item of order.items) {
-        await tx.bookVariant.update({
+        await tx.productVariant.update({
           where: { id: item.variantId },
           data: { stock: { increment: item.quantity } },
         });
@@ -184,7 +184,7 @@ export class OrdersService {
         where: { id: orderId },
         data: { status: "CANCELLED" },
         include: {
-          items: { include: { variant: { include: { book: true } } } },
+          items: { include: { variant: { include: { product: true } } } },
           promotionApplications: true,
         },
       });

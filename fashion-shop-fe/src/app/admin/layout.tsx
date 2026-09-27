@@ -2,10 +2,10 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useAuthStore } from "@/stores/auth.store";
 import {
-  Book,
+  Shirt,
   ShoppingBag,
   Truck,
   BarChart,
@@ -20,7 +20,7 @@ const allNavs = [
   {
     name: "Products",
     link: "/admin/products",
-    icon: <Book className="w-5 h-5 mr-3" />,
+    icon: <Shirt className="w-5 h-5 mr-3" />,
   },
   {
     name: "Orders",
@@ -55,6 +55,7 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const user = useAuthStore((state) => state.user);
   const hasHydrated = useAuthStore((state) => state.hasHydrated);
   const logout = useAuthStore((state) => state.logout);
@@ -65,17 +66,23 @@ export default function AdminLayout({
   }, []);
 
   useEffect(() => {
+    if (pathname === "/admin/login") return;
     if (mounted && hasHydrated) {
       if (!user || user.role !== "ADMIN") {
-        router.push("/login");
+        router.push("/admin/login");
       }
     }
-  }, [mounted, hasHydrated, user, router]);
+  }, [mounted, hasHydrated, user, router, pathname]);
 
   const handleLogout = () => {
     logout();
-    router.push("/login");
+    router.push("/admin/login");
   };
+
+  // Trang đăng nhập admin hoàn toàn độc lập, không có sidebar, header dashboard
+  if (pathname === "/admin/login") {
+    return <>{children}</>;
+  }
 
   if (!mounted || !hasHydrated || !user || user.role !== "ADMIN") {
     return (

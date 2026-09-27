@@ -9,7 +9,7 @@ export interface PromotionVariant {
     id: number;
     sku: string;
     sellingPrice: number;
-    book?: { id: number; title: string };
+    product?: { id: number; name: string };
   };
 }
 

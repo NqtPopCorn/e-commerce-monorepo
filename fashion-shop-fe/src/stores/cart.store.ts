@@ -1,14 +1,21 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+
 export type CartItem = {
   variantId: number;
-  bookId: number;
-  title: string;
+  productId: number;
+  productName: string;
+  size?: string;
+  color?: string;
   price: number;
   quantity: number;
   stock: number;
   imageUrl?: string;
+  // Compatibility aliases
+  bookId?: number;
+  title?: string;
 };
+
 type CartState = {
   items: CartItem[];
   add: (item: Omit<CartItem, "quantity"> & { quantity?: number }) => void;
@@ -17,6 +24,7 @@ type CartState = {
   clear: () => void;
   total: () => number;
 };
+
 export const useCartStore = create<CartState>()(
   persist(
     (set, get) => ({
@@ -27,6 +35,14 @@ export const useCartStore = create<CartState>()(
           const existing = state.items.find(
             (x) => x.variantId === item.variantId,
           );
+          const normalizedItem: CartItem = {
+            ...item,
+            productId: item.productId ?? item.bookId ?? 0,
+            productName: item.productName ?? item.title ?? "",
+            bookId: item.productId ?? item.bookId ?? 0,
+            title: item.productName ?? item.title ?? "",
+            quantity: addQty,
+          };
           return {
             items: existing
               ? state.items.map((x) =>
@@ -34,7 +50,7 @@ export const useCartStore = create<CartState>()(
                     ? { ...x, quantity: Math.min(x.quantity + addQty, x.stock) }
                     : x,
                 )
-              : [...state.items, { ...item, quantity: addQty }],
+              : [...state.items, normalizedItem],
           };
         }),
       remove: (variantId) =>
@@ -53,6 +69,6 @@ export const useCartStore = create<CartState>()(
       total: () =>
         get().items.reduce((sum, item) => sum + item.price * item.quantity, 0),
     }),
-    { name: "book-shop-cart" },
+    { name: "fashion-shop-cart" },
   ),
 );

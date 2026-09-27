@@ -9,15 +9,45 @@ export class CategoriesService {
 
   create(dto: CreateCategoryDto) {
     return this.prisma.category.create({
-      data: { name: dto.name || "Unnamed" },
+      data: {
+        name: dto.name || "Unnamed",
+        parentId: dto.parentId ?? null,
+      },
     });
   }
+
   findAll() {
-    return this.prisma.category.findMany();
+    return this.prisma.category.findMany({
+      include: {
+        parent: true,
+        children: true,
+      },
+      orderBy: { id: "asc" },
+    });
+  }
+
+  findTree() {
+    return this.prisma.category.findMany({
+      where: { parentId: null },
+      include: {
+        children: {
+          include: {
+            children: true,
+          },
+        },
+      },
+      orderBy: { id: "asc" },
+    });
   }
 
   async findOne(id: number) {
-    const category = await this.prisma.category.findUnique({ where: { id } });
+    const category = await this.prisma.category.findUnique({
+      where: { id },
+      include: {
+        parent: true,
+        children: true,
+      },
+    });
     if (!category) throw new NotFoundException("Category not found");
     return category;
   }
@@ -26,7 +56,10 @@ export class CategoriesService {
     await this.findOne(id);
     return this.prisma.category.update({
       where: { id },
-      data: { name: dto.name },
+      data: {
+        ...(dto.name ? { name: dto.name } : {}),
+        ...(dto.parentId !== undefined ? { parentId: dto.parentId } : {}),
+      },
     });
   }
 

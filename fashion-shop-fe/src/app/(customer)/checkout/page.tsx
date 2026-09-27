@@ -186,9 +186,14 @@ export default function CheckoutPage() {
                   </div>
                   <div className="flex-1 flex flex-col justify-between py-0.5">
                     <p className="text-xs font-medium text-gray-800 line-clamp-2">
-                      {item.title}
+                      {item.productName || item.title}
                     </p>
-                    <p className="text-sm font-bold text-[#c92127]">
+                    {(item.size || item.color) && (
+                      <p className="text-[11px] text-gray-500">
+                        {[item.size, item.color].filter(Boolean).join(" - ")}
+                      </p>
+                    )}
+                    <p className="text-sm font-bold text-rose-600">
                       {(item.price * item.quantity).toLocaleString("vi-VN")} đ
                     </p>
                   </div>

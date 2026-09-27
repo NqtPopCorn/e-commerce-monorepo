@@ -1,6 +1,8 @@
-import React, { useState, useMemo } from "react";
-import { useGetBooks } from "@/hooks/useBooks";
+"use client";
+import React, { useMemo, useState } from "react";
+import { useGetProducts } from "@/hooks/useProducts";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -16,12 +18,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
+import { Search } from "lucide-react";
 
 interface ProductSelectionTableProps {
   selectedVariantIds: number[];
   excludedVariantIds?: number[];
-  onChange: (selectedIds: number[]) => void;
+  onChange: (ids: number[]) => void;
 }
 
 export function ProductSelectionTable({
@@ -29,31 +31,32 @@ export function ProductSelectionTable({
   excludedVariantIds = [],
   onChange,
 }: ProductSelectionTableProps) {
-  const { data: books, isLoading } = useGetBooks();
+  const { data: products, isLoading } = useGetProducts();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("ALL");
-  const [selectedPublisher, setSelectedPublisher] = useState<string>("ALL");
+  const [selectedBrand, setSelectedBrand] = useState<string>("ALL");
 
   const excludedSet = useMemo(() => new Set(excludedVariantIds), [excludedVariantIds]);
 
-  const { variants, categories, publishers } = useMemo(() => {
-    if (!books) return { variants: [], categories: [], publishers: [] };
+  const { variants, categories, brands } = useMemo(() => {
+    if (!products) return { variants: [], categories: [], brands: [] };
 
     const flatVariants: any[] = [];
     const catSet = new Set<string>();
-    const pubSet = new Set<string>();
+    const brandSet = new Set<string>();
 
-    books.forEach((book: any) => {
-      if (book.category?.name) catSet.add(book.category.name);
-      if (book.publisher) pubSet.add(book.publisher);
+    products.forEach((product: any) => {
+      const prodName = product.name || product.title || "Sản phẩm";
+      if (product.category?.name) catSet.add(product.category.name);
+      if (product.brand?.name) brandSet.add(product.brand.name);
 
-      book.variants?.forEach((variant: any) => {
+      product.variants?.forEach((variant: any) => {
         flatVariants.push({
           ...variant,
-          bookTitle: book.title,
-          categoryName: book.category?.name || "Khác",
-          publisher: book.publisher || "Khác",
+          productName: prodName,
+          categoryName: product.category?.name || "Khác",
+          brandName: product.brand?.name || "Khác",
         });
       });
     });
@@ -61,97 +64,90 @@ export function ProductSelectionTable({
     return {
       variants: flatVariants,
       categories: Array.from(catSet),
-      publishers: Array.from(pubSet),
+      brands: Array.from(brandSet),
     };
-  }, [books]);
+  }, [products]);
 
   const filteredVariants = useMemo(() => {
     return variants.filter((v: any) => {
       const matchSearch =
-        v.bookTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        v.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         v.sku.toLowerCase().includes(searchTerm.toLowerCase());
       const matchCat =
         selectedCategory === "ALL" || v.categoryName === selectedCategory;
-      const matchPub =
-        selectedPublisher === "ALL" || v.publisher === selectedPublisher;
-      return matchSearch && matchCat && matchPub;
+      const matchBrand =
+        selectedBrand === "ALL" || v.brandName === selectedBrand;
+      return matchSearch && matchCat && matchBrand;
     });
-  }, [variants, searchTerm, selectedCategory, selectedPublisher]);
+  }, [variants, searchTerm, selectedCategory, selectedBrand]);
 
-  const availableFilteredVariants = useMemo(() => {
-    return filteredVariants.filter((v) => !excludedSet.has(v.id));
-  }, [filteredVariants, excludedSet]);
+  const allFilteredSelected = useMemo(() => {
+    const selectable = filteredVariants.filter((v) => !excludedSet.has(v.id));
+    if (selectable.length === 0) return false;
+    return selectable.every((v) => selectedVariantIds.includes(v.id));
+  }, [filteredVariants, selectedVariantIds, excludedSet]);
 
-  const handleToggleSelectAll = (checked: boolean) => {
+  const handleSelectAllFiltered = (checked: boolean) => {
+    const selectableIds = filteredVariants
+      .filter((v) => !excludedSet.has(v.id))
+      .map((v) => v.id);
+
     if (checked) {
-      const availableIds = availableFilteredVariants.map((v) => v.id);
-      const newSelections = Array.from(
-        new Set([...selectedVariantIds, ...availableIds]),
+      const newSelected = Array.from(
+        new Set([...selectedVariantIds, ...selectableIds])
       );
-      onChange(newSelections);
+      onChange(newSelected);
     } else {
-      const availableIds = new Set(availableFilteredVariants.map((v) => v.id));
-      const newSelections = selectedVariantIds.filter(
-        (id) => !availableIds.has(id),
-      );
-      onChange(newSelections);
+      const selectableSet = new Set(selectableIds);
+      onChange(selectedVariantIds.filter((id) => !selectableSet.has(id)));
     }
   };
 
   const handleToggleSingle = (id: number, checked: boolean) => {
-    if (excludedSet.has(id)) return;
     if (checked) {
       onChange([...selectedVariantIds, id]);
     } else {
-      onChange(selectedVariantIds.filter((vId) => vId !== id));
+      onChange(selectedVariantIds.filter((item) => item !== id));
     }
   };
 
-  const isAllFilteredSelected =
-    availableFilteredVariants.length > 0 &&
-    availableFilteredVariants.every((v) => selectedVariantIds.includes(v.id));
-
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="space-y-1">
-          <Label>Tìm kiếm sản phẩm</Label>
+      {/* Controls: Search & Filter */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Tên sách, mã SKU..."
+            placeholder="Tìm theo tên sản phẩm hoặc SKU..."
+            className="pl-9"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <div className="space-y-1">
-          <Label>Danh mục</Label>
+        <div className="flex gap-2">
           <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-            <SelectTrigger className="bg-background">
-              <SelectValue placeholder="Tất cả danh mục" />
+            <SelectTrigger className="w-[160px]">
+              <SelectValue placeholder="Danh mục" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">Tất cả danh mục</SelectItem>
-              {categories.map((c) => (
-                <SelectItem key={c} value={c}>
-                  {c}
+              {categories.map((cat) => (
+                <SelectItem key={cat} value={cat}>
+                  {cat}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-        </div>
-        <div className="space-y-1">
-          <Label>Nhà xuất bản</Label>
-          <Select
-            value={selectedPublisher}
-            onValueChange={setSelectedPublisher}
-          >
-            <SelectTrigger className="bg-background">
-              <SelectValue placeholder="Tất cả NXB" />
+
+          <Select value={selectedBrand} onValueChange={setSelectedBrand}>
+            <SelectTrigger className="w-[160px]">
+              <SelectValue placeholder="Thương hiệu" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="ALL">Tất cả NXB</SelectItem>
-              {publishers.map((p) => (
-                <SelectItem key={p} value={p}>
-                  {p}
+              <SelectItem value="ALL">Tất cả thương hiệu</SelectItem>
+              {brands.map((b) => (
+                <SelectItem key={b} value={b}>
+                  {b}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -159,54 +155,60 @@ export function ProductSelectionTable({
         </div>
       </div>
 
-      <div className="rounded-md border bg-white overflow-hidden">
+      {/* Table Data */}
+      <div className="border rounded-md overflow-hidden bg-white shadow-sm">
         <div className="max-h-[350px] overflow-y-auto">
           <Table>
-            <TableHeader className="bg-slate-50 sticky top-0 z-10 shadow-sm">
+            <TableHeader className="bg-slate-50 sticky top-0 z-10">
               <TableRow>
                 <TableHead className="w-[50px] text-center">
                   <input
                     type="checkbox"
                     className="w-4 h-4 rounded border-gray-300 cursor-pointer align-middle"
-                    checked={isAllFilteredSelected}
-                    onChange={(e) => handleToggleSelectAll(e.target.checked)}
+                    checked={allFilteredSelected}
+                    onChange={(e) => handleSelectAllFiltered(e.target.checked)}
                   />
                 </TableHead>
-                <TableHead>SKU</TableHead>
-                <TableHead>Tên sách (Phiên bản)</TableHead>
+                <TableHead className="w-[120px]">SKU</TableHead>
+                <TableHead>Sản phẩm & Biến thể</TableHead>
                 <TableHead>Danh mục</TableHead>
+                <TableHead>Thương hiệu</TableHead>
                 <TableHead className="text-right">Giá bán</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell
-                    colSpan={5}
-                    className="text-center py-6 text-muted-foreground"
-                  >
-                    Đang tải dữ liệu...
+                  <TableCell colSpan={6} className="h-24 text-center">
+                    Đang tải dữ liệu sản phẩm...
                   </TableCell>
                 </TableRow>
               ) : filteredVariants.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={5}
-                    className="text-center py-6 text-muted-foreground"
+                    colSpan={6}
+                    className="h-24 text-center text-muted-foreground"
                   >
-                    Không tìm thấy sản phẩm nào.
+                    Không tìm thấy sản phẩm nào phù hợp.
                   </TableCell>
                 </TableRow>
               ) : (
                 filteredVariants.map((variant) => {
                   const isExcluded = excludedSet.has(variant.id);
                   const isSelected = selectedVariantIds.includes(variant.id);
+                  const variantSpecs = [variant.size, variant.color].filter(Boolean).join(" - ");
+
                   return (
                     <TableRow
                       key={variant.id}
-                      className={`cursor-pointer hover:bg-slate-50 ${
-                        isExcluded ? "opacity-50 bg-slate-100" : ""
+                      className={`hover:bg-slate-50 cursor-pointer select-none ${
+                        isExcluded ? "opacity-40 bg-slate-50" : ""
                       }`}
+                      onClick={() => {
+                        if (!isExcluded) {
+                          handleToggleSingle(variant.id, !isSelected);
+                        }
+                      }}
                     >
                       <TableCell
                         className="text-center"
@@ -222,14 +224,14 @@ export function ProductSelectionTable({
                           }
                         />
                       </TableCell>
-                      <TableCell className="font-mono text-sm">
+                      <TableCell className="font-mono text-xs">
                         {variant.sku}
                       </TableCell>
                       <TableCell>
-                        <span className="font-medium">{variant.bookTitle}</span>
-                        {variant.format && (
-                          <span className="text-muted-foreground ml-1">
-                            - {variant.format}
+                        <span className="font-medium">{variant.productName}</span>
+                        {variantSpecs && (
+                          <span className="text-muted-foreground ml-1.5 text-xs bg-slate-100 px-1.5 py-0.5 rounded">
+                            {variantSpecs}
                           </span>
                         )}
                         {isExcluded && (
@@ -238,7 +240,8 @@ export function ProductSelectionTable({
                           </span>
                         )}
                       </TableCell>
-                      <TableCell>{variant.categoryName}</TableCell>
+                      <TableCell className="text-sm">{variant.categoryName}</TableCell>
+                      <TableCell className="text-sm text-slate-600">{variant.brandName}</TableCell>
                       <TableCell className="text-right font-medium">
                         {Number(variant.sellingPrice).toLocaleString()}đ
                       </TableCell>
@@ -253,10 +256,10 @@ export function ProductSelectionTable({
           <span>Đang hiển thị {filteredVariants.length} kết quả</span>
           <span>
             Đã chọn{" "}
-            <strong className="text-slate-900">
+            <span className="font-semibold text-rose-600">
               {selectedVariantIds.length}
-            </strong>{" "}
-            sản phẩm
+            </span>{" "}
+            biến thể
           </span>
         </div>
       </div>
