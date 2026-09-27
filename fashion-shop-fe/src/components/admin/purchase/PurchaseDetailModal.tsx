@@ -27,7 +27,7 @@ export function PurchaseDetailModal({
   // Phiếu nhập (Batch) trong DB hiện tại chỉ map với 1 variant (1 sản phẩm)
   const items = [
     {
-      title: purchase.variant?.book?.title || "Sản phẩm không xác định",
+      title: (purchase.variant as any)?.product?.name || purchase.variant?.book?.title || "Sản phẩm không xác định",
       quantity: purchase.quantity || 0,
       // Vì DB không lưu giá nhập (cost), hiển thị 0 hoặc giá trị tượng trưng nếu muốn, ở đây để 0 đ
       price: 0, 
@@ -69,7 +69,7 @@ export function PurchaseDetailModal({
             <div>
               <p className="text-gray-500">Nhà cung cấp:</p>
               <p className="font-medium text-gray-800">
-                {purchase.variant?.book?.provider || "Chưa xác định"}
+                {(purchase.variant as any)?.product?.provider || purchase.variant?.book?.provider || "Fashion Shop Official"}
               </p>
             </div>
             <div>

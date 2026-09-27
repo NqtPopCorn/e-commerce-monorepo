@@ -1,6 +1,6 @@
 "use client";
 
-import { Package, TrendingUp, BookOpen } from "lucide-react";
+import { Package, TrendingUp, Shirt } from "lucide-react";
 import { useGetOverviewStats } from "@/hooks/useStatistics";
 import { RevenueChart } from "@/components/admin/charts/RevenueChart";
 import { StockChart } from "@/components/admin/charts/StockChart";
@@ -14,6 +14,8 @@ export default function AdminDashboardPage() {
         Đang tải dữ liệu thống kê...
       </div>
     );
+
+  const soldCount = stats?.productsSold ?? stats?.booksSold ?? 0;
 
   return (
     <div className="space-y-6">
@@ -48,17 +50,17 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
-        {/* Sách bán ra */}
+        {/* Sản phẩm bán ra */}
         <div className="bg-white rounded-xl shadow-sm border p-6 flex items-center space-x-4">
-          <div className="p-3 bg-orange-100 text-orange-600 rounded-full">
-            <BookOpen className="w-8 h-8" />
+          <div className="p-3 bg-rose-100 text-rose-600 rounded-full">
+            <Shirt className="w-8 h-8" />
           </div>
           <div>
             <p className="text-sm font-medium text-gray-500">
-              Tổng sách đã bán
+              Tổng sản phẩm đã bán
             </p>
             <h3 className="text-2xl font-bold text-gray-800">
-              {stats?.booksSold || 0} cuốn
+              {soldCount} sản phẩm
             </h3>
           </div>
         </div>

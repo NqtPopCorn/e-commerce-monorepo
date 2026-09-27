@@ -30,7 +30,9 @@ export default function PurchasePage() {
 
   const filteredBatches = batches?.filter((b: any) => 
     b.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    b.variant?.book?.title?.toLowerCase().includes(searchTerm.toLowerCase())
+    (b.variant?.product?.name || b.variant?.book?.title || "")
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -82,7 +84,7 @@ export default function PurchasePage() {
               <TableRow className="hover:bg-transparent">
                 <TableHead className="w-[130px] font-semibold text-gray-600">Mã phiếu</TableHead>
                 <TableHead className="font-semibold text-gray-600 min-w-[150px]">Ngày nhập</TableHead>
-                <TableHead className="font-semibold text-gray-600 min-w-[250px]">Sản phẩm (Sách)</TableHead>
+                <TableHead className="font-semibold text-gray-600 min-w-[250px]">Sản phẩm</TableHead>
                 <TableHead className="font-semibold text-gray-600">Người tạo</TableHead>
                 <TableHead className="text-right font-semibold text-gray-600">Số lượng</TableHead>
                 <TableHead className="text-center font-semibold text-gray-600">Trạng thái</TableHead>
@@ -130,7 +132,7 @@ export default function PurchasePage() {
                       }).format(new Date(p.createdAt))}
                     </TableCell>
                     <TableCell>
-                      <div className="font-medium text-gray-900 line-clamp-1">{p.variant?.book?.title || 'Sách không xác định'}</div>
+                      <div className="font-medium text-gray-900 line-clamp-1">{p.variant?.product?.name || p.variant?.book?.title || 'Sản phẩm không xác định'}</div>
                       <div className="text-xs text-gray-500 mt-0.5">SKU: {p.variant?.sku || 'N/A'}</div>
                     </TableCell>
                     <TableCell>
@@ -143,7 +145,7 @@ export default function PurchasePage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <span className="inline-flex items-center justify-center px-2.5 py-1 rounded-md bg-indigo-50 text-indigo-700 font-semibold border border-indigo-100">
-                        {p.quantity} quyển
+                        {p.quantity} chiếc
                       </span>
                     </TableCell>
                     <TableCell className="text-center">

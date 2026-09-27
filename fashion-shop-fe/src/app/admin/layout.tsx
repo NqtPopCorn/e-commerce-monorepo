@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/auth.store";
 import {
-  Book,
+  Shirt,
   ShoppingBag,
   Truck,
   BarChart,
@@ -20,7 +20,7 @@ const allNavs = [
   {
     name: "Products",
     link: "/admin/products",
-    icon: <Book className="w-5 h-5 mr-3" />,
+    icon: <Shirt className="w-5 h-5 mr-3" />,
   },
   {
     name: "Orders",

@@ -22,7 +22,7 @@ export default function RegisterPage() {
     try {
       const result = await authService.register(form);
       setAuth(result.accessToken, result.user);
-      router.push("/books");
+      router.push("/products");
     } catch {
       setError("Không thể đăng ký tài khoản.");
     } finally {

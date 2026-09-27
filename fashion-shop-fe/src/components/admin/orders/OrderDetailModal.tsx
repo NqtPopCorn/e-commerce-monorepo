@@ -124,7 +124,8 @@ export function OrderDetailModal({
                   const prodDisc = Number(item.productDiscount || 0);
                   const finalPrice = Number(item.finalUnitPrice || item.unitPrice || 0);
                   const totalLine = (finalPrice > 0 ? finalPrice : origPrice) * item.quantity;
-                  const title = item.variant?.book?.title || item.title || "Sản phẩm";
+                  const title = item.variant?.product?.name || item.variant?.book?.title || item.title || "Sản phẩm";
+                  const variantInfo = [item.variant?.size, item.variant?.color].filter(Boolean).join(" - ");
                   const sku = item.variant?.sku || "";
 
                   return (

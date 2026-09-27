@@ -4,8 +4,9 @@ import { PrismaService } from "../../prisma/prisma.service";
 @Injectable()
 export class StatisticsService {
   constructor(private readonly prisma: PrismaService) {}
+
   async overview() {
-    const [orders, revenue, booksSold] = await Promise.all([
+    const [orders, revenue, productsSold] = await Promise.all([
       this.prisma.order.count({ where: { status: { not: "CANCELLED" } } }),
       this.prisma.order.aggregate({
         where: { status: { not: "CANCELLED" } },
@@ -13,10 +14,12 @@ export class StatisticsService {
       }),
       this.prisma.orderItem.aggregate({ _sum: { quantity: true } }),
     ]);
+    const soldCount = productsSold._sum.quantity ?? 0;
     return {
       orders,
       revenue: revenue._sum.total ?? 0,
-      booksSold: booksSold._sum.quantity ?? 0,
+      productsSold: soldCount,
+      booksSold: soldCount, // Giữ để tương thích ngược nếu FE còn dùng
     };
   }
 
@@ -53,15 +56,15 @@ export class StatisticsService {
     // Lấy số lượng tồn kho theo danh mục
     const categories = await this.prisma.category.findMany({
       include: {
-        books: { include: { variants: { select: { stock: true } } } },
+        products: { include: { variants: { select: { stock: true } } } },
       },
     });
 
     return categories.map((cat) => ({
       name: cat.name,
-      stock: cat.books.reduce((sum, book) => {
+      stock: cat.products.reduce((sum, product) => {
         return (
-          sum + book.variants.reduce((vSum, variant) => vSum + variant.stock, 0)
+          sum + product.variants.reduce((vSum, variant) => vSum + variant.stock, 0)
         );
       }, 0),
     }));

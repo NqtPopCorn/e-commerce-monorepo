@@ -1,6 +1,12 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-type User = { id: number; email: string; role: string };
+type User = {
+  id: number;
+  email: string;
+  role: string;
+  firstName?: string;
+  lastName?: string;
+};
 type AuthState = {
   token: string | null;
   user: User | null;
@@ -26,7 +32,7 @@ export const useAuthStore = create<AuthState>()(
       },
     }),
     {
-      name: "book-shop-auth",
+      name: "fashion-shop-auth",
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);
       },

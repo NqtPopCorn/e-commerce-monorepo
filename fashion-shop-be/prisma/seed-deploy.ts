@@ -12,7 +12,7 @@ async function main() {
   console.log("Seeding deploy data (essential accounts)...");
 
   // Tạo tài khoản Admin mặc định để deploy
-  const adminEmail = process.env.ADMIN_EMAIL || "admin@fahasa.com";
+  const adminEmail = process.env.ADMIN_EMAIL || "admin@fashionshop.com";
   const rawPassword = process.env.ADMIN_PASSWORD || "admin123456";
   const hashedPassword = await bcrypt.hash(rawPassword, 10);
 

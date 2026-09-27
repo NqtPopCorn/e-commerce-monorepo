@@ -6,7 +6,7 @@ async function runTests() {
   console.log("Running PromotionPricingService unit tests...");
 
   const mockPrisma: any = {
-    bookVariant: {
+    productVariant: {
       findMany: async () => [],
     },
     promotion: {
@@ -24,7 +24,7 @@ async function runTests() {
   console.log("✔ calculateDiscount tests passed");
 
   // 2. Highest priority campaign winner
-  mockPrisma.bookVariant.findMany = async () => [{ id: 1, sellingPrice: 100000 }];
+  mockPrisma.productVariant.findMany = async () => [{ id: 1, sellingPrice: 100000 }];
   mockPrisma.promotion.findMany = async () => [
     {
       id: 10,
@@ -106,7 +106,7 @@ async function runTests() {
   console.log("✔ Tie-breaker (smaller ID) passed");
 
   // 4. Auto invoice winner (highest monetary discount)
-  mockPrisma.bookVariant.findMany = async () => [{ id: 1, sellingPrice: 500000 }];
+  mockPrisma.productVariant.findMany = async () => [{ id: 1, sellingPrice: 500000 }];
   mockPrisma.promotion.findMany = async () => [
     {
       id: 1,
