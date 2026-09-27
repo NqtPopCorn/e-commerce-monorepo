@@ -3,6 +3,7 @@ import { PrismaClient, Prisma } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 import { fakerVI as faker } from "@faker-js/faker";
+import * as bcrypt from "bcrypt";
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const adapter = new PrismaPg(pool);
@@ -22,8 +23,34 @@ function slugify(text: string): string {
 async function main() {
   console.log("Seeding fashion sample data (mock)...");
 
-  // 1. Create Mock Users
-  const users = [];
+  // 1. Create Default Admin & Customer Users
+  const adminPassword = await bcrypt.hash("admin123", 10);
+  await prisma.user.upsert({
+    where: { email: "admin@fashionshop.com" },
+    update: { password: adminPassword, role: "ADMIN" },
+    create: {
+      email: "admin@fashionshop.com",
+      password: adminPassword,
+      firstName: "Admin",
+      lastName: "System",
+      role: "ADMIN",
+    },
+  });
+
+  const demoUserPassword = await bcrypt.hash("user123", 10);
+  const demoCustomer = await prisma.user.upsert({
+    where: { email: "user@fashionshop.com" },
+    update: { password: demoUserPassword, role: "CUSTOMER" },
+    create: {
+      email: "user@fashionshop.com",
+      password: demoUserPassword,
+      firstName: "Khách",
+      lastName: "Hàng Mẫu",
+      role: "CUSTOMER",
+    },
+  });
+
+  const users = [demoCustomer];
   for (let i = 0; i < 9; i++) {
     const email = faker.internet.email();
     const user = await prisma.user.upsert({
@@ -39,7 +66,7 @@ async function main() {
     });
     users.push(user);
   }
-  console.log("Created 9 mock customer users");
+  console.log("Created admin, demo customer, and 9 mock customer users");
 
   // 2. Create Brands
   const brandData = [

@@ -96,8 +96,14 @@ export default function AdminLoginPage() {
   }
 
   const fillAdminCredentials = () => {
-    form.setValue("email", "admin@fashionshop.com");
-    form.setValue("password", "admin123");
+    form.setValue("email", "admin@fashionshop.com", {
+      shouldValidate: true,
+      shouldDirty: true,
+    });
+    form.setValue("password", "admin123", {
+      shouldValidate: true,
+      shouldDirty: true,
+    });
     setError(null);
   };
 
@@ -241,10 +247,10 @@ export default function AdminLoginPage() {
             <button
               type="button"
               onClick={fillAdminCredentials}
-              className="w-full py-2 px-3 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors flex items-center justify-center gap-1.5 border border-slate-200/60"
+              className="w-full py-2.5 px-3 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors flex items-center justify-center gap-1.5 border border-slate-200/80 cursor-pointer"
             >
               <KeyRound className="w-3.5 h-3.5 text-rose-500" />
-              <span>Điền nhanh tài khoản Admin mẫu</span>
+              <span>Điền mẫu: admin@fashionshop.com (admin123 / admin123456)</span>
             </button>
           </div>
         </div>

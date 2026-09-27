@@ -13,12 +13,15 @@ async function main() {
 
   // Tạo tài khoản Admin mặc định để deploy
   const adminEmail = process.env.ADMIN_EMAIL || "admin@fashionshop.com";
-  const rawPassword = process.env.ADMIN_PASSWORD || "admin123456";
+  const rawPassword = process.env.ADMIN_PASSWORD || "admin123";
   const hashedPassword = await bcrypt.hash(rawPassword, 10);
 
   await prisma.user.upsert({
     where: { email: adminEmail },
-    update: {},
+    update: {
+      password: hashedPassword,
+      role: "ADMIN",
+    },
     create: {
       email: adminEmail,
       password: hashedPassword,
@@ -28,7 +31,25 @@ async function main() {
     },
   });
 
-  console.log(`Created default admin account: ${adminEmail}`);
+  // Tạo tài khoản Customer mẫu để test
+  const userHashedPassword = await bcrypt.hash("user123", 10);
+  await prisma.user.upsert({
+    where: { email: "user@fashionshop.com" },
+    update: {
+      password: userHashedPassword,
+      role: "CUSTOMER",
+    },
+    create: {
+      email: "user@fashionshop.com",
+      password: userHashedPassword,
+      firstName: "Khách",
+      lastName: "Hàng Mẫu",
+      role: "CUSTOMER",
+    },
+  });
+
+  console.log(`Created default admin account: ${adminEmail} (password: ${rawPassword})`);
+  console.log(`Created default customer account: user@fashionshop.com (password: user123)`);
   console.log("Deploy seeding complete!");
 }
 
