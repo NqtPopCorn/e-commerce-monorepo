@@ -4,7 +4,7 @@
 Fashion Shop là một nền tảng e-commerce chuyên về thời trang / quần áo, được xây dựng dưới dạng monorepo full-stack.
 
 ## Tech Stack
-- **Backend**: NestJS v11, TypeScript, Prisma v6, PostgreSQL
+- **Backend**: NestJS v11, TypeScript, Prisma v7, PostgreSQL
 - **Frontend**: Next.js v15 (App Router), React 19, Tailwind CSS, shadcn/ui (Radix UI)
 - **Auth**: JWT + Passport (BE), NextAuth.js (FE)
 - **State**: Zustand (client-side), React Query / TanStack Query (server-side)
