@@ -157,7 +157,7 @@ export default function AdminPromotionsPage() {
     }
 
     if (!p.discountType || !p.discountValue) return "-";
-    if (p.discountType === "PERCENT") return `Giảm ${p.discountValue}%`;
+    if (p.discountType === "PERCENT") return `Giảm ${p.discountValue}% ${p.maxDiscountValue ? `(Max ${Number(p.maxDiscountValue).toLocaleString("vi-VN")}₫)` : ""}`;
     return `Giảm ${Number(p.discountValue).toLocaleString("vi-VN")}₫`;
   };
 

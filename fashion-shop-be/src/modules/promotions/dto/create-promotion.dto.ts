@@ -54,6 +54,15 @@ export class CreatePromotionDto {
   @Min(0)
   minOrderAmount?: number;
 
+  @ValidateIf(
+    (o) =>
+      (o.kind === PromotionKind.VOUCHER || o.kind === PromotionKind.ORDER_AUTO) && o.discountType === DiscountType.PERCENT,
+  )
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  maxDiscountValue?: number;
+
   @IsOptional()
   @IsInt()
   priority?: number;

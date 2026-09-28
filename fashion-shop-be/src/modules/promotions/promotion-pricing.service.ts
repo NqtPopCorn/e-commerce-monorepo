@@ -43,6 +43,7 @@ export class PromotionPricingService {
     base: number,
     type: DiscountType | null | undefined,
     value: number | Prisma.Decimal | null | undefined,
+    maxValue?: number | Prisma.Decimal | null,
   ): number {
     if (!type || value === undefined || value === null) return 0;
     const numValue = Number(value);
@@ -51,6 +52,10 @@ export class PromotionPricingService {
     let discount = 0;
     if (type === DiscountType.PERCENT) {
       discount = Math.floor((base * numValue) / 100);
+      if (maxValue !== undefined && maxValue !== null) {
+        const maxLimit = Number(maxValue);
+        if (maxLimit > 0) discount = Math.min(discount, maxLimit);
+      }
     } else if (type === DiscountType.FIXED) {
       discount = Math.min(base, numValue);
     }
@@ -217,6 +222,7 @@ export class PromotionPricingService {
           subtotalAfterProductDiscount,
           autoPromo.discountType,
           autoPromo.discountValue,
+          autoPromo.maxDiscountValue,
         );
         if (disc > 0) {
           autoCandidates.push({
@@ -283,6 +289,7 @@ export class PromotionPricingService {
           remainingBeforeVoucher,
           voucher.discountType,
           voucher.discountValue,
+          voucher.maxDiscountValue,
         );
         if (voucherDiscount > 0) {
           appliedPromotions.push({

@@ -40,6 +40,9 @@ export function PromotionForm({
   const [minOrderAmount, setMinOrderAmount] = useState<number>(
     initialData?.minOrderAmount ? Number(initialData.minOrderAmount) : 0,
   );
+  const [maxDiscountValue, setMaxDiscountValue] = useState<number | undefined>(
+    initialData?.maxDiscountValue ? Number(initialData.maxDiscountValue) : undefined,
+  );
   const [priority, setPriority] = useState<number>(initialData?.priority || 0);
   const [maxUses, setMaxUses] = useState<number | undefined>(
     initialData?.maxUses ? Number(initialData.maxUses) : undefined,
@@ -91,6 +94,7 @@ export function PromotionForm({
     if (field === "code") setCode(value);
     if (field === "discountType") setDiscountType(value);
     if (field === "discountValue") setDiscountValue(value);
+    if (field === "maxDiscountValue") setMaxDiscountValue(value);
     if (field === "minOrderAmount") setMinOrderAmount(value);
     if (field === "maxUses") setMaxUses(value);
   };
@@ -162,6 +166,7 @@ export function PromotionForm({
       code: kind === "VOUCHER" ? code.trim().toUpperCase() : undefined,
       discountType: kind !== "CAMPAIGN" ? discountType : undefined,
       discountValue: kind !== "CAMPAIGN" ? discountValue : undefined,
+      maxDiscountValue: kind !== "CAMPAIGN" && discountType === "PERCENT" ? maxDiscountValue : undefined,
       minOrderAmount: kind !== "CAMPAIGN" ? minOrderAmount : undefined,
       maxUses: kind === "VOUCHER" ? maxUses : undefined,
       groups: kind === "CAMPAIGN" ? groups : undefined,
@@ -188,6 +193,7 @@ export function PromotionForm({
         code={code}
         discountType={discountType}
         discountValue={discountValue}
+        maxDiscountValue={maxDiscountValue}
         minOrderAmount={minOrderAmount}
         maxUses={maxUses}
         onChange={handleDiscountChange}

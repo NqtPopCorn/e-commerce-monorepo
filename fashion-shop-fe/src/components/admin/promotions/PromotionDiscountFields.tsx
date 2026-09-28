@@ -15,6 +15,7 @@ interface PromotionDiscountFieldsProps {
   code?: string;
   discountType?: DiscountType;
   discountValue?: number;
+  maxDiscountValue?: number;
   minOrderAmount?: number;
   maxUses?: number;
   onChange: (field: string, value: any) => void;
@@ -25,6 +26,7 @@ export function PromotionDiscountFields({
   code = "",
   discountType = "FIXED",
   discountValue = 0,
+  maxDiscountValue = 0,
   minOrderAmount = 0,
   maxUses = 0,
   onChange,
@@ -90,6 +92,23 @@ export function PromotionDiscountFields({
             className="bg-white"
           />
         </div>
+
+        {discountType === "PERCENT" && (
+          <div className="space-y-2">
+            <Label htmlFor="maxDiscountValue">Số tiền giảm tối đa (VND)</Label>
+            <Input
+              id="maxDiscountValue"
+              type="number"
+              min={0}
+              placeholder="VD: 50000 (Để trống nếu không giới hạn)"
+              value={maxDiscountValue || ""}
+              onChange={(e) =>
+                onChange("maxDiscountValue", parseFloat(e.target.value) || 0)
+              }
+              className="bg-white"
+            />
+          </div>
+        )}
 
         <div className="space-y-2">
           <Label htmlFor="minOrderAmount">

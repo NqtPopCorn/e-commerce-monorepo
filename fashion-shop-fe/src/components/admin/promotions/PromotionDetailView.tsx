@@ -171,7 +171,7 @@ export function PromotionDetailView({
             promotion.kind === "CAMPAIGN"
               ? `${groups.length} nhóm SKU`
               : promotion.discountType === "PERCENT"
-                ? `Giảm ${promotion.discountValue}%`
+                ? `Giảm ${promotion.discountValue}% ${promotion.maxDiscountValue ? `(Max ${Number(promotion.maxDiscountValue).toLocaleString("vi-VN")}₫)` : ""}`
                 : `Giảm ${Number(promotion.discountValue || 0).toLocaleString("vi-VN")}₫`
           }
           subtitle={
@@ -355,7 +355,7 @@ export function PromotionDetailView({
               </span>
               <div className="mt-1 font-semibold text-slate-800 text-sm">
                 {promotion.discountType === "PERCENT"
-                  ? `Giảm ${promotion.discountValue}% trên tổng đơn`
+                  ? `Giảm ${promotion.discountValue}% trên tổng đơn ${promotion.maxDiscountValue ? `(Tối đa: ${Number(promotion.maxDiscountValue).toLocaleString("vi-VN")}₫)` : ""}`
                   : `Giảm ${Number(promotion.discountValue || 0).toLocaleString("vi-VN")}₫`}
               </div>
             </div>
@@ -419,7 +419,7 @@ export function PromotionDetailView({
               </span>
               <div className="mt-1 font-semibold text-slate-800 text-sm">
                 {promotion.discountType === "PERCENT"
-                  ? `Giảm ${promotion.discountValue}%`
+                  ? `Giảm ${promotion.discountValue}% ${promotion.maxDiscountValue ? `(Tối đa: ${Number(promotion.maxDiscountValue).toLocaleString("vi-VN")}₫)` : ""}`
                   : `Giảm ${Number(promotion.discountValue || 0).toLocaleString("vi-VN")}₫`}
               </div>
             </div>

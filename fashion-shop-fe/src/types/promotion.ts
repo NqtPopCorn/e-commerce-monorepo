@@ -31,6 +31,7 @@ export interface Promotion {
   code?: string | null;
   discountType?: DiscountType | null;
   discountValue?: number | null;
+  maxDiscountValue?: number | null;
   minOrderAmount?: number | null;
   priority: number;
   maxUses?: number | null;
@@ -57,6 +58,7 @@ export interface CreatePromotionDto {
   code?: string;
   discountType?: DiscountType;
   discountValue?: number;
+  maxDiscountValue?: number;
   minOrderAmount?: number;
   priority?: number;
   maxUses?: number;
