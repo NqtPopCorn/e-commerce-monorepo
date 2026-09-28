@@ -1,213 +1,232 @@
-import assert from "node:assert/strict";
-import { DiscountType, PromotionKind } from "@prisma/client";
-import { PromotionPricingService } from "./promotion-pricing.service";
+import { Test, TestingModule } from '@nestjs/testing';
+import { PromotionPricingService } from './promotion-pricing.service';
+import { PrismaService } from '../../prisma/prisma.service';
+import { DiscountType, PromotionKind } from '@prisma/client';
+import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
 
-async function runTests() {
-  console.log("Running PromotionPricingService unit tests...");
+describe('PromotionPricingService', () => {
+  let service: PromotionPricingService;
+  let prismaMock: DeepMockProxy<PrismaService>;
 
-  const mockPrisma: any = {
-    productVariant: {
-      findMany: async () => [],
-    },
-    promotion: {
-      findMany: async () => [],
-      findUnique: async () => null,
-    },
-  };
+  beforeEach(async () => {
+    prismaMock = mockDeep<PrismaService>();
 
-  const service = new PromotionPricingService(mockPrisma);
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        PromotionPricingService,
+        { provide: PrismaService, useValue: prismaMock },
+      ],
+    }).compile();
 
-  // 1. calculateDiscount
-  assert.equal(
-    service.calculateDiscount(100000, DiscountType.PERCENT, 10),
-    10000,
-  );
-  assert.equal(
-    service.calculateDiscount(50000, DiscountType.FIXED, 80000),
-    50000,
-  );
-  assert.equal(
-    service.calculateDiscount(100000, DiscountType.PERCENT, 15),
-    15000,
-  );
-  console.log("✔ calculateDiscount tests passed");
+    service = module.get<PromotionPricingService>(PromotionPricingService);
+  });
 
-  // 2. Highest priority campaign winner
-  mockPrisma.productVariant.findMany = async () => [
-    { id: 1, sellingPrice: 100000 },
-  ];
-  mockPrisma.promotion.findMany = async () => [
-    {
-      id: 10,
-      name: "Low Priority Campaign",
-      kind: PromotionKind.CAMPAIGN,
-      priority: 5,
-      active: true,
-      startsAt: new Date("2026-01-01"),
-      groups: [
+  describe('calculateDiscount', () => {
+    it('should calculate PERCENT discount correctly', () => {
+      expect(service.calculateDiscount(100000, DiscountType.PERCENT, 10)).toBe(10000);
+    });
+
+    it('should calculate FIXED discount up to max price', () => {
+      expect(service.calculateDiscount(50000, DiscountType.FIXED, 80000)).toBe(50000);
+    });
+
+    it('should calculate PERCENT discount with another value', () => {
+      expect(service.calculateDiscount(100000, DiscountType.PERCENT, 15)).toBe(15000);
+    });
+  });
+
+  describe('quote (Priority Resolution)', () => {
+    it('should resolve highest priority campaign winner', async () => {
+      prismaMock.productVariant.findMany.mockResolvedValue([
+        { id: 1, sellingPrice: 100000 } as any,
+      ]);
+
+      prismaMock.promotion.findMany.mockResolvedValue([
         {
-          id: 101,
+          id: 10,
+          name: 'Low Priority Campaign',
+          kind: PromotionKind.CAMPAIGN,
+          priority: 5,
+          active: true,
+          startsAt: new Date('2026-01-01'),
+          groups: [
+            {
+              id: 101,
+              discountType: DiscountType.PERCENT,
+              discountValue: 20,
+              variants: [{ variantId: 1 }],
+            },
+          ],
+        } as any,
+        {
+          id: 20,
+          name: 'High Priority Campaign',
+          kind: PromotionKind.CAMPAIGN,
+          priority: 10,
+          active: true,
+          startsAt: new Date('2026-01-01'),
+          groups: [
+            {
+              id: 201,
+              discountType: DiscountType.PERCENT,
+              discountValue: 10,
+              variants: [{ variantId: 1 }],
+            },
+          ],
+        } as any,
+      ]);
+
+      const res = await service.quote([{ variantId: 1, quantity: 1 }]);
+      expect(res.subtotal).toBe(100000);
+      expect(res.productDiscount).toBe(10000);
+      expect(res.lines[0].campaign?.id).toBe(20);
+    });
+
+    it('should resolve priority tie breaker (smaller ID wins if discount is same)', async () => {
+      prismaMock.productVariant.findMany.mockResolvedValue([
+        { id: 1, sellingPrice: 100000 } as any,
+      ]);
+      prismaMock.promotion.findMany.mockResolvedValue([
+        {
+          id: 30,
+          name: 'Campaign 30',
+          kind: PromotionKind.CAMPAIGN,
+          priority: 10,
+          active: true,
+          startsAt: new Date('2026-01-01'),
+          groups: [
+            {
+              id: 301,
+              discountType: DiscountType.FIXED,
+              discountValue: 10000,
+              variants: [{ variantId: 1 }],
+            },
+          ],
+        } as any,
+        {
+          id: 10,
+          name: 'Campaign 10',
+          kind: PromotionKind.CAMPAIGN,
+          priority: 10,
+          active: true,
+          startsAt: new Date('2026-01-01'),
+          groups: [
+            {
+              id: 101,
+              discountType: DiscountType.FIXED,
+              discountValue: 10000,
+              variants: [{ variantId: 1 }],
+            },
+          ],
+        } as any,
+      ]);
+
+      const res = await service.quote([{ variantId: 1, quantity: 1 }]);
+      expect(res.lines[0].campaign?.id).toBe(10);
+    });
+  });
+
+  describe('quote (Order Auto Invoice)', () => {
+    it('should apply auto invoice winner with highest monetary discount', async () => {
+      prismaMock.productVariant.findMany.mockResolvedValue([
+        { id: 1, sellingPrice: 500000 } as any,
+      ]);
+
+      prismaMock.promotion.findMany.mockResolvedValue([
+        {
+          id: 1,
+          name: 'Auto Promo 50k',
+          kind: PromotionKind.ORDER_AUTO,
+          discountType: DiscountType.FIXED,
+          discountValue: 50000,
+          minOrderAmount: 300000,
+          active: true,
+          startsAt: new Date('2026-01-01'),
+          groups: [],
+        } as any,
+        {
+          id: 2,
+          name: 'Auto Promo 20%',
+          kind: PromotionKind.ORDER_AUTO,
           discountType: DiscountType.PERCENT,
           discountValue: 20,
-          variants: [{ variantId: 1 }],
-        },
-      ],
-    },
-    {
-      id: 20,
-      name: "High Priority Campaign",
-      kind: PromotionKind.CAMPAIGN,
-      priority: 10,
-      active: true,
-      startsAt: new Date("2026-01-01"),
-      groups: [
-        {
-          id: 201,
-          discountType: DiscountType.PERCENT,
-          discountValue: 10,
-          variants: [{ variantId: 1 }],
-        },
-      ],
-    },
-  ];
+          minOrderAmount: 400000,
+          active: true,
+          startsAt: new Date('2026-01-01'),
+          groups: [],
+        } as any,
+      ]);
 
-  let res = await service.quote([{ variantId: 1, quantity: 1 }]);
-  assert.equal(res.subtotal, 100000);
-  assert.equal(res.productDiscount, 10000);
-  assert.equal(res.lines[0].campaign?.id, 20);
-  console.log("✔ Priority resolution passed");
-
-  // 3. Priority tie breaker (larger monetary discount then smaller ID)
-  mockPrisma.promotion.findMany = async () => [
-    {
-      id: 30,
-      name: "Campaign 30",
-      kind: PromotionKind.CAMPAIGN,
-      priority: 10,
-      active: true,
-      startsAt: new Date("2026-01-01"),
-      groups: [
-        {
-          id: 301,
-          discountType: DiscountType.FIXED,
-          discountValue: 10000,
-          variants: [{ variantId: 1 }],
-        },
-      ],
-    },
-    {
-      id: 10,
-      name: "Campaign 10",
-      kind: PromotionKind.CAMPAIGN,
-      priority: 10,
-      active: true,
-      startsAt: new Date("2026-01-01"),
-      groups: [
-        {
-          id: 101,
-          discountType: DiscountType.FIXED,
-          discountValue: 10000,
-          variants: [{ variantId: 1 }],
-        },
-      ],
-    },
-  ];
-  res = await service.quote([{ variantId: 1, quantity: 1 }]);
-  assert.equal(res.lines[0].campaign?.id, 10);
-  console.log("✔ Tie-breaker (smaller ID) passed");
-
-  // 4. Auto invoice winner (highest monetary discount)
-  mockPrisma.productVariant.findMany = async () => [
-    { id: 1, sellingPrice: 500000 },
-  ];
-  mockPrisma.promotion.findMany = async () => [
-    {
-      id: 1,
-      name: "Auto Promo 50k",
-      kind: PromotionKind.ORDER_AUTO,
-      discountType: DiscountType.FIXED,
-      discountValue: 50000,
-      minOrderAmount: 300000,
-      active: true,
-      startsAt: new Date("2026-01-01"),
-      groups: [],
-    },
-    {
-      id: 2,
-      name: "Auto Promo 20%",
-      kind: PromotionKind.ORDER_AUTO,
-      discountType: DiscountType.PERCENT,
-      discountValue: 20,
-      minOrderAmount: 400000,
-      active: true,
-      startsAt: new Date("2026-01-01"),
-      groups: [],
-    },
-  ];
-  res = await service.quote([{ variantId: 1, quantity: 1 }]);
-  assert.equal(res.subtotal, 500000);
-  assert.equal(res.orderDiscount, 100000);
-  console.log("✔ Auto invoice winner resolution passed");
-
-  // 5. Voucher calculated after auto invoice
-  mockPrisma.promotion.findMany = async () => [
-    {
-      id: 1,
-      name: "Auto Promo 100k",
-      kind: PromotionKind.ORDER_AUTO,
-      discountType: DiscountType.FIXED,
-      discountValue: 100000,
-      minOrderAmount: 300000,
-      active: true,
-      startsAt: new Date("2026-01-01"),
-      groups: [],
-    },
-  ];
-  mockPrisma.promotion.findUnique = async () => ({
-    id: 99,
-    name: "Voucher 10%",
-    kind: PromotionKind.VOUCHER,
-    code: "VOUCHER10",
-    discountType: DiscountType.PERCENT,
-    discountValue: 10,
-    minOrderAmount: 300000,
-    active: true,
-    startsAt: new Date("2026-01-01"),
-    usedCount: 0,
-    maxUses: 10,
+      const res = await service.quote([{ variantId: 1, quantity: 1 }]);
+      expect(res.subtotal).toBe(500000);
+      expect(res.orderDiscount).toBe(100000);
+    });
   });
 
-  res = await service.quote([{ variantId: 1, quantity: 1 }], "VOUCHER10");
-  assert.equal(res.subtotal, 500000);
-  assert.equal(res.orderDiscount, 100000);
-  assert.equal(res.voucherDiscount, 40000);
-  assert.equal(res.total, 360000);
-  console.log("✔ Voucher after auto invoice passed");
+  describe('quote (Voucher)', () => {
+    it('should calculate voucher after auto invoice', async () => {
+      prismaMock.productVariant.findMany.mockResolvedValue([
+        { id: 1, sellingPrice: 500000 } as any,
+      ]);
 
-  // 6. Max uses exceeded voucher error
-  mockPrisma.promotion.findMany = async () => [];
-  mockPrisma.promotion.findUnique = async () => ({
-    id: 99,
-    name: "Exhausted Voucher",
-    kind: PromotionKind.VOUCHER,
-    code: "EXHAUSTED",
-    discountType: DiscountType.FIXED,
-    discountValue: 50000,
-    active: true,
-    startsAt: new Date("2026-01-01"),
-    usedCount: 10,
-    maxUses: 10,
+      prismaMock.promotion.findMany.mockResolvedValue([
+        {
+          id: 1,
+          name: 'Auto Promo 100k',
+          kind: PromotionKind.ORDER_AUTO,
+          discountType: DiscountType.FIXED,
+          discountValue: 100000,
+          minOrderAmount: 300000,
+          active: true,
+          startsAt: new Date('2026-01-01'),
+          groups: [],
+        } as any,
+      ]);
+
+      prismaMock.promotion.findUnique.mockResolvedValue({
+        id: 99,
+        name: 'Voucher 10%',
+        kind: PromotionKind.VOUCHER,
+        code: 'VOUCHER10',
+        discountType: DiscountType.PERCENT,
+        discountValue: 10,
+        minOrderAmount: 300000,
+        active: true,
+        startsAt: new Date('2026-01-01'),
+        usedCount: 0,
+        maxUses: 10,
+      } as any);
+
+      const res = await service.quote([{ variantId: 1, quantity: 1 }], 'VOUCHER10');
+      expect(res.subtotal).toBe(500000);
+      expect(res.orderDiscount).toBe(100000);
+      expect(res.voucherDiscount).toBe(40000);
+      expect(res.total).toBe(360000);
+    });
+
+    it('should handle max uses exceeded voucher error', async () => {
+      prismaMock.productVariant.findMany.mockResolvedValue([
+        { id: 1, sellingPrice: 500000 } as any,
+      ]);
+      
+      prismaMock.promotion.findMany.mockResolvedValue([]);
+
+      prismaMock.promotion.findUnique.mockResolvedValue({
+        id: 99,
+        name: 'Exhausted Voucher',
+        kind: PromotionKind.VOUCHER,
+        code: 'EXHAUSTED',
+        discountType: DiscountType.FIXED,
+        discountValue: 50000,
+        active: true,
+        startsAt: new Date('2026-01-01'),
+        usedCount: 10,
+        maxUses: 10,
+      } as any);
+
+      const res = await service.quote([{ variantId: 1, quantity: 1 }], 'EXHAUSTED');
+      expect(res.voucherError).toBe('Mã voucher đã hết lượt sử dụng');
+      expect(res.voucherDiscount).toBe(0);
+    });
   });
-
-  res = await service.quote([{ variantId: 1, quantity: 1 }], "EXHAUSTED");
-  assert.equal(res.voucherError, "Mã voucher đã hết lượt sử dụng");
-  assert.equal(res.voucherDiscount, 0);
-  console.log("✔ Exhausted voucher check passed");
-
-  console.log("All PromotionPricingService unit tests passed successfully!");
-}
-
-runTests().catch((err) => {
-  console.error("Test failed:", err);
-  process.exit(1);
 });
