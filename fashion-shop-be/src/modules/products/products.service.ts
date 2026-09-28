@@ -45,16 +45,70 @@ export class ProductsService {
     });
   }
 
-  findAll(query?: { search?: string; categoryId?: number; brandId?: number }) {
-    const { search, categoryId, brandId } = query || {};
+  async findAll(query?: {
+    search?: string;
+    categoryId?: number;
+    brandId?: number;
+    minPrice?: number;
+    maxPrice?: number;
+    page?: number;
+    limit?: number;
+  }) {
+    const { search, categoryId, brandId, minPrice, maxPrice, page, limit } = query || {};
+
+    const where: any = {
+      ...(search
+        ? { name: { contains: search, mode: "insensitive" } }
+        : {}),
+      ...(categoryId ? { categoryId } : {}),
+      ...(brandId ? { brandId } : {}),
+    };
+
+    if (minPrice !== undefined || maxPrice !== undefined) {
+      where.variants = {
+        some: {
+          sellingPrice: {
+            ...(minPrice !== undefined ? { gte: minPrice } : {}),
+            ...(maxPrice !== undefined ? { lte: maxPrice } : {}),
+          },
+        },
+      };
+    }
+
+    if (page !== undefined || limit !== undefined) {
+      const pageNum = Math.max(1, Number(page) || 1);
+      const take = Math.max(1, Number(limit) || 10);
+      const skip = (pageNum - 1) * take;
+
+      const [total, data] = await Promise.all([
+        this.prisma.product.count({ where }),
+        this.prisma.product.findMany({
+          where,
+          include: {
+            brand: true,
+            category: true,
+            variants: true,
+            images: { orderBy: { sortOrder: "asc" } },
+          },
+          orderBy: { createdAt: "desc" },
+          skip,
+          take,
+        }),
+      ]);
+
+      return {
+        data,
+        meta: {
+          total,
+          page: pageNum,
+          limit: take,
+          totalPages: Math.ceil(total / take) || 1,
+        },
+      };
+    }
+
     return this.prisma.product.findMany({
-      where: {
-        ...(search
-          ? { name: { contains: search, mode: "insensitive" } }
-          : {}),
-        ...(categoryId ? { categoryId } : {}),
-        ...(brandId ? { brandId } : {}),
-      },
+      where,
       include: {
         brand: true,
         category: true,
@@ -63,6 +117,46 @@ export class ProductsService {
       },
       orderBy: { createdAt: "desc" },
     });
+  }
+
+  async getStats() {
+    const now = new Date();
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    const [totalProducts, newThisWeek, allVariants] = await Promise.all([
+      this.prisma.product.count(),
+      this.prisma.product.count({
+        where: { createdAt: { gte: sevenDaysAgo } },
+      }),
+      this.prisma.productVariant.findMany({
+        select: { stock: true, sellingPrice: true, productId: true },
+      }),
+    ]);
+
+    const totalStockValue = allVariants.reduce(
+      (acc, v) => acc + (v.stock || 0) * Number(v.sellingPrice || 0),
+      0,
+    );
+
+    const productStockMap = new Map<number, number>();
+    for (const v of allVariants) {
+      productStockMap.set(
+        v.productId,
+        (productStockMap.get(v.productId) || 0) + (v.stock || 0),
+      );
+    }
+
+    let outOfStock = 0;
+    for (const totalStock of productStockMap.values()) {
+      if (totalStock <= 0) outOfStock++;
+    }
+
+    return {
+      totalProducts,
+      outOfStock,
+      newThisWeek,
+      totalStockValue,
+    };
   }
 
   async findOne(id: number) {

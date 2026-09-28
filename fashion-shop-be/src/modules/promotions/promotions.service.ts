@@ -31,9 +31,14 @@ export class PromotionsService {
         throw new BadRequestException("Voucher bắt buộc phải có mã code");
       }
       if (dto.groups && dto.groups.length > 0) {
-        throw new BadRequestException("Voucher không được chứa campaign groups");
+        throw new BadRequestException(
+          "Voucher không được chứa campaign groups",
+        );
       }
-      if (dto.discountType === DiscountType.PERCENT && dto.discountValue !== undefined) {
+      if (
+        dto.discountType === DiscountType.PERCENT &&
+        dto.discountValue !== undefined
+      ) {
         if (
           !Number.isInteger(dto.discountValue) ||
           dto.discountValue < 1 ||
@@ -55,7 +60,10 @@ export class PromotionsService {
           "Khuyến mãi tự động không được chứa campaign groups",
         );
       }
-      if (dto.discountType === DiscountType.PERCENT && dto.discountValue !== undefined) {
+      if (
+        dto.discountType === DiscountType.PERCENT &&
+        dto.discountValue !== undefined
+      ) {
         if (
           !Number.isInteger(dto.discountValue) ||
           dto.discountValue < 1 ||
@@ -80,7 +88,9 @@ export class PromotionsService {
         );
       }
       if (!isUpdate && (!dto.groups || dto.groups.length === 0)) {
-        throw new BadRequestException("Campaign phải chứa ít nhất 1 nhóm sản phẩm");
+        throw new BadRequestException(
+          "Campaign phải chứa ít nhất 1 nhóm sản phẩm",
+        );
       }
 
       if (dto.groups) {
@@ -148,7 +158,10 @@ export class PromotionsService {
     return this.prisma.promotion.create({
       data: {
         ...rest,
-        code: dto.kind === PromotionKind.VOUCHER ? code?.trim().toUpperCase() : null,
+        code:
+          dto.kind === PromotionKind.VOUCHER
+            ? code?.trim().toUpperCase()
+            : null,
         startsAt: new Date(startsAt),
         endsAt: endsAt ? new Date(endsAt) : null,
         groups:
@@ -196,9 +209,59 @@ export class PromotionsService {
         where.startsAt.lte = new Date(query.to);
       }
     }
+    if (query?.search) {
+      where.OR = [
+        { name: { contains: query.search, mode: "insensitive" } },
+        { code: { contains: query.search, mode: "insensitive" } },
+      ];
+    }
+
+    if (query?.page !== undefined || query?.limit !== undefined) {
+      const pageNum = Math.max(1, Number(query?.page) || 1);
+      const take = Math.max(1, Number(query?.limit) || 10);
+      const skip = (pageNum - 1) * take;
+
+      const [total, data] = await Promise.all([
+        this.prisma.promotion.count({ where }),
+        this.prisma.promotion.findMany({
+          where,
+          include: {
+            groups: {
+              include: {
+                variants: {
+                  select: { variantId: true },
+                },
+              },
+            },
+          },
+          orderBy: [{ priority: "desc" }, { createdAt: "desc" }],
+          skip,
+          take,
+        }),
+      ]);
+
+      return {
+        data,
+        meta: {
+          total,
+          page: pageNum,
+          limit: take,
+          totalPages: Math.ceil(total / take) || 1,
+        },
+      };
+    }
 
     return this.prisma.promotion.findMany({
       where,
+      include: {
+        groups: {
+          include: {
+            variants: {
+              select: { variantId: true },
+            },
+          },
+        },
+      },
       orderBy: [{ priority: "desc" }, { createdAt: "desc" }],
     });
   }
@@ -225,7 +288,8 @@ export class PromotionsService {
         },
       },
     });
-    if (!promotion) throw new NotFoundException("Chương trình khuyến mãi không tồn tại");
+    if (!promotion)
+      throw new NotFoundException("Chương trình khuyến mãi không tồn tại");
     return promotion;
   }
 
@@ -275,7 +339,12 @@ export class PromotionsService {
                 : existing.code
               : null,
           startsAt: startsAt ? new Date(startsAt) : undefined,
-          endsAt: endsAt !== undefined ? (endsAt ? new Date(endsAt) : null) : undefined,
+          endsAt:
+            endsAt !== undefined
+              ? endsAt
+                ? new Date(endsAt)
+                : null
+              : undefined,
           groups:
             targetKind === PromotionKind.CAMPAIGN && groups !== undefined
               ? {

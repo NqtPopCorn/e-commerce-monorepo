@@ -18,13 +18,24 @@ async function runTests() {
   const service = new PromotionPricingService(mockPrisma);
 
   // 1. calculateDiscount
-  assert.equal(service.calculateDiscount(100000, DiscountType.PERCENT, 10), 10000);
-  assert.equal(service.calculateDiscount(50000, DiscountType.FIXED, 80000), 50000);
-  assert.equal(service.calculateDiscount(100000, DiscountType.PERCENT, 15), 15000);
+  assert.equal(
+    service.calculateDiscount(100000, DiscountType.PERCENT, 10),
+    10000,
+  );
+  assert.equal(
+    service.calculateDiscount(50000, DiscountType.FIXED, 80000),
+    50000,
+  );
+  assert.equal(
+    service.calculateDiscount(100000, DiscountType.PERCENT, 15),
+    15000,
+  );
   console.log("✔ calculateDiscount tests passed");
 
   // 2. Highest priority campaign winner
-  mockPrisma.productVariant.findMany = async () => [{ id: 1, sellingPrice: 100000 }];
+  mockPrisma.productVariant.findMany = async () => [
+    { id: 1, sellingPrice: 100000 },
+  ];
   mockPrisma.promotion.findMany = async () => [
     {
       id: 10,
@@ -106,7 +117,9 @@ async function runTests() {
   console.log("✔ Tie-breaker (smaller ID) passed");
 
   // 4. Auto invoice winner (highest monetary discount)
-  mockPrisma.productVariant.findMany = async () => [{ id: 1, sellingPrice: 500000 }];
+  mockPrisma.productVariant.findMany = async () => [
+    { id: 1, sellingPrice: 500000 },
+  ];
   mockPrisma.promotion.findMany = async () => [
     {
       id: 1,

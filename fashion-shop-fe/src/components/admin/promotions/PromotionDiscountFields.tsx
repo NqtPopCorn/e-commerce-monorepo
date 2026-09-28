@@ -34,7 +34,9 @@ export function PromotionDiscountFields({
   return (
     <div className="space-y-4 border p-4 rounded-lg bg-slate-50/50">
       <h3 className="font-semibold text-lg text-slate-800">
-        {kind === "VOUCHER" ? "Cấu hình Voucher" : "Cấu hình Mức giảm giá hóa đơn"}
+        {kind === "VOUCHER"
+          ? "Cấu hình Voucher"
+          : "Cấu hình Mức giảm giá hóa đơn"}
       </h3>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -55,7 +57,9 @@ export function PromotionDiscountFields({
           <Label htmlFor="discountType">Hình thức giảm giá *</Label>
           <Select
             value={discountType}
-            onValueChange={(val) => onChange("discountType", val as DiscountType)}
+            onValueChange={(val) =>
+              onChange("discountType", val as DiscountType)
+            }
           >
             <SelectTrigger id="discountType" className="bg-white">
               <SelectValue placeholder="Chọn hình thức" />
@@ -69,7 +73,9 @@ export function PromotionDiscountFields({
 
         <div className="space-y-2">
           <Label htmlFor="discountValue">
-            {discountType === "PERCENT" ? "Phần trăm giảm (%) *" : "Số tiền giảm (VND) *"}
+            {discountType === "PERCENT"
+              ? "Phần trăm giảm (%) *"
+              : "Số tiền giảm (VND) *"}
           </Label>
           <Input
             id="discountValue"
@@ -86,7 +92,9 @@ export function PromotionDiscountFields({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="minOrderAmount">Giá trị đơn hàng tối thiểu (VND)</Label>
+          <Label htmlFor="minOrderAmount">
+            Giá trị đơn hàng tối thiểu (VND)
+          </Label>
           <Input
             id="minOrderAmount"
             type="number"

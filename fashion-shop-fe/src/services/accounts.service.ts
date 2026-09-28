@@ -1,9 +1,20 @@
 import { api } from "@/lib/api";
-import { Account } from "@/types/account";
+import { Account, GetAccountsParams, PaginatedAccountsResponse } from "@/types/account";
 
 export const accountsService = {
-  getAll: async (): Promise<Account[]> => {
-    const res = await api.get("/account");
+  getAll: async (params?: GetAccountsParams): Promise<PaginatedAccountsResponse> => {
+    const res = await api.get("/account", { params });
+    if (Array.isArray(res.data)) {
+      return {
+        data: res.data,
+        meta: {
+          total: res.data.length,
+          page: 1,
+          limit: res.data.length || 10,
+          totalPages: 1,
+        },
+      };
+    }
     return res.data;
   },
 

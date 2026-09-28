@@ -1,16 +1,48 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
 :root {
-  --border: 220 13% 91%;
+  --border: 214.3 31.8% 91.4%;
   --background: 0 0% 100%;
-  --foreground: 222 47% 11%;
-  --primary: 24 95% 53%;
+  --foreground: 222.2 84% 4.9%;
+  --primary: 346.8 77.2% 49.8%; /* rose-600 */
 }
+
 * {
   border-color: hsl(var(--border));
 }
+
 body {
-  background: hsl(var(--background));
+  background: #f8fafc;
   color: hsl(var(--foreground));
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+/* Custom smooth scrollbar for admin tables & drawers */
+.admin-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.admin-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.admin-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+
+.admin-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Subtle transitions for cards & interactive elements */
+.transition-card {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.transition-card:hover {
+  transform: translateY(-1px);
 }

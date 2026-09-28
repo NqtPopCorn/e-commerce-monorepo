@@ -1,11 +1,30 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { productsService } from "@/services/products.service";
-import { CreateProductDto, UpdateProductDto } from "@/types/product";
+import {
+  CreateProductDto,
+  UpdateProductDto,
+  GetProductsParams,
+} from "@/types/product";
 
-export const useGetProducts = (params?: { search?: string; categoryId?: number; brandId?: number }) => {
+export const useGetProducts = (params?: GetProductsParams) => {
   return useQuery({
     queryKey: ["products", params],
     queryFn: () => productsService.getAll(params),
+  });
+};
+
+export const useGetPaginatedProducts = (params?: GetProductsParams) => {
+  return useQuery({
+    queryKey: ["products-paginated", params],
+    queryFn: () => productsService.getPaginated(params),
+    placeholderData: (previousData) => previousData,
+  });
+};
+
+export const useGetProductStats = () => {
+  return useQuery({
+    queryKey: ["products-stats"],
+    queryFn: () => productsService.getStats(),
   });
 };
 
@@ -31,6 +50,8 @@ export const useCreateProduct = () => {
     mutationFn: (data: CreateProductDto) => productsService.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["products-paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["products-stats"] });
       queryClient.invalidateQueries({ queryKey: ["admin-products"] });
     },
   });
@@ -43,6 +64,8 @@ export const useUpdateProduct = () => {
       productsService.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["products-paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["products-stats"] });
       queryClient.invalidateQueries({ queryKey: ["admin-products"] });
     },
   });
@@ -54,6 +77,8 @@ export const useDeleteProduct = () => {
     mutationFn: (id: number | string) => productsService.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["products-paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["products-stats"] });
       queryClient.invalidateQueries({ queryKey: ["admin-products"] });
     },
   });

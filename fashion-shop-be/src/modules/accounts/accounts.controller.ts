@@ -4,6 +4,7 @@ import {
   Get,
   Patch,
   Param,
+  Query,
   Req,
   UseGuards,
 } from "@nestjs/common";
@@ -29,8 +30,20 @@ export class AccountsController {
   @UseGuards(RolesGuard)
   @Roles("ADMIN")
   @Get()
-  findAll() {
-    return this.service.findAll();
+  findAll(
+    @Query("page") page?: string,
+    @Query("limit") limit?: string,
+    @Query("search") search?: string,
+    @Query("role") role?: string,
+    @Query("status") status?: string,
+  ) {
+    return this.service.findAll({
+      page: page ? parseInt(page, 10) : undefined,
+      limit: limit ? parseInt(limit, 10) : undefined,
+      search,
+      role,
+      status,
+    });
   }
 
   @UseGuards(RolesGuard)

@@ -21,7 +21,8 @@ export default function CreatePromotionPage() {
       },
       onError: (err: any) => {
         toast.error(
-          err.response?.data?.message || "Tạo thất bại. Vui lòng kiểm tra lại dữ liệu.",
+          err.response?.data?.message ||
+            "Tạo thất bại. Vui lòng kiểm tra lại dữ liệu.",
         );
       },
     });
@@ -41,10 +42,14 @@ export default function CreatePromotionPage() {
           Tạo Chương trình Khuyến mãi mới
         </h1>
         <p className="text-muted-foreground mt-1 text-sm">
-          Thiết lập Voucher, Khuyến mãi tự động hóa đơn, hoặc Campaign giảm giá sản phẩm.
+          Thiết lập Voucher, Khuyến mãi tự động hóa đơn, hoặc Campaign giảm giá
+          sản phẩm.
         </p>
       </div>
-      <PromotionForm onSubmit={handleSubmit} isLoading={createMutation.isPending} />
+      <PromotionForm
+        onSubmit={handleSubmit}
+        isLoading={createMutation.isPending}
+      />
     </div>
   );
 }

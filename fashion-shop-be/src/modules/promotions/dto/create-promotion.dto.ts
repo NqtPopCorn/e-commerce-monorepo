@@ -30,16 +30,25 @@ export class CreatePromotionDto {
   @IsNotEmpty()
   code?: string;
 
-  @ValidateIf((o) => o.kind === PromotionKind.VOUCHER || o.kind === PromotionKind.ORDER_AUTO)
+  @ValidateIf(
+    (o) =>
+      o.kind === PromotionKind.VOUCHER || o.kind === PromotionKind.ORDER_AUTO,
+  )
   @IsEnum(DiscountType)
   discountType?: DiscountType;
 
-  @ValidateIf((o) => o.kind === PromotionKind.VOUCHER || o.kind === PromotionKind.ORDER_AUTO)
+  @ValidateIf(
+    (o) =>
+      o.kind === PromotionKind.VOUCHER || o.kind === PromotionKind.ORDER_AUTO,
+  )
   @IsNumber()
   @Min(1)
   discountValue?: number;
 
-  @ValidateIf((o) => o.kind === PromotionKind.VOUCHER || o.kind === PromotionKind.ORDER_AUTO)
+  @ValidateIf(
+    (o) =>
+      o.kind === PromotionKind.VOUCHER || o.kind === PromotionKind.ORDER_AUTO,
+  )
   @IsOptional()
   @IsNumber()
   @Min(0)

@@ -68,11 +68,21 @@ export interface CreatePromotionDto {
 
 export interface UpdatePromotionDto extends Partial<CreatePromotionDto> {}
 
+import { PaginationMeta } from "./product";
+
 export interface PromotionQuery {
   kind?: PromotionKind;
   active?: boolean;
   from?: string;
   to?: string;
+  search?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface PaginatedPromotionsResponse {
+  data: Promotion[];
+  meta: PaginationMeta;
 }
 
 export interface CartInput {

@@ -84,7 +84,9 @@ export class PromotionPricingService {
     const variantMap = new Map(variants.map((v) => [v.id, v]));
     for (const id of variantIds) {
       if (!variantMap.has(id)) {
-        throw new BadRequestException(`Sản phẩm biến thể ID ${id} không tồn tại`);
+        throw new BadRequestException(
+          `Sản phẩm biến thể ID ${id} không tồn tại`,
+        );
       }
     }
 
@@ -154,13 +156,15 @@ export class PromotionPricingService {
 
       lineCampaignCandidates.sort((a, b) => {
         if (b.priority !== a.priority) return b.priority - a.priority;
-        if (b.discountAmount !== a.discountAmount) return b.discountAmount - a.discountAmount;
+        if (b.discountAmount !== a.discountAmount)
+          return b.discountAmount - a.discountAmount;
         return a.promotionId - b.promotionId;
       });
 
       const campaignWinner = lineCampaignCandidates[0];
       let lineProductDiscount = 0;
-      let campaignInfo: { id: number; name: string; groupId: number } | undefined;
+      let campaignInfo:
+        { id: number; name: string; groupId: number } | undefined;
 
       if (campaignWinner && campaignWinner.discountAmount > 0) {
         lineProductDiscount = campaignWinner.discountAmount;
@@ -225,7 +229,8 @@ export class PromotionPricingService {
     }
 
     autoCandidates.sort((a, b) => {
-      if (b.discountAmount !== a.discountAmount) return b.discountAmount - a.discountAmount;
+      if (b.discountAmount !== a.discountAmount)
+        return b.discountAmount - a.discountAmount;
       return a.id - b.id;
     });
 
@@ -262,13 +267,17 @@ export class PromotionPricingService {
         voucherError = "Mã voucher chưa đến đợt áp dụng";
       } else if (voucher.endsAt && voucher.endsAt <= now) {
         voucherError = "Mã voucher đã hết hạn";
-      } else if (voucher.maxUses !== null && voucher.usedCount >= voucher.maxUses) {
+      } else if (
+        voucher.maxUses !== null &&
+        voucher.usedCount >= voucher.maxUses
+      ) {
         voucherError = "Mã voucher đã hết lượt sử dụng";
       } else if (
         voucher.minOrderAmount !== null &&
         remainingBeforeVoucher < Number(voucher.minOrderAmount)
       ) {
-        voucherError = "Đơn hàng chưa đạt giá trị tối thiểu để sử dụng voucher này";
+        voucherError =
+          "Đơn hàng chưa đạt giá trị tối thiểu để sử dụng voucher này";
       } else {
         voucherDiscount = this.calculateDiscount(
           remainingBeforeVoucher,

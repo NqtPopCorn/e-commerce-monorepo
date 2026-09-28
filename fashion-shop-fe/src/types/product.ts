@@ -87,3 +87,33 @@ export interface CreateProductDto {
 }
 
 export interface UpdateProductDto extends Partial<CreateProductDto> {}
+
+export interface PaginationMeta {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface PaginatedProductsResponse {
+  data: Product[];
+  meta: PaginationMeta;
+}
+
+export interface GetProductsParams {
+  search?: string;
+  categoryId?: number;
+  brandId?: number;
+  minPrice?: number;
+  maxPrice?: number;
+  page?: number;
+  limit?: number;
+}
+
+export interface ProductStats {
+  totalProducts: number;
+  outOfStock: number;
+  newThisWeek: number;
+  totalStockValue: number;
+}
+

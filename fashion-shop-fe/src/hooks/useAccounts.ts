@@ -2,11 +2,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/stores/auth.store";
 import { accountsService } from "@/services/accounts.service";
 
-export const useGetAccounts = () => {
+import { GetAccountsParams } from "@/types/account";
+
+export const useGetAccounts = (params?: GetAccountsParams) => {
   const token = useAuthStore((state) => state.token);
   return useQuery({
-    queryKey: ["admin-accounts"],
-    queryFn: accountsService.getAll,
+    queryKey: ["admin-accounts", params],
+    queryFn: () => accountsService.getAll(params),
     enabled: !!token,
   });
 };

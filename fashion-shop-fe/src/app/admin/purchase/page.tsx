@@ -1,7 +1,8 @@
 "use client";
+
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, Eye, Search, FileDown } from "lucide-react";
+import { Plus, Eye, Search, FileDown, Truck, Package, Calendar } from "lucide-react";
 import { CreatePurchaseModal } from "@/components/admin/purchase/CreatePurchaseModal";
 import { PurchaseDetailModal } from "@/components/admin/purchase/PurchaseDetailModal";
 import {
@@ -14,7 +15,12 @@ import {
 } from "@/components/ui/table";
 import { useGetBatches } from "@/hooks/useBatches";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import {
+  AdminPageHeader,
+  AdminStatCard,
+  AdminDataTable,
+  AdminStatusBadge,
+} from "@/components/admin";
 
 export default function PurchasePage() {
   const { data: batches, isLoading } = useGetBatches();
@@ -22,154 +28,200 @@ export default function PurchasePage() {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedPurchase, setSelectedPurchase] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
 
   const handleView = (purchase: any) => {
     setSelectedPurchase(purchase);
     setIsDetailOpen(true);
   };
 
-  const filteredBatches = batches?.filter((b: any) => 
-    b.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (b.variant?.product?.name || b.variant?.book?.title || "")
+  const filteredBatches = (batches || []).filter((b: any) =>
+    b.code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (b.variant?.product?.name || "")
       .toLowerCase()
-      .includes(searchTerm.toLowerCase())
+      .includes(searchTerm.toLowerCase()) ||
+    (b.variant?.sku || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Pagination calculation
+  const total = filteredBatches.length;
+  const totalPages = Math.ceil(total / limit) || 1;
+  const paginatedBatches = filteredBatches.slice((page - 1) * limit, page * limit);
+
+  // Stats calculation
+  const totalQuantity = (batches || []).reduce((acc: number, b: any) => acc + (b.quantity || 0), 0);
+  const totalBatches = batches?.length || 0;
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-6 rounded-xl shadow-sm border border-gray-100 gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">
-            Quản lý Nhập kho
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Theo dõi và quản lý các lô hàng nhập kho của bạn
-          </p>
+      <AdminPageHeader
+        title="Quản Lý Nhập Kho"
+        description="Theo dõi lịch sử nhập hàng theo lô, quản lý nguồn cung và lưu vết tồn kho theo từng đợt nhập."
+        actions={
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-1.5 text-xs text-slate-700 bg-white border-slate-200 hover:bg-slate-50"
+            >
+              <FileDown className="w-4 h-4 text-slate-500" />
+              <span>Xuất Excel</span>
+            </Button>
+            <Button
+              size="sm"
+              className="bg-rose-600 hover:bg-rose-700 text-white flex items-center gap-1.5 text-xs font-semibold shadow-xs"
+              onClick={() => setIsCreateOpen(true)}
+            >
+              <Plus className="w-4 h-4" />
+              <span>Tạo Phiếu Nhập</span>
+            </Button>
+          </>
+        }
+      />
+
+      {/* KPI Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+        <AdminStatCard
+          title="Tổng Phiếu Nhập"
+          value={totalBatches}
+          subtitle="Lô hàng đã tạo"
+          icon={Truck}
+          color="rose"
+        />
+        <AdminStatCard
+          title="Tổng Số Lượng Nhập"
+          value={`${totalQuantity.toLocaleString("vi-VN")} chiếc`}
+          subtitle="Sản phẩm đã nhập vào kho"
+          icon={Package}
+          color="indigo"
+        />
+        <AdminStatCard
+          title="Đợt Nhập Gần Nhất"
+          value={batches && batches.length > 0 ? new Date(batches[0].createdAt).toLocaleDateString("vi-VN") : "--"}
+          subtitle="Thời điểm nhập kho mới nhất"
+          icon={Calendar}
+          color="emerald"
+        />
+      </div>
+
+      {/* Search and Filters */}
+      <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="relative w-full sm:w-80">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <Input
+            placeholder="Tìm theo mã phiếu, tên sản phẩm hoặc SKU..."
+            className="pl-9 bg-slate-50/70 border-slate-200 focus:bg-white text-xs h-9 w-full"
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setPage(1);
+            }}
+          />
         </div>
-        <div className="flex gap-3">
+        <div className="text-xs text-slate-500 font-medium">
+          Tìm thấy <span className="font-semibold text-slate-900">{total}</span> phiếu nhập
+        </div>
+      </div>
+
+      {/* Batches Data Table */}
+      <AdminDataTable
+        isLoading={isLoading}
+        isEmpty={paginatedBatches.length === 0}
+        emptyTitle="Không tìm thấy phiếu nhập nào"
+        emptyDescription="Thử tìm kiếm với từ khóa khác hoặc tạo phiếu nhập hàng mới."
+        emptyAction={
           <Button
-            variant="outline"
-            className="flex items-center gap-2 text-gray-600"
-          >
-            <FileDown className="w-4 h-4" /> Xuất Excel
-          </Button>
-          <Button
-            className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
+            size="sm"
             onClick={() => setIsCreateOpen(true)}
+            className="bg-rose-600 hover:bg-rose-700 text-white text-xs"
           >
-            <Plus className="w-4 h-4" /> Tạo Phiếu Nhập
+            <Plus className="w-3.5 h-3.5 mr-1" />
+            Tạo phiếu nhập mới
           </Button>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="p-4 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-gray-50/50">
-          <div className="relative w-full sm:w-80">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <Input
-              placeholder="Tìm theo mã phiếu hoặc tên sách..."
-              className="pl-9 border-gray-200 focus-visible:ring-blue-500 bg-white w-full"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <div className="text-sm text-gray-500 font-medium whitespace-nowrap">
-            Tổng số: <span className="text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">{filteredBatches?.length || 0}</span> phiếu nhập
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader className="bg-gray-50/80">
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="w-[130px] font-semibold text-gray-600">Mã phiếu</TableHead>
-                <TableHead className="font-semibold text-gray-600 min-w-[150px]">Ngày nhập</TableHead>
-                <TableHead className="font-semibold text-gray-600 min-w-[250px]">Sản phẩm</TableHead>
-                <TableHead className="font-semibold text-gray-600">Người tạo</TableHead>
-                <TableHead className="text-right font-semibold text-gray-600">Số lượng</TableHead>
-                <TableHead className="text-center font-semibold text-gray-600">Trạng thái</TableHead>
-                <TableHead className="text-right font-semibold text-gray-600">Hành động</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={7}
-                    className="text-center py-12 text-gray-500"
+        }
+        pagination={{
+          page,
+          limit,
+          total,
+          totalPages,
+          onPageChange: (newPage) => setPage(newPage),
+          onLimitChange: (newLimit) => {
+            setLimit(newLimit);
+            setPage(1);
+          },
+        }}
+      >
+        <Table>
+          <TableHeader className="bg-slate-50/80">
+            <TableRow className="border-b border-slate-200">
+              <TableHead className="w-[130px] font-semibold text-slate-500 text-xs">Mã phiếu</TableHead>
+              <TableHead className="font-semibold text-slate-500 text-xs min-w-[140px]">Ngày nhập</TableHead>
+              <TableHead className="font-semibold text-slate-500 text-xs min-w-[220px]">Sản phẩm</TableHead>
+              <TableHead className="font-semibold text-slate-500 text-xs">Người tạo</TableHead>
+              <TableHead className="text-right font-semibold text-slate-500 text-xs">Số lượng</TableHead>
+              <TableHead className="text-center font-semibold text-slate-500 text-xs">Trạng thái</TableHead>
+              <TableHead className="text-right font-semibold text-slate-500 text-xs">Thao tác</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {paginatedBatches.map((p: any) => (
+              <TableRow
+                key={p.id}
+                className="hover:bg-slate-50/70 border-b border-slate-100 transition-colors group"
+              >
+                <TableCell className="font-mono text-xs font-semibold text-slate-900">
+                  {p.code}
+                </TableCell>
+                <TableCell className="text-xs text-slate-600">
+                  {new Intl.DateTimeFormat("vi-VN", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  }).format(new Date(p.createdAt))}
+                </TableCell>
+                <TableCell>
+                  <div className="font-medium text-xs text-slate-900 line-clamp-1">
+                    {p.variant?.product?.name || "Sản phẩm không xác định"}
+                  </div>
+                  <div className="text-[11px] text-slate-400 font-mono mt-0.5">
+                    SKU: {p.variant?.sku || "N/A"}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center text-[10px] font-bold border border-slate-200">
+                      A
+                    </div>
+                    <span className="text-xs text-slate-700">Admin</span>
+                  </div>
+                </TableCell>
+                <TableCell className="text-right">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 text-slate-800 text-xs font-semibold">
+                    {p.quantity} chiếc
+                  </span>
+                </TableCell>
+                <TableCell className="text-center">
+                  <AdminStatusBadge status="COMPLETED" customLabel="Đã nhập kho" size="sm" />
+                </TableCell>
+                <TableCell className="text-right">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleView(p)}
+                    className="h-7 px-2 text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50"
                   >
-                    <div className="flex flex-col items-center justify-center space-y-3">
-                      <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
-                      <p className="font-medium text-gray-500">Đang tải dữ liệu...</p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : filteredBatches?.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center py-12">
-                    <div className="flex flex-col items-center justify-center text-gray-500">
-                      <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
-                        <Search className="w-6 h-6 text-gray-400" />
-                      </div>
-                      <p className="text-lg font-medium text-gray-700">Không tìm thấy phiếu nhập nào</p>
-                      <p className="text-sm mt-1">Hãy thử thay đổi từ khóa tìm kiếm của bạn</p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredBatches?.map((p: any) => (
-                  <TableRow key={p.id} className="hover:bg-blue-50/30 transition-colors group">
-                    <TableCell className="font-semibold text-gray-800">
-                      {p.code}
-                    </TableCell>
-                    <TableCell className="text-gray-600">
-                      {new Intl.DateTimeFormat("vi-VN", {
-                        day: "2-digit",
-                        month: "2-digit",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      }).format(new Date(p.createdAt))}
-                    </TableCell>
-                    <TableCell>
-                      <div className="font-medium text-gray-900 line-clamp-1">{p.variant?.product?.name || p.variant?.book?.title || 'Sản phẩm không xác định'}</div>
-                      <div className="text-xs text-gray-500 mt-0.5">SKU: {p.variant?.sku || 'N/A'}</div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-bold">
-                          A
-                        </div>
-                        <span className="text-sm font-medium text-gray-700">Admin</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <span className="inline-flex items-center justify-center px-2.5 py-1 rounded-md bg-indigo-50 text-indigo-700 font-semibold border border-indigo-100">
-                        {p.quantity} chiếc
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-emerald-200">
-                        Hoàn thành
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleView(p)}
-                        className="text-blue-600 hover:text-blue-800 hover:bg-blue-100 transition-colors opacity-0 group-hover:opacity-100 md:opacity-100 focus:opacity-100"
-                      >
-                        <Eye className="w-4 h-4 mr-1.5" /> Chi tiết
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </div>
+                    <Eye className="w-3.5 h-3.5 mr-1" />
+                    Chi tiết
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </AdminDataTable>
 
       <CreatePurchaseModal
         isOpen={isCreateOpen}

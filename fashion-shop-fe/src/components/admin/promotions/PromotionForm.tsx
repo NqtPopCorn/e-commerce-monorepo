@@ -120,7 +120,10 @@ export function PromotionForm({
         toast.error("Vui lòng nhập mức giảm giá lớn hơn 0");
         return;
       }
-      if (discountType === "PERCENT" && (discountValue < 1 || discountValue > 100)) {
+      if (
+        discountType === "PERCENT" &&
+        (discountValue < 1 || discountValue > 100)
+      ) {
         toast.error("Phần trăm giảm giá phải từ 1 đến 100");
         return;
       }
@@ -129,7 +132,10 @@ export function PromotionForm({
         toast.error("Vui lòng nhập mức giảm giá lớn hơn 0");
         return;
       }
-      if (discountType === "PERCENT" && (discountValue < 1 || discountValue > 100)) {
+      if (
+        discountType === "PERCENT" &&
+        (discountValue < 1 || discountValue > 100)
+      ) {
         toast.error("Phần trăm giảm giá phải từ 1 đến 100");
         return;
       }
@@ -188,11 +194,19 @@ export function PromotionForm({
       />
 
       {kind === "CAMPAIGN" && (
-        <CampaignGroupsEditor groups={groups} onChange={setGroups} />
+        <CampaignGroupsEditor
+          groups={groups}
+          onChange={setGroups}
+          currentPromotionId={initialData?.id}
+        />
       )}
 
       <div className="flex justify-end gap-3 pt-4 border-t">
-        <Button type="submit" disabled={isLoading} className="bg-blue-600 hover:bg-blue-700">
+        <Button
+          type="submit"
+          disabled={isLoading}
+          className="bg-rose-600 hover:bg-rose-700 text-white font-medium"
+        >
           {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
           {isEditMode ? "Lưu thay đổi" : "Tạo chương trình"}
         </Button>

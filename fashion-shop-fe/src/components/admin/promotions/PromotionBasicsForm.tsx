@@ -47,7 +47,9 @@ export function PromotionBasicsForm({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="VOUCHER">Voucher (Mã giảm giá)</SelectItem>
-              <SelectItem value="ORDER_AUTO">Khuyến mãi hóa đơn tự động</SelectItem>
+              <SelectItem value="ORDER_AUTO">
+                Khuyến mãi hóa đơn tự động
+              </SelectItem>
               <SelectItem value="CAMPAIGN">Campaign sản phẩm</SelectItem>
             </SelectContent>
           </Select>
@@ -66,34 +68,42 @@ export function PromotionBasicsForm({
 
         {kind === "CAMPAIGN" && (
           <div className="space-y-2">
-            <Label htmlFor="priority">Ưu tiên campaign (Priority)</Label>
+            <Label htmlFor="priority">Độ ưu tiên Campaign (Priority)</Label>
             <Input
               id="priority"
               type="number"
               min={0}
               placeholder="0"
               value={priority}
-              onChange={(e) => onChange("priority", parseInt(e.target.value) || 0)}
+              onChange={(e) =>
+                onChange("priority", parseInt(e.target.value) || 0)
+              }
               className="bg-white"
             />
-            <p className="text-xs text-muted-foreground">
-              Campaign có độ ưu tiên cao hơn sẽ được áp dụng trước cho sản phẩm.
-            </p>
+            <div className="p-2.5 rounded-md bg-indigo-50/70 border border-indigo-200/60 text-[11px] text-indigo-900 leading-relaxed">
+              <strong>💡 Quy tắc Rule Engine:</strong> Khi một SKU nằm trong
+              nhiều Campaign cùng chạy, hệ thống sẽ ưu tiên áp dụng Campaign có{" "}
+              <strong>Priority cao nhất</strong>. Nếu Priority bằng nhau,
+              Campaign mang lại số tiền giảm lớn hơn sẽ được chọn.
+            </div>
           </div>
         )}
 
         <div className="space-y-2">
-          <Label htmlFor="active">Trạng thái kịch hoạt</Label>
+          <Label htmlFor="active">Trạng thái kích hoạt</Label>
           <div className="flex items-center space-x-2 pt-2">
             <input
               type="checkbox"
               id="active"
               checked={active}
               onChange={(e) => onChange("active", e.target.checked)}
-              className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+              className="w-4 h-4 rounded border-gray-300 text-rose-600 focus:ring-rose-500 cursor-pointer"
             />
-            <Label htmlFor="active" className="cursor-pointer font-normal">
-              {active ? "Đang hoạt động" : "Đang ngưng/Tắt"}
+            <Label
+              htmlFor="active"
+              className="cursor-pointer font-normal text-sm"
+            >
+              {active ? "Đang kích hoạt" : "Tạm dừng"}
             </Label>
           </div>
         </div>
