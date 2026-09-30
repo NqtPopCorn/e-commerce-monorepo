@@ -1,10 +1,10 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { PrismaService } from '../../prisma/prisma.service';
-import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
-import { AdminOrdersService } from './admin-orders.service';
-import { NotFoundException } from '@nestjs/common';
+import { Test, TestingModule } from "@nestjs/testing";
+import { PrismaService } from "../../prisma/prisma.service";
+import { mockDeep, DeepMockProxy } from "jest-mock-extended";
+import { AdminOrdersService } from "./admin-orders.service";
+import { NotFoundException } from "@nestjs/common";
 
-describe('AdminOrdersService', () => {
+describe("AdminOrdersService", () => {
   let service: AdminOrdersService;
   let prismaMock: DeepMockProxy<PrismaService>;
 
@@ -21,27 +21,34 @@ describe('AdminOrdersService', () => {
     service = module.get<AdminOrdersService>(AdminOrdersService);
   });
 
-  describe('findAll', () => {
-    it('should return orders with status filter', async () => {
-      prismaMock.order.findMany.mockResolvedValue([{ id: 1, status: 'PENDING' }] as any);
+  describe("findAll", () => {
+    it("should return orders with status filter", async () => {
+      prismaMock.order.findMany.mockResolvedValue([
+        { id: 1, status: "PENDING" },
+      ] as any);
 
-      const res = await service.findAll('PENDING');
+      const res = await service.findAll("PENDING");
       expect(res.length).toBe(1);
     });
   });
 
-  describe('updateStatus', () => {
-    it('should update order status', async () => {
+  describe("updateStatus", () => {
+    it("should update order status", async () => {
       prismaMock.order.findUnique.mockResolvedValue({ id: 1 } as any);
-      prismaMock.order.update.mockResolvedValue({ id: 1, status: 'CONFIRMED' } as any);
-      
-      const res = await service.updateStatus(1, 'CONFIRMED');
-      expect(res.status).toBe('CONFIRMED');
+      prismaMock.order.update.mockResolvedValue({
+        id: 1,
+        status: "CONFIRMED",
+      } as any);
+
+      const res = await service.updateStatus(1, "CONFIRMED");
+      expect(res.status).toBe("CONFIRMED");
     });
 
-    it('should throw NotFoundException on update if order missing', async () => {
+    it("should throw NotFoundException on update if order missing", async () => {
       prismaMock.order.findUnique.mockResolvedValue(null);
-      await expect(service.updateStatus(999, 'SHIPPED')).rejects.toThrow(NotFoundException);
+      await expect(service.updateStatus(999, "SHIPPED")).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CreateProductDto } from "./dto/create-product.dto";
 import { UpdateProductDto } from "./dto/update-product.dto";
@@ -54,12 +58,11 @@ export class ProductsService {
     page?: number;
     limit?: number;
   }) {
-    const { search, categoryId, brandId, minPrice, maxPrice, page, limit } = query || {};
+    const { search, categoryId, brandId, minPrice, maxPrice, page, limit } =
+      query || {};
 
     const where: any = {
-      ...(search
-        ? { name: { contains: search, mode: "insensitive" } }
-        : {}),
+      ...(search ? { name: { contains: search, mode: "insensitive" } } : {}),
       ...(categoryId ? { categoryId } : {}),
       ...(brandId ? { brandId } : {}),
     };
@@ -199,7 +202,9 @@ export class ProductsService {
 
         // Xác định các biến thể bị gỡ bỏ (tồn tại trong DB nhưng không có trong danh sách cập nhật)
         const incomingSkus = new Set(variants.map((v) => v.sku));
-        const variantsToDelete = currentVariants.filter((cv) => !incomingSkus.has(cv.sku));
+        const variantsToDelete = currentVariants.filter(
+          (cv) => !incomingSkus.has(cv.sku),
+        );
 
         // Kiểm tra logic: không thể xóa biến thể còn tồn kho (> 0)
         for (const v of variantsToDelete) {
@@ -221,7 +226,9 @@ export class ProductsService {
 
         // Cập nhật hoặc tạo mới các biến thể
         for (const v of variants) {
-          const existingVariant = currentVariants.find((cv) => cv.sku === v.sku);
+          const existingVariant = currentVariants.find(
+            (cv) => cv.sku === v.sku,
+          );
           if (existingVariant) {
             await tx.productVariant.update({
               where: { id: existingVariant.id },
@@ -276,9 +283,13 @@ export class ProductsService {
 
   async remove(id: number) {
     const product = await this.findOne(id);
-    const variantsWithStock = product.variants?.filter((v: any) => v.stock > 0) || [];
+    const variantsWithStock =
+      product.variants?.filter((v: any) => v.stock > 0) || [];
     if (variantsWithStock.length > 0) {
-      const totalStock = variantsWithStock.reduce((acc: number, v: any) => acc + (v.stock || 0), 0);
+      const totalStock = variantsWithStock.reduce(
+        (acc: number, v: any) => acc + (v.stock || 0),
+        0,
+      );
       throw new BadRequestException(
         `Không thể xóa sản phẩm khi vẫn còn tồn kho (${totalStock} sản phẩm thuộc ${variantsWithStock.length} biến thể).`,
       );

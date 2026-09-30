@@ -29,4 +29,20 @@ export class CreateOrderDto {
   @IsOptional()
   @IsString()
   voucherCode?: string;
+
+  @IsOptional()
+  @IsString()
+  recipientName?: string;
+
+  @IsOptional()
+  @IsString()
+  recipientPhone?: string;
+
+  @IsOptional()
+  @IsString()
+  shippingAddress?: string;
+
+  @IsOptional()
+  @IsString()
+  shippingNote?: string;
 }

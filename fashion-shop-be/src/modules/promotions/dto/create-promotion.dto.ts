@@ -56,7 +56,9 @@ export class CreatePromotionDto {
 
   @ValidateIf(
     (o) =>
-      (o.kind === PromotionKind.VOUCHER || o.kind === PromotionKind.ORDER_AUTO) && o.discountType === DiscountType.PERCENT,
+      (o.kind === PromotionKind.VOUCHER ||
+        o.kind === PromotionKind.ORDER_AUTO) &&
+      o.discountType === DiscountType.PERCENT,
   )
   @IsOptional()
   @IsNumber()

@@ -1,10 +1,10 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { PrismaService } from '../../prisma/prisma.service';
-import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
-import { ProductsService } from './products.service';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { Test, TestingModule } from "@nestjs/testing";
+import { PrismaService } from "../../prisma/prisma.service";
+import { mockDeep, DeepMockProxy } from "jest-mock-extended";
+import { ProductsService } from "./products.service";
+import { BadRequestException, NotFoundException } from "@nestjs/common";
 
-describe('ProductsService', () => {
+describe("ProductsService", () => {
   let service: ProductsService;
   let prismaMock: DeepMockProxy<PrismaService>;
 
@@ -21,37 +21,51 @@ describe('ProductsService', () => {
     service = module.get<ProductsService>(ProductsService);
   });
 
-  describe('create', () => {
-    it('should create a product and generate slug if not provided', async () => {
-      prismaMock.product.create.mockResolvedValue({ id: 1, name: 'Áo Thun', slug: 'ao-thun-123' } as any);
-      const res = await service.create({ name: 'Áo Thun', categoryId: 1, brandId: 1 } as any);
-      expect(res.name).toBe('Áo Thun');
-      expect(res.slug).toBe('ao-thun-123');
+  describe("create", () => {
+    it("should create a product and generate slug if not provided", async () => {
+      prismaMock.product.create.mockResolvedValue({
+        id: 1,
+        name: "Áo Thun",
+        slug: "ao-thun-123",
+      } as any);
+      const res = await service.create({
+        name: "Áo Thun",
+        categoryId: 1,
+        brandId: 1,
+      } as any);
+      expect(res.name).toBe("Áo Thun");
+      expect(res.slug).toBe("ao-thun-123");
       expect(prismaMock.product.create).toHaveBeenCalled();
     });
   });
 
-  describe('findAll', () => {
-    it('should return paginated products', async () => {
+  describe("findAll", () => {
+    it("should return paginated products", async () => {
       prismaMock.product.count.mockResolvedValue(1);
-      prismaMock.product.findMany.mockResolvedValue([{ id: 1, name: 'A' }] as any);
-      
-      const res = await service.findAll({ page: 1, limit: 10 }) as any;
+      prismaMock.product.findMany.mockResolvedValue([
+        { id: 1, name: "A" },
+      ] as any);
+
+      const res = (await service.findAll({ page: 1, limit: 10 })) as any;
       expect(res.data.length).toBe(1);
       expect(res.meta.total).toBe(1);
     });
 
-    it('should return all products if no pagination', async () => {
-      prismaMock.product.findMany.mockResolvedValue([{ id: 1, name: 'A' }] as any);
-      
-      const res = await service.findAll() as any;
+    it("should return all products if no pagination", async () => {
+      prismaMock.product.findMany.mockResolvedValue([
+        { id: 1, name: "A" },
+      ] as any);
+
+      const res = (await service.findAll()) as any;
       expect(res.length).toBe(1);
     });
   });
 
-  describe('getStats', () => {
-    it('should calculate stats correctly', async () => {
-      prismaMock.product.count.mockResolvedValueOnce(10).mockResolvedValueOnce(2);
+  describe("getStats", () => {
+    it("should calculate stats correctly", async () => {
+      prismaMock.product.count
+        .mockResolvedValueOnce(10)
+        .mockResolvedValueOnce(2);
       prismaMock.productVariant.findMany.mockResolvedValue([
         { stock: 10, sellingPrice: 100, productId: 1 } as any,
         { stock: 0, sellingPrice: 200, productId: 2 } as any,
@@ -65,79 +79,92 @@ describe('ProductsService', () => {
     });
   });
 
-  describe('findOne / findBySlug', () => {
-    it('should find product by id', async () => {
+  describe("findOne / findBySlug", () => {
+    it("should find product by id", async () => {
       prismaMock.product.findUnique.mockResolvedValue({ id: 1 } as any);
       const res = await service.findOne(1);
       expect(res.id).toBe(1);
     });
 
-    it('should throw NotFoundException if id missing', async () => {
+    it("should throw NotFoundException if id missing", async () => {
       prismaMock.product.findUnique.mockResolvedValue(null);
       await expect(service.findOne(999)).rejects.toThrow(NotFoundException);
     });
 
-    it('should find product by slug', async () => {
-      prismaMock.product.findUnique.mockResolvedValue({ id: 1, slug: 'test' } as any);
-      const res = await service.findBySlug('test');
-      expect(res.slug).toBe('test');
+    it("should find product by slug", async () => {
+      prismaMock.product.findUnique.mockResolvedValue({
+        id: 1,
+        slug: "test",
+      } as any);
+      const res = await service.findBySlug("test");
+      expect(res.slug).toBe("test");
     });
   });
 
-  describe('update', () => {
+  describe("update", () => {
     beforeEach(() => {
-      prismaMock.$transaction.mockImplementation(async (cb: any) => cb(prismaMock));
+      prismaMock.$transaction.mockImplementation(async (cb: any) =>
+        cb(prismaMock),
+      );
     });
 
-    it('should throw BadRequestException when trying to delete a variant that has stock > 0', async () => {
+    it("should throw BadRequestException when trying to delete a variant that has stock > 0", async () => {
       prismaMock.product.findUnique.mockResolvedValue({
         id: 1,
-        name: 'Áo Polo',
+        name: "Áo Polo",
         variants: [
-          { id: 10, sku: 'POLO-M', stock: 5 },
-          { id: 11, sku: 'POLO-L', stock: 0 },
+          { id: 10, sku: "POLO-M", stock: 5 },
+          { id: 11, sku: "POLO-L", stock: 0 },
         ],
       } as any);
 
       prismaMock.productVariant.findMany.mockResolvedValue([
-        { id: 10, sku: 'POLO-M', stock: 5 },
-        { id: 11, sku: 'POLO-L', stock: 0 },
+        { id: 10, sku: "POLO-M", stock: 5 },
+        { id: 11, sku: "POLO-L", stock: 0 },
       ] as any);
 
       // Payload omits POLO-M (intending to delete it)
       const updateDto = {
-        name: 'Áo Polo V2',
+        name: "Áo Polo V2",
         variants: [
-          { sku: 'POLO-L', stock: 0, listPrice: 200, sellingPrice: 180 },
+          { sku: "POLO-L", stock: 0, listPrice: 200, sellingPrice: 180 },
         ],
       };
 
-      await expect(service.update(1, updateDto as any)).rejects.toThrow(BadRequestException);
+      await expect(service.update(1, updateDto as any)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
-    it('should successfully update and delete variant with stock === 0', async () => {
+    it("should successfully update and delete variant with stock === 0", async () => {
       prismaMock.product.findUnique.mockResolvedValue({
         id: 1,
-        name: 'Áo Polo',
+        name: "Áo Polo",
         variants: [
-          { id: 10, sku: 'POLO-M', stock: 0 },
-          { id: 11, sku: 'POLO-L', stock: 0 },
+          { id: 10, sku: "POLO-M", stock: 0 },
+          { id: 11, sku: "POLO-L", stock: 0 },
         ],
       } as any);
 
       prismaMock.productVariant.findMany.mockResolvedValue([
-        { id: 10, sku: 'POLO-M', stock: 0 },
-        { id: 11, sku: 'POLO-L', stock: 0 },
+        { id: 10, sku: "POLO-M", stock: 0 },
+        { id: 11, sku: "POLO-L", stock: 0 },
       ] as any);
 
       prismaMock.productVariant.deleteMany.mockResolvedValue({ count: 1 });
-      prismaMock.productVariant.update.mockResolvedValue({ id: 11, sku: 'POLO-L' } as any);
-      prismaMock.product.update.mockResolvedValue({ id: 1, name: 'Áo Polo V2' } as any);
+      prismaMock.productVariant.update.mockResolvedValue({
+        id: 11,
+        sku: "POLO-L",
+      } as any);
+      prismaMock.product.update.mockResolvedValue({
+        id: 1,
+        name: "Áo Polo V2",
+      } as any);
 
       const updateDto = {
-        name: 'Áo Polo V2',
+        name: "Áo Polo V2",
         variants: [
-          { sku: 'POLO-L', stock: 0, listPrice: 200, sellingPrice: 180 },
+          { sku: "POLO-L", stock: 0, listPrice: 200, sellingPrice: 180 },
         ],
       };
 
@@ -145,32 +172,34 @@ describe('ProductsService', () => {
       expect(prismaMock.productVariant.deleteMany).toHaveBeenCalledWith({
         where: { id: { in: [10] } },
       });
-      expect(result.name).toBe('Áo Polo V2');
+      expect(result.name).toBe("Áo Polo V2");
     });
   });
 
-  describe('remove', () => {
-    it('should throw BadRequestException when product has variants with stock > 0', async () => {
+  describe("remove", () => {
+    it("should throw BadRequestException when product has variants with stock > 0", async () => {
       prismaMock.product.findUnique.mockResolvedValue({
         id: 1,
-        name: 'Áo Polo',
-        variants: [{ id: 10, sku: 'POLO-M', stock: 8 }],
+        name: "Áo Polo",
+        variants: [{ id: 10, sku: "POLO-M", stock: 8 }],
       } as any);
 
       await expect(service.remove(1)).rejects.toThrow(BadRequestException);
     });
 
-    it('should successfully delete product when all variants have stock === 0', async () => {
+    it("should successfully delete product when all variants have stock === 0", async () => {
       prismaMock.product.findUnique.mockResolvedValue({
         id: 1,
-        name: 'Áo Polo',
-        variants: [{ id: 10, sku: 'POLO-M', stock: 0 }],
+        name: "Áo Polo",
+        variants: [{ id: 10, sku: "POLO-M", stock: 0 }],
       } as any);
       prismaMock.product.delete.mockResolvedValue({ id: 1 } as any);
 
       const res = await service.remove(1);
       expect(res.id).toBe(1);
-      expect(prismaMock.product.delete).toHaveBeenCalledWith({ where: { id: 1 } });
+      expect(prismaMock.product.delete).toHaveBeenCalledWith({
+        where: { id: 1 },
+      });
     });
   });
 });

@@ -10,7 +10,9 @@ describe("PurchasesService", () => {
 
   beforeEach(async () => {
     prismaMock = mockDeep<PrismaService>();
-    prismaMock.$transaction.mockImplementation(async (cb: any) => cb(prismaMock));
+    prismaMock.$transaction.mockImplementation(async (cb: any) =>
+      cb(prismaMock),
+    );
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -95,7 +97,10 @@ describe("PurchasesService", () => {
 
   describe("findAll", () => {
     it("should return unpaginated list when page and limit are undefined", async () => {
-      const mockList = [{ id: 1, code: "PN-001" }, { id: 2, code: "PN-002" }];
+      const mockList = [
+        { id: 1, code: "PN-001" },
+        { id: 2, code: "PN-002" },
+      ];
       prismaMock.purchaseReceipt.findMany.mockResolvedValue(mockList as any);
 
       const res = await service.findAll();
@@ -171,7 +176,9 @@ describe("PurchasesService", () => {
   describe("findOne", () => {
     it("should return a purchase receipt when found", async () => {
       const mockReceipt = { id: 1, code: "PN-001" };
-      prismaMock.purchaseReceipt.findUnique.mockResolvedValue(mockReceipt as any);
+      prismaMock.purchaseReceipt.findUnique.mockResolvedValue(
+        mockReceipt as any,
+      );
 
       const res = await service.findOne(1);
       expect(res).toEqual(mockReceipt);

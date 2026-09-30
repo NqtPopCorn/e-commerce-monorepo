@@ -1,20 +1,20 @@
 import {
-  IsDateString,
   IsEmail,
   IsEnum,
+  IsNotEmpty,
   IsOptional,
   IsString,
   MaxLength,
   MinLength,
 } from "class-validator";
 
-export enum GenderRegisterDto {
-  MALE = "MALE",
-  FEMALE = "FEMALE",
-  OTHER = "OTHER",
+export enum AccountRoleDto {
+  CUSTOMER = "CUSTOMER",
+  STAFF = "STAFF",
+  ADMIN = "ADMIN",
 }
 
-export class RegisterDto {
+export class CreateAccountDto {
   @IsEmail({}, { message: "Email không đúng định dạng" })
   email!: string;
 
@@ -38,10 +38,10 @@ export class RegisterDto {
   phone?: string;
 
   @IsOptional()
-  @IsEnum(GenderRegisterDto)
-  gender?: GenderRegisterDto;
+  @IsEnum(AccountRoleDto)
+  role?: AccountRoleDto;
 
   @IsOptional()
-  @IsDateString()
-  dateOfBirth?: string;
+  @IsString()
+  notes?: string;
 }

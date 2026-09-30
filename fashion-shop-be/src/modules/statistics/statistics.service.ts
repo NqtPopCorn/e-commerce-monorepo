@@ -64,7 +64,8 @@ export class StatisticsService {
       name: cat.name,
       stock: cat.products.reduce((sum, product) => {
         return (
-          sum + product.variants.reduce((vSum, variant) => vSum + variant.stock, 0)
+          sum +
+          product.variants.reduce((vSum, variant) => vSum + variant.stock, 0)
         );
       }, 0),
     }));

@@ -76,6 +76,10 @@ export class OrdersService {
       const order = await tx.order.create({
         data: {
           userId,
+          recipientName: dto.recipientName,
+          recipientPhone: dto.recipientPhone,
+          shippingAddress: dto.shippingAddress,
+          shippingNote: dto.shippingNote,
           subtotal: quote.subtotal,
           productDiscount: quote.productDiscount,
           orderDiscount: quote.orderDiscount,
@@ -105,7 +109,9 @@ export class OrdersService {
         let orderItemId: number | null = null;
         if (app.scope === "LINE") {
           const line = quote.lines.find(
-            (l) => l.campaign?.id === app.id && app.discountAmount === l.productDiscount,
+            (l) =>
+              l.campaign?.id === app.id &&
+              app.discountAmount === l.productDiscount,
           );
           if (line) {
             orderItemId = itemMapByVariant.get(line.variantId) || null;
