@@ -1,8 +1,14 @@
 import { api } from "@/lib/api";
-import { Account, GetAccountsParams, PaginatedAccountsResponse } from "@/types/account";
+import {
+  Account,
+  GetAccountsParams,
+  PaginatedAccountsResponse,
+} from "@/types/account";
 
 export const accountsService = {
-  getAll: async (params?: GetAccountsParams): Promise<PaginatedAccountsResponse> => {
+  getAll: async (
+    params?: GetAccountsParams,
+  ): Promise<PaginatedAccountsResponse> => {
     const res = await api.get("/account", { params });
     if (Array.isArray(res.data)) {
       return {

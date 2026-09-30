@@ -17,7 +17,11 @@ export default function ProfilePage() {
   };
 
   if (!hasHydrated) {
-    return <div className="py-20 text-center text-gray-500">Đang tải phiên đăng nhập...</div>;
+    return (
+      <div className="py-20 text-center text-gray-500">
+        Đang tải phiên đăng nhập...
+      </div>
+    );
   }
 
   if (!user) {

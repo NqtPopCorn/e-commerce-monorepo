@@ -116,4 +116,3 @@ export interface ProductStats {
   newThisWeek: number;
   totalStockValue: number;
 }
-

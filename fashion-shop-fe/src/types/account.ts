@@ -24,4 +24,3 @@ export interface PaginatedAccountsResponse {
   data: Account[];
   meta: PaginationMeta;
 }
-

@@ -178,7 +178,9 @@ export default function CheckoutPage() {
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      <span className="text-[10px] text-gray-400">No Image</span>
+                      <span className="text-[10px] text-gray-400">
+                        No Image
+                      </span>
                     )}
                     <span className="absolute -top-1 -right-1 bg-slate-700 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center font-bold">
                       {item.quantity}

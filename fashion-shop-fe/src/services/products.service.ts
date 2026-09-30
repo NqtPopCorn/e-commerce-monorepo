@@ -41,7 +41,10 @@ export const productsService = {
     const res = await api.post("/products", data);
     return res.data;
   },
-  update: async (id: number | string, data: UpdateProductDto): Promise<Product> => {
+  update: async (
+    id: number | string,
+    data: UpdateProductDto,
+  ): Promise<Product> => {
     const res = await api.patch(`/products/${id}`, data);
     return res.data;
   },

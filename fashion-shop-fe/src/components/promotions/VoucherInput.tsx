@@ -37,7 +37,10 @@ export function VoucherInput({
 
   return (
     <div className="space-y-2 py-2">
-      <Label htmlFor="voucherCode" className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
+      <Label
+        htmlFor="voucherCode"
+        className="text-sm font-medium text-slate-700 flex items-center gap-1.5"
+      >
         <Ticket className="w-4 h-4 text-purple-600" /> Voucher / mã giảm giá
       </Label>
 
@@ -46,7 +49,9 @@ export function VoucherInput({
           <div className="flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-purple-600" />
             <div>
-              <span className="font-mono font-bold text-purple-900">{appliedCode}</span>
+              <span className="font-mono font-bold text-purple-900">
+                {appliedCode}
+              </span>
               <span className="text-xs text-purple-700 ml-2">
                 (-{voucherDiscount.toLocaleString()}đ)
               </span>

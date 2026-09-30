@@ -65,7 +65,11 @@ export default function OrdersPage() {
   };
 
   if (!hasHydrated) {
-    return <div className="py-20 text-center text-gray-500">Đang tải phiên đăng nhập...</div>;
+    return (
+      <div className="py-20 text-center text-gray-500">
+        Đang tải phiên đăng nhập...
+      </div>
+    );
   }
 
   if (!user) {
@@ -180,12 +184,26 @@ export default function OrdersPage() {
                       </h4>
                       <div className="space-y-3">
                         {order.items?.map((item: any) => {
-                          const origPrice = Number(item.originalUnitPrice || item.unitPrice || 0);
+                          const origPrice = Number(
+                            item.originalUnitPrice || item.unitPrice || 0,
+                          );
                           const prodDisc = Number(item.productDiscount || 0);
-                          const finalPrice = Number(item.finalUnitPrice || item.unitPrice || 0);
-                          const itemTotal = (finalPrice > 0 ? finalPrice : origPrice) * item.quantity;
-                          const productTitle = item.variant?.product?.name || item.variant?.book?.title || "Sản phẩm";
-                          const variantInfo = [item.variant?.size, item.variant?.color].filter(Boolean).join(" - ");
+                          const finalPrice = Number(
+                            item.finalUnitPrice || item.unitPrice || 0,
+                          );
+                          const itemTotal =
+                            (finalPrice > 0 ? finalPrice : origPrice) *
+                            item.quantity;
+                          const productTitle =
+                            item.variant?.product?.name ||
+                            item.variant?.book?.title ||
+                            "Sản phẩm";
+                          const variantInfo = [
+                            item.variant?.size,
+                            item.variant?.color,
+                          ]
+                            .filter(Boolean)
+                            .join(" - ");
 
                           return (
                             <div
@@ -201,7 +219,9 @@ export default function OrdersPage() {
                                     className="w-full h-full object-cover"
                                   />
                                 ) : (
-                                  <span className="text-[10px] text-gray-400">No Image</span>
+                                  <span className="text-[10px] text-gray-400">
+                                    No Image
+                                  </span>
                                 )}
                               </div>
                               <div className="flex-1">
@@ -209,13 +229,18 @@ export default function OrdersPage() {
                                   {productTitle}
                                 </p>
                                 <p className="text-xs text-gray-500 mt-0.5">
-                                  SKU: {item.variant?.sku} {variantInfo ? `| ${variantInfo} ` : ""}| Số lượng: {item.quantity}
+                                  SKU: {item.variant?.sku}{" "}
+                                  {variantInfo ? `| ${variantInfo} ` : ""}| Số
+                                  lượng: {item.quantity}
                                 </p>
                               </div>
                               <div className="text-right">
                                 {prodDisc > 0 && (
                                   <div className="text-xs text-gray-400 line-through">
-                                    {(origPrice * item.quantity).toLocaleString("vi-VN")} đ
+                                    {(origPrice * item.quantity).toLocaleString(
+                                      "vi-VN",
+                                    )}{" "}
+                                    đ
                                   </div>
                                 )}
                                 <div className="font-bold text-[#c92127]">
@@ -229,49 +254,83 @@ export default function OrdersPage() {
                     </div>
 
                     {/* Applied Promotions Snapshot */}
-                    {order.promotionApplications && order.promotionApplications.length > 0 && (
-                      <div className="bg-emerald-50/60 border border-emerald-200 p-4 rounded-lg space-y-2">
-                        <h5 className="font-semibold text-emerald-900 text-xs flex items-center gap-1.5 uppercase">
-                          <Tag className="w-3.5 h-3.5" /> Ưu đãi đã áp dụng
-                        </h5>
-                        <div className="space-y-1.5 text-xs text-emerald-800">
-                          {order.promotionApplications.map((app: any) => (
-                            <div key={app.id} className="flex justify-between items-center">
-                              <span>
-                                • <strong>{app.promotionName}</strong>
-                                {app.promotionCode ? ` (${app.promotionCode})` : ""} [{app.scope}]
-                              </span>
-                              <span className="font-bold">
-                                -{Number(app.discountAmount).toLocaleString("vi-VN")} đ
-                              </span>
-                            </div>
-                          ))}
+                    {order.promotionApplications &&
+                      order.promotionApplications.length > 0 && (
+                        <div className="bg-emerald-50/60 border border-emerald-200 p-4 rounded-lg space-y-2">
+                          <h5 className="font-semibold text-emerald-900 text-xs flex items-center gap-1.5 uppercase">
+                            <Tag className="w-3.5 h-3.5" /> Ưu đãi đã áp dụng
+                          </h5>
+                          <div className="space-y-1.5 text-xs text-emerald-800">
+                            {order.promotionApplications.map((app: any) => (
+                              <div
+                                key={app.id}
+                                className="flex justify-between items-center"
+                              >
+                                <span>
+                                  • <strong>{app.promotionName}</strong>
+                                  {app.promotionCode
+                                    ? ` (${app.promotionCode})`
+                                    : ""}{" "}
+                                  [{app.scope}]
+                                </span>
+                                <span className="font-bold">
+                                  -
+                                  {Number(app.discountAmount).toLocaleString(
+                                    "vi-VN",
+                                  )}{" "}
+                                  đ
+                                </span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
 
                     {/* Financial Summary */}
                     <div className="bg-white p-4 rounded-lg border space-y-2 text-sm text-slate-700 max-w-md ml-auto">
                       <div className="flex justify-between">
                         <span>Tạm tính gốc:</span>
-                        <span>{Number(order.subtotal || order.total).toLocaleString("vi-VN")} đ</span>
+                        <span>
+                          {Number(order.subtotal || order.total).toLocaleString(
+                            "vi-VN",
+                          )}{" "}
+                          đ
+                        </span>
                       </div>
                       {Number(order.productDiscount) > 0 && (
                         <div className="flex justify-between text-emerald-600">
                           <span>Giảm giá sản phẩm:</span>
-                          <span>-{Number(order.productDiscount).toLocaleString("vi-VN")} đ</span>
+                          <span>
+                            -
+                            {Number(order.productDiscount).toLocaleString(
+                              "vi-VN",
+                            )}{" "}
+                            đ
+                          </span>
                         </div>
                       )}
                       {Number(order.orderDiscount) > 0 && (
                         <div className="flex justify-between text-emerald-600">
                           <span>Khuyến mãi hóa đơn:</span>
-                          <span>-{Number(order.orderDiscount).toLocaleString("vi-VN")} đ</span>
+                          <span>
+                            -
+                            {Number(order.orderDiscount).toLocaleString(
+                              "vi-VN",
+                            )}{" "}
+                            đ
+                          </span>
                         </div>
                       )}
                       {Number(order.voucherDiscount) > 0 && (
                         <div className="flex justify-between text-emerald-600">
                           <span>Voucher giảm giá:</span>
-                          <span>-{Number(order.voucherDiscount).toLocaleString("vi-VN")} đ</span>
+                          <span>
+                            -
+                            {Number(order.voucherDiscount).toLocaleString(
+                              "vi-VN",
+                            )}{" "}
+                            đ
+                          </span>
                         </div>
                       )}
                       <div className="flex justify-between font-bold border-t pt-2 text-base text-slate-900">

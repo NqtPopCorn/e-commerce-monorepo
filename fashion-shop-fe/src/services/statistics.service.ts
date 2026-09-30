@@ -1,5 +1,9 @@
 import { api } from "@/lib/api";
-import { OverviewStatistic, RevenueStatistic, StockStatistic } from "@/types/statistic";
+import {
+  OverviewStatistic,
+  RevenueStatistic,
+  StockStatistic,
+} from "@/types/statistic";
 
 export const statisticsService = {
   getOverview: async (): Promise<OverviewStatistic> => {

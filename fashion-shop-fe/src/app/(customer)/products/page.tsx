@@ -47,15 +47,22 @@ function ProductsContent() {
 
   if (brandParam) {
     filteredProducts = filteredProducts.filter(
-      (prod: Product) => prod.brand?.name?.toLowerCase() === brandParam.toLowerCase()
+      (prod: Product) =>
+        prod.brand?.name?.toLowerCase() === brandParam.toLowerCase(),
     );
   }
 
   if (searchQuery) {
     filteredProducts = filteredProducts.filter((prod: Product) => {
-      const nameMatch = prod.name?.toLowerCase().includes(searchQuery.toLowerCase());
-      const brandMatch = prod.brand?.name?.toLowerCase().includes(searchQuery.toLowerCase());
-      const matMatch = prod.material?.toLowerCase().includes(searchQuery.toLowerCase());
+      const nameMatch = prod.name
+        ?.toLowerCase()
+        .includes(searchQuery.toLowerCase());
+      const brandMatch = prod.brand?.name
+        ?.toLowerCase()
+        .includes(searchQuery.toLowerCase());
+      const matMatch = prod.material
+        ?.toLowerCase()
+        .includes(searchQuery.toLowerCase());
       return nameMatch || brandMatch || matMatch;
     });
   }
@@ -68,7 +75,10 @@ function ProductsContent() {
           Trang chủ
         </Link>
         <ChevronRight className="w-4 h-4" />
-        <Link href="/products" className="hover:text-rose-600 transition-colors">
+        <Link
+          href="/products"
+          className="hover:text-rose-600 transition-colors"
+        >
           Thời trang
         </Link>
         {(categoryParam || brandParam || searchQuery) && (
@@ -103,7 +113,9 @@ function ProductsContent() {
                   <Link
                     href="/products"
                     className={`block py-1 hover:text-rose-600 transition-colors ${
-                      !categoryParam && !brandParam ? "font-bold text-rose-600" : "text-gray-600"
+                      !categoryParam && !brandParam
+                        ? "font-bold text-rose-600"
+                        : "text-gray-600"
                     }`}
                   >
                     Tất cả sản phẩm
@@ -114,7 +126,9 @@ function ProductsContent() {
                     <Link
                       href={`/products?category=${encodeURIComponent(cat.name)}`}
                       className={`block py-1 hover:text-rose-600 transition-colors ${
-                        categoryParam === cat.name ? "font-bold text-rose-600" : "text-gray-600"
+                        categoryParam === cat.name
+                          ? "font-bold text-rose-600"
+                          : "text-gray-600"
                       }`}
                     >
                       {cat.name}
@@ -152,7 +166,11 @@ function ProductsContent() {
         <div className="w-full md:w-3/4">
           <div className="bg-white p-4 rounded-xl shadow-xs border border-gray-100 mb-6 flex justify-between items-center">
             <h1 className="font-bold text-gray-900 text-lg">
-              {categoryParam || brandParam || (searchQuery ? `Kết quả: "${searchQuery}"` : "Bộ sưu tập thời trang")}
+              {categoryParam ||
+                brandParam ||
+                (searchQuery
+                  ? `Kết quả: "${searchQuery}"`
+                  : "Bộ sưu tập thời trang")}
             </h1>
             <div className="text-sm text-gray-500">
               {filteredProducts.length} sản phẩm
@@ -178,13 +196,29 @@ function ProductsContent() {
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
               {filteredProducts.map((prod: Product) => {
-                const minPrice = Math.min(...(prod.variants?.map((v) => Number(v.sellingPrice)) || [0]));
-                const maxListPrice = Math.max(...(prod.variants?.map((v) => Number(v.listPrice || 0)) || [0]));
-                const discount = maxListPrice > minPrice ? Math.round(((maxListPrice - minPrice) / maxListPrice) * 100) : 0;
-                const imageUrl = prod.images?.[0]?.url || prod.variants?.[0]?.imageUrl || "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=800&q=80";
+                const minPrice = Math.min(
+                  ...(prod.variants?.map((v) => Number(v.sellingPrice)) || [0]),
+                );
+                const maxListPrice = Math.max(
+                  ...(prod.variants?.map((v) => Number(v.listPrice || 0)) || [
+                    0,
+                  ]),
+                );
+                const discount =
+                  maxListPrice > minPrice
+                    ? Math.round(
+                        ((maxListPrice - minPrice) / maxListPrice) * 100,
+                      )
+                    : 0;
+                const imageUrl =
+                  prod.images?.[0]?.url ||
+                  prod.variants?.[0]?.imageUrl ||
+                  "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=800&q=80";
 
                 // Unique sizes
-                const sizes = Array.from(new Set(prod.variants?.map((v) => v.size).filter(Boolean)));
+                const sizes = Array.from(
+                  new Set(prod.variants?.map((v) => v.size).filter(Boolean)),
+                );
 
                 return (
                   <Link key={prod.id} href={`/products/${prod.id}`}>
@@ -224,7 +258,9 @@ function ProductsContent() {
                               </span>
                             ))}
                             {sizes.length > 4 && (
-                              <span className="text-[10px] text-slate-400">+{sizes.length - 4}</span>
+                              <span className="text-[10px] text-slate-400">
+                                +{sizes.length - 4}
+                              </span>
                             )}
                           </div>
                         )}
@@ -260,7 +296,9 @@ function ProductsContent() {
 
 export default function ProductsPage() {
   return (
-    <Suspense fallback={<div className="text-center py-20">Đang tải danh sách...</div>}>
+    <Suspense
+      fallback={<div className="text-center py-20">Đang tải danh sách...</div>}
+    >
       <ProductsContent />
     </Suspense>
   );

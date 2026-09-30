@@ -20,7 +20,9 @@ export const promotionsService = {
     return res.data;
   },
 
-  getAll: async (params?: PromotionQuery): Promise<PaginatedPromotionsResponse> => {
+  getAll: async (
+    params?: PromotionQuery,
+  ): Promise<PaginatedPromotionsResponse> => {
     const res = await api.get("/promotions", { params });
     if (Array.isArray(res.data)) {
       return {

@@ -61,12 +61,15 @@ export default function Header() {
     }
   };
 
-  const activeCategory = categories.find((c: Category) => c.id === hoveredCategory);
+  const activeCategory = categories.find(
+    (c: Category) => c.id === hoveredCategory,
+  );
 
   return (
     <>
       <div className="w-full bg-slate-900 text-slate-100 text-center py-2 text-xs md:text-sm font-medium tracking-wide">
-        ✨ Ưu đãi thời trang mùa mới — Giảm đến 50% & Miễn phí vận chuyển toàn quốc!
+        ✨ Ưu đãi thời trang mùa mới — Giảm đến 50% & Miễn phí vận chuyển toàn
+        quốc!
       </div>
 
       <header className="bg-white sticky top-0 z-50 shadow-sm border-b">
@@ -129,7 +132,8 @@ export default function Header() {
                       {activeCategory?.name}
                     </h3>
                     <div className="grid grid-cols-2 gap-y-3 gap-x-4 text-sm">
-                      {activeCategory?.children && activeCategory.children.length > 0 ? (
+                      {activeCategory?.children &&
+                      activeCategory.children.length > 0 ? (
                         activeCategory.children.map((child: Category) => (
                           <Link
                             key={child.id}
@@ -204,7 +208,9 @@ export default function Header() {
               >
                 <UserCircle className="w-6 h-6" />
                 <span className="text-[11px] mt-1 hidden lg:block font-medium">
-                  {hasHydrated && user ? user.firstName || "Tài khoản" : "Tài khoản"}
+                  {hasHydrated && user
+                    ? user.firstName || "Tài khoản"
+                    : "Tài khoản"}
                 </span>
               </Link>
             </div>

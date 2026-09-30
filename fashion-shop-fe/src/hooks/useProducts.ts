@@ -60,8 +60,13 @@ export const useCreateProduct = () => {
 export const useUpdateProduct = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: number | string; data: UpdateProductDto }) =>
-      productsService.update(id, data),
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: number | string;
+      data: UpdateProductDto;
+    }) => productsService.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
       queryClient.invalidateQueries({ queryKey: ["products-paginated"] });
