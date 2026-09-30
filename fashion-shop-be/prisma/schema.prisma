@@ -7,28 +7,71 @@ datasource db {
 }
 
 model User {
-  id        Int        @id @default(autoincrement())
-  email     String     @unique
-  password  String
-  firstName String?    @map("first_name")
-  lastName  String?    @map("last_name")
-  role      Role       @default(CUSTOMER)
-  status    UserStatus @default(ACTIVE)
-  createdAt DateTime   @default(now()) @map("created_at")
-  updatedAt DateTime   @updatedAt @map("updated_at")
-  orders    Order[]
+  id          Int          @id @default(autoincrement())
+  email       String       @unique
+  password    String
+  firstName   String?      @map("first_name")
+  lastName    String?      @map("last_name")
+  phone       String?      @unique
+  avatarUrl   String?      @map("avatar_url")
+  gender      Gender?
+  dateOfBirth DateTime?    @map("date_of_birth")
+  role        Role         @default(CUSTOMER)
+  status      UserStatus   @default(ACTIVE)
+  tier        CustomerTier @default(STANDARD)
+  notes       String?
+  lastLoginAt DateTime?    @map("last_login_at")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+  orders      Order[]
+  addresses   Address[]
 
+  @@index([role, status])
+  @@index([phone])
   @@map("users")
 }
 
 enum Role {
   CUSTOMER
+  STAFF
   ADMIN
 }
 
 enum UserStatus {
   ACTIVE
   BLOCKED
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum CustomerTier {
+  STANDARD
+  SILVER
+  GOLD
+  DIAMOND
+}
+
+model Address {
+  id            Int      @id @default(autoincrement())
+  userId        Int      @map("user_id")
+  recipientName String   @map("recipient_name")
+  phone         String
+  street        String
+  ward          String?
+  district      String?
+  city          String
+  isDefault     Boolean  @default(false) @map("is_default")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("addresses")
 }
 
 model Brand {
@@ -229,6 +272,10 @@ model Order {
   id                    Int                    @id @default(autoincrement())
   userId                Int                    @map("user_id")
   status                OrderStatus            @default(PENDING)
+  recipientName         String?                @map("recipient_name")
+  recipientPhone        String?                @map("recipient_phone")
+  shippingAddress       String?                @map("shipping_address")
+  shippingNote          String?                @map("shipping_note")
   subtotal              Decimal                @default(0) @db.Decimal(12, 2)
   productDiscount       Decimal                @default(0) @map("product_discount") @db.Decimal(12, 2)
   orderDiscount         Decimal                @default(0) @map("order_discount") @db.Decimal(12, 2)
