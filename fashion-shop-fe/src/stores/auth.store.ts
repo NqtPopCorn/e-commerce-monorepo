@@ -4,8 +4,12 @@ type User = {
   id: number;
   email: string;
   role: string;
-  firstName?: string;
-  lastName?: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  phone?: string | null;
+  status?: string;
+  tier?: string;
+  avatarUrl?: string | null;
 };
 type AuthState = {
   token: string | null;

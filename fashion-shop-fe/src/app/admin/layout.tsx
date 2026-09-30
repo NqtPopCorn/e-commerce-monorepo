@@ -100,8 +100,14 @@ export default function AdminLayout({
   useEffect(() => {
     if (pathname === "/admin/login") return;
     if (mounted && hasHydrated) {
-      if (!user || user.role !== "ADMIN") {
+      if (!user || (user.role !== "ADMIN" && user.role !== "STAFF")) {
         router.push("/admin/login");
+      } else if (
+        user.role === "STAFF" &&
+        (pathname.startsWith("/admin/accounts") ||
+          pathname.startsWith("/admin/analytics"))
+      ) {
+        router.push("/admin");
       }
     }
   }, [mounted, hasHydrated, user, router, pathname]);
@@ -116,7 +122,9 @@ export default function AdminLayout({
     return <>{children}</>;
   }
 
-  if (!mounted || !hasHydrated || !user || user.role !== "ADMIN") {
+  const isAllowed = user && (user.role === "ADMIN" || user.role === "STAFF");
+
+  if (!mounted || !hasHydrated || !isAllowed) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
         <div className="flex flex-col items-center gap-3">
@@ -193,7 +201,10 @@ export default function AdminLayout({
 
         {/* Sidebar Navigation */}
         <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-5 admin-scrollbar">
-          {navGroups.map((group) => (
+          {(user?.role === "STAFF"
+            ? navGroups.filter((g) => g.label !== "QUẢN TRỊ")
+            : navGroups
+          ).map((group) => (
             <div key={group.label} className="space-y-1">
               {!isCollapsed && (
                 <div className="px-3 mb-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">

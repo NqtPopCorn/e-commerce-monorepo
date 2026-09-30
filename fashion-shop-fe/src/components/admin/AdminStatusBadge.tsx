@@ -84,12 +84,19 @@ const statusMap: Record<string, StatusConfig> = {
   COMPLETED: { label: "Hoàn tất", variant: "success" },
   CANCELLED: { label: "Đã hủy", variant: "danger" },
 
-  // Accounts
+  // Accounts & Roles
   ACTIVE: { label: "Hoạt động", variant: "success" },
   INACTIVE: { label: "Ngừng hoạt động", variant: "neutral" },
   BLOCKED: { label: "Bị khóa", variant: "danger" },
   ADMIN: { label: "Quản trị viên", variant: "primary" },
+  STAFF: { label: "Nhân viên", variant: "info" },
   CUSTOMER: { label: "Khách hàng", variant: "neutral" },
+
+  // Customer Tiers
+  STANDARD: { label: "Tiêu chuẩn", variant: "neutral" },
+  SILVER: { label: "Hạng Bạc", variant: "info" },
+  GOLD: { label: "Hạng Vàng", variant: "warning" },
+  DIAMOND: { label: "Kim Cương", variant: "primary" },
 
   // Promotions
   VOUCHER: { label: "Mã giảm giá", variant: "primary" },

@@ -209,7 +209,8 @@ function AdminProductsContent() {
           closeConfirmDialog();
         } catch (err: any) {
           const message =
-            err?.response?.data?.message || "Không thể xóa sản phẩm. Kiểm tra kết nối rồi thử lại.";
+            err?.response?.data?.message ||
+            "Không thể xóa sản phẩm. Kiểm tra kết nối rồi thử lại.";
           toast.error(message);
           setConfirmDialog((prev) => ({ ...prev, isLoading: false }));
         }
@@ -300,7 +301,9 @@ function AdminProductsContent() {
           setSelectedIds([]);
           closeConfirmDialog();
         } catch {
-          toast.error("Không thể xóa các sản phẩm đã chọn. Kiểm tra kết nối rồi thử lại.");
+          toast.error(
+            "Không thể xóa các sản phẩm đã chọn. Kiểm tra kết nối rồi thử lại.",
+          );
           setConfirmDialog((prev) => ({ ...prev, isLoading: false }));
         }
       },

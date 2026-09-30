@@ -10,6 +10,11 @@ import {
   UserCheck,
   Shield,
   RotateCcw,
+  UserPlus,
+  Eye,
+  Edit2,
+  Phone,
+  Briefcase,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,7 +26,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useGetAccounts, useUpdateAccountStatus } from "@/hooks/useAccounts";
+import {
+  useGetAccounts,
+  useGetAccountSummary,
+  useUpdateAccountStatus,
+} from "@/hooks/useAccounts";
 import {
   AdminPageHeader,
   AdminStatCard,
@@ -30,6 +39,9 @@ import {
   AdminConfirmDialog,
   AdminPageSkeleton,
 } from "@/components/admin";
+import { AccountDetailModal } from "@/components/admin/accounts/AccountDetailModal";
+import { CreateAccountModal } from "@/components/admin/accounts/CreateAccountModal";
+import { EditAccountModal } from "@/components/admin/accounts/EditAccountModal";
 import { useTableParams } from "@/hooks/useTableParams";
 import { toast } from "sonner";
 import { Account } from "@/types/account";
@@ -55,7 +67,15 @@ function AccountsContent() {
     return () => clearTimeout(handler);
   }, [searchInput, params.q, setParams]);
 
-  // Dialog state
+  // Modals state
+  const [selectedAccountId, setSelectedAccountId] = useState<number | null>(
+    null,
+  );
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [editingAccount, setEditingAccount] = useState<Account | null>(null);
+
+  // Confirm dialog state
   const [confirmDialog, setConfirmDialog] = useState<{
     isOpen: boolean;
     title: string;
@@ -83,6 +103,7 @@ function AccountsContent() {
     status: statusFilter || undefined,
   });
 
+  const { data: summary } = useGetAccountSummary();
   const updateStatus = useUpdateAccountStatus();
 
   const users: Account[] = response?.data || [];
@@ -92,12 +113,6 @@ function AccountsContent() {
     limit: params.pageSize,
     totalPages: 1,
   };
-
-  const totalUsers = meta.total || 0;
-  const activeCount = users.filter(
-    (u) => (u.status || "ACTIVE") === "ACTIVE",
-  ).length;
-  const adminCount = users.filter((u) => u.role === "ADMIN").length;
 
   const handleToggleStatus = (
     id: number,
@@ -116,7 +131,7 @@ function AccountsContent() {
         <p>
           Bạn có chắc chắn muốn khóa tài khoản{" "}
           <strong className="text-foreground">{email}</strong>? Người dùng này
-          sẽ không thể đăng nhập vào hệ thống.
+          sẽ bị chặn truy cập và không thể đăng nhập vào hệ thống.
         </p>
       ) : (
         <p>
@@ -154,28 +169,45 @@ function AccountsContent() {
       <AdminPageHeader
         title="Quản Lý Tài Khoản"
         description="Quản lý danh sách người dùng hệ thống, phân quyền quản trị và kiểm soát trạng thái hoạt động."
+        actions={
+          <Button
+            size="sm"
+            onClick={() => setIsCreateOpen(true)}
+            className="h-9 px-3.5 text-xs font-semibold gap-1.5 shadow-xs"
+          >
+            <UserPlus className="w-4 h-4" />
+            <span>Thêm tài khoản</span>
+          </Button>
+        }
       />
 
-      {/* KPI Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+      {/* KPI Stats (Accurate counts from API) */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <AdminStatCard
           title="Tổng Tài Khoản"
-          value={totalUsers}
-          subtitle="Tài khoản trên hệ thống"
+          value={summary?.total ?? meta.total}
+          subtitle="Tài khoản trên toàn hệ thống"
           icon={Users}
           color="slate"
         />
         <AdminStatCard
           title="Đang Hoạt Động"
-          value={activeCount}
-          subtitle="Tài khoản hợp lệ"
+          value={summary?.active ?? 0}
+          subtitle="Tài khoản có quyền đăng nhập"
           icon={UserCheck}
           color="emerald"
         />
         <AdminStatCard
+          title="Nhân Viên"
+          value={summary?.staffs ?? 0}
+          subtitle="Vận hành kho & đơn hàng"
+          icon={Briefcase}
+          color="sky"
+        />
+        <AdminStatCard
           title="Quản Trị Viên"
-          value={adminCount}
-          subtitle="Có quyền quản lý hệ thống"
+          value={summary?.admins ?? 0}
+          subtitle="Quản trị toàn quyền"
           icon={Shield}
           color="indigo"
         />
@@ -189,7 +221,7 @@ function AccountsContent() {
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             className="pl-9 bg-background border-input text-xs h-9"
-            placeholder="Tìm theo email hoặc họ tên..."
+            placeholder="Tìm theo email, họ tên hoặc số điện thoại..."
           />
         </div>
 
@@ -205,8 +237,9 @@ function AccountsContent() {
             className="h-9 px-3 bg-background border border-input rounded-lg text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
           >
             <option value="">Tất cả vai trò</option>
-            <option value="ADMIN">ADMIN</option>
-            <option value="CUSTOMER">CUSTOMER</option>
+            <option value="ADMIN">ADMIN (Quản trị viên)</option>
+            <option value="STAFF">STAFF (Nhân viên)</option>
+            <option value="CUSTOMER">CUSTOMER (Khách hàng)</option>
           </select>
 
           {/* Status Filter */}
@@ -267,7 +300,7 @@ function AccountsContent() {
         <Table>
           <TableHeader className="bg-muted/50">
             <TableRow className="border-b border-border">
-              <TableHead className="w-[80px] font-semibold text-muted-foreground text-xs uppercase tracking-wider">
+              <TableHead className="w-[70px] font-semibold text-muted-foreground text-xs uppercase tracking-wider">
                 ID
               </TableHead>
               <TableHead className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
@@ -280,9 +313,12 @@ function AccountsContent() {
                 Vai trò
               </TableHead>
               <TableHead className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
+                Hạng thành viên
+              </TableHead>
+              <TableHead className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
                 Trạng thái
               </TableHead>
-              <TableHead className="text-right font-semibold text-muted-foreground text-xs uppercase tracking-wider w-36">
+              <TableHead className="text-right font-semibold text-muted-foreground text-xs uppercase tracking-wider w-44">
                 Thao tác
               </TableHead>
             </TableRow>
@@ -314,6 +350,16 @@ function AccountsContent() {
                         <p className="text-xs font-semibold text-foreground truncate">
                           {fullName}
                         </p>
+                        {user.phone ? (
+                          <span className="text-[11px] text-muted-foreground font-mono inline-flex items-center gap-1">
+                            <Phone className="w-3 h-3" />
+                            {user.phone}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-muted-foreground italic">
+                            Chưa có SĐT
+                          </span>
+                        )}
                       </div>
                     </div>
                   </TableCell>
@@ -327,42 +373,75 @@ function AccountsContent() {
                   </TableCell>
 
                   <TableCell>
+                    {user.role === "CUSTOMER" && user.tier ? (
+                      <AdminStatusBadge status={user.tier} size="sm" />
+                    ) : (
+                      <span className="text-xs text-muted-foreground">-</span>
+                    )}
+                  </TableCell>
+
+                  <TableCell>
                     <AdminStatusBadge status={userStatus} size="sm" />
                   </TableCell>
 
                   <TableCell className="text-right">
-                    {user.role !== "ADMIN" ? (
+                    <div className="flex items-center justify-end gap-1">
+                      {/* View Details */}
                       <Button
                         variant="ghost"
                         size="sm"
-                        disabled={updateStatus.isPending}
-                        onClick={() =>
-                          handleToggleStatus(user.id, userStatus, user.email)
-                        }
-                        className={`h-8 px-2.5 text-xs font-medium rounded-lg transition-colors ${
-                          !isBlocked
-                            ? "text-destructive hover:bg-destructive/10"
-                            : "text-success hover:bg-success/10"
-                        }`}
+                        title="Xem chi tiết 360°"
+                        onClick={() => {
+                          setSelectedAccountId(user.id);
+                          setIsDetailOpen(true);
+                        }}
+                        className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
                       >
-                        {!isBlocked ? (
-                          <>
-                            <Lock className="w-3.5 h-3.5 mr-1" />
-                            Khóa
-                          </>
-                        ) : (
-                          <>
-                            <Unlock className="w-3.5 h-3.5 mr-1" />
-                            Mở khóa
-                          </>
-                        )}
+                        <Eye className="w-4 h-4" />
                       </Button>
-                    ) : (
-                      <span className="inline-flex items-center text-muted-foreground text-xs italic">
-                        <ShieldAlert className="w-3.5 h-3.5 mr-1 text-muted-foreground" />
-                        Quản trị viên
-                      </span>
-                    )}
+
+                      {/* Edit Role / Info */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        title="Chỉnh sửa & Phân quyền"
+                        onClick={() => setEditingAccount(user)}
+                        className="h-8 w-8 p-0 text-muted-foreground hover:text-primary"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </Button>
+
+                      {/* Lock / Unlock */}
+                      {user.role !== "ADMIN" ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={updateStatus.isPending}
+                          title={!isBlocked ? "Khóa tài khoản" : "Mở khóa"}
+                          onClick={() =>
+                            handleToggleStatus(user.id, userStatus, user.email)
+                          }
+                          className={`h-8 w-8 p-0 ${
+                            !isBlocked
+                              ? "text-destructive hover:bg-destructive/10"
+                              : "text-success hover:bg-success/10"
+                          }`}
+                        >
+                          {!isBlocked ? (
+                            <Lock className="w-3.5 h-3.5" />
+                          ) : (
+                            <Unlock className="w-3.5 h-3.5" />
+                          )}
+                        </Button>
+                      ) : (
+                        <span
+                          className="h-8 w-8 flex items-center justify-center text-muted-foreground"
+                          title="Quản trị viên tối cao"
+                        >
+                          <ShieldAlert className="w-3.5 h-3.5" />
+                        </span>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               );
@@ -371,6 +450,33 @@ function AccountsContent() {
         </Table>
       </AdminDataTable>
 
+      {/* Account Detail 360 Modal */}
+      <AccountDetailModal
+        isOpen={isDetailOpen}
+        onClose={() => {
+          setIsDetailOpen(false);
+          setSelectedAccountId(null);
+        }}
+        accountId={selectedAccountId}
+        onToggleStatus={handleToggleStatus}
+      />
+
+      {/* Create Account Modal */}
+      <CreateAccountModal
+        isOpen={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        onSuccess={() => refetch()}
+      />
+
+      {/* Edit Account Modal */}
+      <EditAccountModal
+        isOpen={!!editingAccount}
+        onClose={() => setEditingAccount(null)}
+        account={editingAccount}
+        onSuccess={() => refetch()}
+      />
+
+      {/* Confirm Lock/Unlock Dialog */}
       <AdminConfirmDialog
         isOpen={confirmDialog.isOpen}
         onClose={() => setConfirmDialog((prev) => ({ ...prev, isOpen: false }))}

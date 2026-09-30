@@ -1,8 +1,17 @@
 import { api } from "@/lib/api";
 import { CartInput } from "@/types/promotion";
 
+export interface CreateOrderParams {
+  items: CartInput[];
+  voucherCode?: string;
+  recipientName?: string;
+  recipientPhone?: string;
+  shippingAddress?: string;
+  shippingNote?: string;
+}
+
 export const ordersService = {
-  create: async (data: { items: CartInput[]; voucherCode?: string }) => {
+  create: async (data: CreateOrderParams) => {
     const res = await api.post("/orders", data);
     return res.data;
   },

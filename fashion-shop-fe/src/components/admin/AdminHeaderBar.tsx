@@ -317,7 +317,9 @@ export function AdminHeaderBar({ onOpenMobileMenu }: AdminHeaderBarProps) {
                   "Admin"}
               </p>
               <p className="text-[10px] text-muted-foreground leading-tight">
-                Quản trị viên
+                {user?.role === "STAFF"
+                  ? "Nhân viên vận hành"
+                  : "Quản trị viên"}
               </p>
             </div>
           </div>
