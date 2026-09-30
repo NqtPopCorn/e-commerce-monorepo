@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, Suspense } from "react";
 import {
   Table,
   TableBody,
@@ -12,11 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useGetAdminOrders, useUpdateOrderStatus } from "@/hooks/useOrders";
 import { OrderDetailModal } from "@/components/admin/orders/OrderDetailModal";
-import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import {
   Search,
@@ -32,6 +28,8 @@ import {
   AdminDataTable,
   AdminPageSkeleton,
 } from "@/components/admin";
+import { useTableParams } from "@/hooks/useTableParams";
+import { formatCurrency, formatDateTime } from "@/lib/format";
 
 const ORDER_STATUSES = [
   { value: "ALL", label: "Tất cả" },
@@ -42,17 +40,36 @@ const ORDER_STATUSES = [
   { value: "CANCELLED", label: "Đã hủy" },
 ];
 
-export default function AdminOrdersPage() {
-  const { data: allOrders = [], isLoading } = useGetAdminOrders();
+function AdminOrdersContent() {
+  const {
+    data: allOrders = [],
+    isLoading,
+    isError,
+    refetch,
+  } = useGetAdminOrders();
   const updateStatus = useUpdateOrderStatus();
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // States for filtering and pagination
-  const [activeTab, setActiveTab] = useState("ALL");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [limit, setLimit] = useState(10);
+  // URL-driven table parameters
+  const { params, setParams } = useTableParams({ page: 1, pageSize: 10 });
+  const activeTab = params.status || "ALL";
+
+  // Debounced search
+  const [searchInput, setSearchInput] = useState(params.q);
+
+  useEffect(() => {
+    setSearchInput(params.q);
+  }, [params.q]);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      if (searchInput !== params.q) {
+        setParams({ q: searchInput.trim() || undefined, page: 1 });
+      }
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchInput, params.q, setParams]);
 
   // Computed metrics
   const metrics = useMemo(() => {
@@ -60,7 +77,9 @@ export default function AdminOrdersPage() {
     const totalRevenue = allOrders
       .filter((o: any) => o.status === "COMPLETED")
       .reduce((sum: number, o: any) => sum + Number(o.total), 0);
-    const pendingOrders = allOrders.filter((o: any) => o.status === "PENDING").length;
+    const pendingOrders = allOrders.filter(
+      (o: any) => o.status === "PENDING",
+    ).length;
 
     return { totalOrders, totalRevenue, pendingOrders };
   }, [allOrders]);
@@ -69,22 +88,30 @@ export default function AdminOrdersPage() {
   const filteredOrders = useMemo(() => {
     return allOrders.filter((order: any) => {
       const matchesStatus = activeTab === "ALL" || order.status === activeTab;
+      const q = params.q.toLowerCase();
       const matchesSearch =
-        order.id.toString().includes(searchQuery) ||
-        (order.user?.email || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-        ([order.user?.firstName, order.user?.lastName].filter(Boolean).join(" ") || "")
+        !q ||
+        order.id.toString().includes(q) ||
+        (order.user?.email || "").toLowerCase().includes(q) ||
+        (
+          [order.user?.firstName, order.user?.lastName]
+            .filter(Boolean)
+            .join(" ") || ""
+        )
           .toLowerCase()
-          .includes(searchQuery.toLowerCase());
+          .includes(q);
       return matchesStatus && matchesSearch;
     });
-  }, [allOrders, activeTab, searchQuery]);
+  }, [allOrders, activeTab, params.q]);
 
   // Pagination
   const total = filteredOrders.length;
+  const limit = params.pageSize;
+  const currentPage = params.page;
   const totalPages = Math.ceil(total / limit) || 1;
   const paginatedOrders = filteredOrders.slice(
     (currentPage - 1) * limit,
-    currentPage * limit
+    currentPage * limit,
   );
 
   const handleViewOrder = (order: any) => {
@@ -93,14 +120,9 @@ export default function AdminOrdersPage() {
   };
 
   const handleResetFilters = () => {
-    setActiveTab("ALL");
-    setSearchQuery("");
-    setCurrentPage(1);
+    setSearchInput("");
+    setParams({ status: undefined, q: undefined, page: 1 });
   };
-
-  if (isLoading) {
-    return <AdminPageSkeleton />;
-  }
 
   return (
     <div className="space-y-6">
@@ -121,7 +143,7 @@ export default function AdminOrdersPage() {
 
         <AdminStatCard
           title="Tổng Doanh Thu"
-          value={`${metrics.totalRevenue.toLocaleString("vi-VN")}₫`}
+          value={formatCurrency(metrics.totalRevenue)}
           subtitle="Từ các đơn hoàn thành"
           icon={DollarSign}
           color="emerald"
@@ -137,16 +159,15 @@ export default function AdminOrdersPage() {
       </div>
 
       {/* Tabs Filter & Search Bar */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
+      <div className="bg-card p-4 rounded-xl border border-border shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
         <Tabs
           value={activeTab}
           onValueChange={(val) => {
-            setActiveTab(val);
-            setCurrentPage(1);
+            setParams({ status: val === "ALL" ? undefined : val, page: 1 });
           }}
           className="w-full md:w-auto"
         >
-          <TabsList className="bg-slate-100 p-1 rounded-lg">
+          <TabsList className="bg-muted p-1 rounded-lg">
             {ORDER_STATUSES.map((status) => (
               <TabsTrigger
                 key={status.value}
@@ -160,27 +181,33 @@ export default function AdminOrdersPage() {
         </Tabs>
 
         <div className="relative w-full md:w-72">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Tìm theo mã đơn, email..."
-            value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="pl-9 h-9 text-xs bg-slate-50/70 border-slate-200 focus:bg-white"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            className="pl-9 h-9 text-xs bg-background border-input"
           />
         </div>
       </div>
 
       {/* Orders Data Table */}
       <AdminDataTable
+        isLoading={isLoading}
+        isError={isError}
+        errorTitle="Không thể tải danh sách đơn hàng"
+        onRetry={() => refetch()}
         isEmpty={paginatedOrders.length === 0}
         emptyTitle="Không tìm thấy đơn hàng nào"
         emptyDescription="Thử thay đổi bộ lọc trạng thái hoặc từ khóa tìm kiếm."
         emptyAction={
-          (activeTab !== "ALL" || searchQuery) ? (
-            <Button variant="outline" size="sm" onClick={handleResetFilters} className="text-xs">
+          activeTab !== "ALL" || params.q ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleResetFilters}
+              className="text-xs border-border"
+            >
               <RotateCcw className="w-3.5 h-3.5 mr-1" />
               Đặt lại bộ lọc
             </Button>
@@ -191,67 +218,73 @@ export default function AdminOrdersPage() {
           limit,
           total,
           totalPages,
-          onPageChange: (p) => setCurrentPage(p),
-          onLimitChange: (l) => {
-            setLimit(l);
-            setCurrentPage(1);
-          },
+          onPageChange: (p) => setParams({ page: p }),
+          onLimitChange: (l) => setParams({ pageSize: l, page: 1 }),
         }}
       >
         <Table>
-          <TableHeader className="bg-slate-50/80">
-            <TableRow className="border-b border-slate-200">
-              <TableHead className="w-[110px] font-semibold text-slate-500 text-xs">Mã Đơn</TableHead>
-              <TableHead className="font-semibold text-slate-500 text-xs">Khách Hàng</TableHead>
-              <TableHead className="font-semibold text-slate-500 text-xs">Ngày Đặt</TableHead>
-              <TableHead className="font-semibold text-slate-500 text-xs">Tổng Tiền</TableHead>
-              <TableHead className="font-semibold text-slate-500 text-xs">Trạng Thái</TableHead>
-              <TableHead className="text-right font-semibold text-slate-500 text-xs">Thao Tác</TableHead>
+          <TableHeader className="bg-muted/50">
+            <TableRow className="border-b border-border">
+              <TableHead className="w-[110px] font-semibold text-muted-foreground text-xs uppercase tracking-wider">
+                Mã Đơn
+              </TableHead>
+              <TableHead className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
+                Khách Hàng
+              </TableHead>
+              <TableHead className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
+                Ngày Đặt
+              </TableHead>
+              <TableHead className="font-semibold text-muted-foreground text-xs uppercase tracking-wider text-right">
+                Tổng Tiền
+              </TableHead>
+              <TableHead className="font-semibold text-muted-foreground text-xs uppercase tracking-wider text-center">
+                Trạng Thái
+              </TableHead>
+              <TableHead className="text-right font-semibold text-muted-foreground text-xs uppercase tracking-wider w-36">
+                Thao Tác
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {paginatedOrders.map((order: any) => {
               const customerName =
-                [order.user?.firstName, order.user?.lastName].filter(Boolean).join(" ") ||
+                [order.user?.firstName, order.user?.lastName]
+                  .filter(Boolean)
+                  .join(" ") ||
                 order.user?.name ||
                 "Khách vãng lai";
 
               return (
                 <TableRow
                   key={order.id}
-                  className="hover:bg-slate-50/70 cursor-pointer border-b border-slate-100 transition-colors group"
+                  className="hover:bg-muted/50 cursor-pointer border-b border-border transition-colors group"
                   onClick={() => handleViewOrder(order)}
                 >
-                  <TableCell className="font-mono text-xs font-semibold text-slate-900 group-hover:text-rose-600 transition-colors">
+                  <TableCell className="font-mono text-xs font-semibold text-foreground group-hover:text-primary transition-colors tabular-nums">
                     #{order.id}
                   </TableCell>
 
                   <TableCell>
                     <div className="flex flex-col">
-                      <span className="text-xs font-semibold text-slate-900">
+                      <span className="text-xs font-medium text-foreground">
                         {customerName}
                       </span>
-                      <span className="text-[11px] text-slate-400 font-mono">
+                      <span className="text-[11px] text-muted-foreground font-mono">
                         {order.user?.email || "N/A"}
                       </span>
                     </div>
                   </TableCell>
 
-                  <TableCell className="text-xs text-slate-600">
-                    {new Date(order.createdAt).toLocaleString("vi-VN", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      day: "2-digit",
-                      month: "2-digit",
-                      year: "numeric",
-                    })}
+                  <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                    {formatDateTime(order.createdAt)}
                   </TableCell>
 
-                  <TableCell className="font-semibold text-xs text-slate-900 font-mono">
-                    {Number(order.total).toLocaleString("vi-VN")}₫
+                  {/* Căn phải + tabular-nums */}
+                  <TableCell className="font-semibold text-xs text-foreground font-mono text-right tabular-nums">
+                    {formatCurrency(Number(order.total))}
                   </TableCell>
 
-                  <TableCell>
+                  <TableCell className="text-center">
                     <AdminStatusBadge status={order.status} size="sm" />
                   </TableCell>
 
@@ -263,11 +296,14 @@ export default function AdminOrdersPage() {
                       {order.status === "PENDING" && (
                         <>
                           <Button
-                            variant="outline"
+                            variant="default"
                             size="sm"
-                            className="h-7 px-2.5 text-xs border-slate-200 text-slate-700 hover:bg-slate-50"
+                            className="h-7 px-2.5 text-xs"
                             onClick={() =>
-                              updateStatus.mutate({ id: order.id, status: "CONFIRMED" })
+                              updateStatus.mutate({
+                                id: order.id,
+                                status: "CONFIRMED",
+                              })
                             }
                           >
                             Xác nhận
@@ -277,7 +313,10 @@ export default function AdminOrdersPage() {
                             size="sm"
                             className="h-7 px-2.5 text-xs"
                             onClick={() =>
-                              updateStatus.mutate({ id: order.id, status: "CANCELLED" })
+                              updateStatus.mutate({
+                                id: order.id,
+                                status: "CANCELLED",
+                              })
                             }
                           >
                             Hủy
@@ -286,10 +325,14 @@ export default function AdminOrdersPage() {
                       )}
                       {order.status === "CONFIRMED" && (
                         <Button
+                          variant="default"
                           size="sm"
-                          className="h-7 px-2.5 text-xs bg-indigo-600 hover:bg-indigo-700 text-white"
+                          className="h-7 px-2.5 text-xs"
                           onClick={() =>
-                            updateStatus.mutate({ id: order.id, status: "SHIPPING" })
+                            updateStatus.mutate({
+                              id: order.id,
+                              status: "SHIPPING",
+                            })
                           }
                         >
                           Giao hàng
@@ -297,20 +340,25 @@ export default function AdminOrdersPage() {
                       )}
                       {order.status === "SHIPPING" && (
                         <Button
+                          variant="default"
                           size="sm"
-                          className="h-7 px-2.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                          className="h-7 px-2.5 text-xs bg-success hover:bg-success/90 text-white"
                           onClick={() =>
-                            updateStatus.mutate({ id: order.id, status: "COMPLETED" })
+                            updateStatus.mutate({
+                              id: order.id,
+                              status: "COMPLETED",
+                            })
                           }
                         >
                           Hoàn thành
                         </Button>
                       )}
-                      {(order.status === "COMPLETED" || order.status === "CANCELLED") && (
+                      {(order.status === "COMPLETED" ||
+                        order.status === "CANCELLED") && (
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-7 px-2.5 text-xs text-slate-600 hover:text-slate-900"
+                          className="h-7 px-2.5 text-xs text-muted-foreground hover:text-foreground"
                           onClick={() => handleViewOrder(order)}
                         >
                           Xem chi tiết
@@ -331,5 +379,13 @@ export default function AdminOrdersPage() {
         order={selectedOrder}
       />
     </div>
+  );
+}
+
+export default function AdminOrdersPage() {
+  return (
+    <Suspense fallback={<AdminPageSkeleton />}>
+      <AdminOrdersContent />
+    </Suspense>
   );
 }

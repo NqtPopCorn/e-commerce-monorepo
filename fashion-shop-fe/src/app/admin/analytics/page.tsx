@@ -1,16 +1,55 @@
 "use client";
 
 import React from "react";
+import dynamic from "next/dynamic";
 import { Package, TrendingUp, Shirt, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useGetOverviewStats } from "@/hooks/useStatistics";
-import { RevenueChart } from "@/components/admin/charts/RevenueChart";
-import { StockChart } from "@/components/admin/charts/StockChart";
 import {
   AdminPageHeader,
   AdminStatCard,
   AdminStatSkeleton,
 } from "@/components/admin";
+import { Skeleton } from "@/components/ui/skeleton";
+import { formatCurrency, formatNumber } from "@/lib/format";
+
+const RevenueChart = dynamic(
+  () =>
+    import("@/components/admin/charts/RevenueChart").then(
+      (mod) => mod.RevenueChart,
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="bg-card border border-border rounded-xl p-6 h-[460px] flex flex-col justify-between">
+        <div className="space-y-2">
+          <Skeleton className="h-6 w-48" />
+          <Skeleton className="h-4 w-72" />
+        </div>
+        <Skeleton className="h-[350px] w-full rounded-lg" />
+      </div>
+    ),
+  },
+);
+
+const StockChart = dynamic(
+  () =>
+    import("@/components/admin/charts/StockChart").then(
+      (mod) => mod.StockChart,
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="bg-card border border-border rounded-xl p-6 h-[410px] flex flex-col justify-between">
+        <div className="space-y-2">
+          <Skeleton className="h-6 w-40" />
+          <Skeleton className="h-4 w-56" />
+        </div>
+        <Skeleton className="h-[300px] w-full rounded-lg" />
+      </div>
+    ),
+  },
+);
 
 export default function AdminAnalyticsPage() {
   const { data: stats, isLoading } = useGetOverviewStats();
@@ -27,9 +66,9 @@ export default function AdminAnalyticsPage() {
             variant="outline"
             size="sm"
             onClick={() => window.print()}
-            className="flex items-center gap-1.5 text-xs text-slate-700 bg-white border-slate-200 hover:bg-slate-50 shadow-2xs"
+            className="flex items-center gap-1.5 text-xs border-border"
           >
-            <Download className="w-4 h-4 text-slate-500" />
+            <Download className="w-4 h-4 text-muted-foreground" />
             <span>Xuất Báo Cáo</span>
           </Button>
         }
@@ -42,7 +81,7 @@ export default function AdminAnalyticsPage() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
           <AdminStatCard
             title="Tổng Doanh Thu"
-            value={`${Number(stats?.revenue || 0).toLocaleString("vi-VN")}₫`}
+            value={formatCurrency(Number(stats?.revenue || 0))}
             subtitle="Từ tất cả đơn hoàn tất"
             icon={TrendingUp}
             color="emerald"
@@ -51,7 +90,7 @@ export default function AdminAnalyticsPage() {
 
           <AdminStatCard
             title="Đơn Thành Công"
-            value={stats?.orders || 0}
+            value={formatNumber(stats?.orders || 0)}
             subtitle="Tỷ lệ giao đạt 96.2%"
             icon={Package}
             color="indigo"
@@ -60,7 +99,7 @@ export default function AdminAnalyticsPage() {
 
           <AdminStatCard
             title="Sản Phẩm Đã Bán"
-            value={`${soldCount} chiếc`}
+            value={`${formatNumber(soldCount)} chiếc`}
             subtitle="Tổng lượng hàng xuất kho"
             icon={Shirt}
             color="rose"
@@ -71,29 +110,8 @@ export default function AdminAnalyticsPage() {
 
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2">
-        <div className="bg-white p-6 rounded-xl shadow-xs border border-slate-200/80">
-          <div className="mb-4">
-            <h2 className="text-base font-bold text-slate-900 tracking-tight">
-              Biểu Đồ Doanh Thu
-            </h2>
-            <p className="text-xs text-slate-500">
-              Xu hướng biến động doanh thu theo thời gian
-            </p>
-          </div>
-          <RevenueChart />
-        </div>
-
-        <div className="bg-white p-6 rounded-xl shadow-xs border border-slate-200/80">
-          <div className="mb-4">
-            <h2 className="text-base font-bold text-slate-900 tracking-tight">
-              Phân Bổ Tồn Kho
-            </h2>
-            <p className="text-xs text-slate-500">
-              Cơ cấu lượng hàng tồn kho theo danh mục sản phẩm
-            </p>
-          </div>
-          <StockChart />
-        </div>
+        <RevenueChart />
+        <StockChart />
       </div>
     </div>
   );

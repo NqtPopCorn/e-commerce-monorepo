@@ -10,8 +10,15 @@ import { useCreateProduct, useUpdateProduct } from "@/hooks/useProducts";
 import { useGetBrands } from "@/hooks/useBrands";
 import { useQuery } from "@tanstack/react-query";
 import { categoriesService } from "@/services/categories.service";
-import { Trash2, Plus, Edit, ArrowLeft, Image as ImageIcon } from "lucide-react";
+import {
+  Trash2,
+  Plus,
+  Edit,
+  ArrowLeft,
+  Image as ImageIcon,
+} from "lucide-react";
 import { VariantFormModal } from "./VariantFormModal";
+import { AdminConfirmDialog, ConfirmDialogVariant } from "@/components/admin";
 
 interface ProductFormProps {
   onClose: () => void;
@@ -34,15 +41,35 @@ export function ProductForm({ onClose, product }: ProductFormProps) {
   );
 
   const [imageUrls, setImageUrls] = useState<string[]>(
-    product?.images?.length
-      ? product.images.map((img: any) => img.url)
-      : [""]
+    product?.images?.length ? product.images.map((img: any) => img.url) : [""],
   );
 
   const [isVariantModalOpen, setIsVariantModalOpen] = useState(false);
   const [editingVariantIndex, setEditingVariantIndex] = useState<number | null>(
     null,
   );
+
+  // Dialog state thay thế cho confirm/alert browser
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: React.ReactNode;
+    variant: ConfirmDialogVariant;
+    confirmText?: string;
+    cancelText?: string;
+    alertOnly?: boolean;
+    onConfirm?: () => void;
+  }>({
+    isOpen: false,
+    title: "",
+    description: null,
+    variant: "danger",
+    alertOnly: false,
+  });
+
+  const closeConfirmDialog = () => {
+    setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+  };
 
   const handleOpenAddVariant = () => {
     setEditingVariantIndex(null);
@@ -65,13 +92,103 @@ export function ProductForm({ onClose, product }: ProductFormProps) {
   };
 
   const handleRemoveVariant = (index: number) => {
-    if (variants.length === 1) {
-      toast.error("Phải có ít nhất 1 biến thể sản phẩm");
+    const targetVariant = variants[index];
+    if (!targetVariant) return;
+
+    // 1. Kiểm tra nếu chỉ còn 1 biến thể duy nhất
+    if (variants.length <= 1) {
+      setConfirmDialog({
+        isOpen: true,
+        title: "Không thể xóa biến thể",
+        description: (
+          <div className="space-y-2">
+            <p>
+              Mỗi sản phẩm thời trang bắt buộc phải có ít nhất{" "}
+              <strong className="text-slate-900">1 biến thể</strong> (kích cỡ,
+              màu sắc, giá bán).
+            </p>
+            <p className="text-xs text-slate-500">
+              Bạn không thể xóa biến thể duy nhất còn lại của sản phẩm này. Nếu
+              muốn thay đổi thông tin, vui lòng chọn nút chỉnh sửa.
+            </p>
+          </div>
+        ),
+        variant: "warning",
+        alertOnly: true,
+        confirmText: "Đã hiểu",
+      });
       return;
     }
-    if (confirm("Bạn có chắc muốn xóa biến thể này?")) {
-      setVariants(variants.filter((_, i) => i !== index));
+
+    // 2. Logic kiểm tra tồn kho: KHÔNG THỂ XÓA BIẾN THỂ CÒN TỒN KHO (> 0)
+    const stockQuantity = Number(targetVariant.stock) || 0;
+    if (stockQuantity > 0) {
+      setConfirmDialog({
+        isOpen: true,
+        title: "Không thể xóa biến thể còn tồn kho",
+        description: (
+          <div className="space-y-3">
+            <p>
+              Biến thể{" "}
+              <strong className="text-slate-900 font-mono">
+                {targetVariant.sku}
+              </strong>{" "}
+              ({targetVariant.size || "Free size"}{" "}
+              {targetVariant.color ? `- ${targetVariant.color}` : ""}) hiện vẫn
+              còn tồn kho{" "}
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-700 border border-rose-200">
+                {stockQuantity} sản phẩm
+              </span>
+              .
+            </p>
+            <div className="p-3 bg-amber-50 border border-amber-200/80 rounded-lg text-xs text-amber-900 leading-relaxed">
+              <strong>Lưu ý:</strong> Để đảm bảo tính toàn vẹn dữ liệu xuất nhập
+              tồn và đơn hàng, hệ thống không cho phép xóa biến thể khi số lượng
+              tồn kho còn lớn hơn 0.
+            </div>
+            <p className="text-xs text-slate-500">
+              Vui lòng xuất kho hoặc điều chỉnh số lượng tồn kho của biến thể về
+              0 trước khi thực hiện xóa.
+            </p>
+          </div>
+        ),
+        variant: "warning",
+        alertOnly: true,
+        confirmText: "Đã hiểu",
+      });
+      return;
     }
+
+    // 3. Nếu tồn kho = 0 và còn nhiều hơn 1 biến thể: Hiển thị dialog xác nhận xóa
+    setConfirmDialog({
+      isOpen: true,
+      title: "Xác nhận xóa biến thể",
+      description: (
+        <div className="space-y-2">
+          <p>
+            Bạn có chắc chắn muốn xóa biến thể{" "}
+            <strong className="text-slate-900 font-mono">
+              {targetVariant.sku}
+            </strong>{" "}
+            ({targetVariant.size || "Free size"}{" "}
+            {targetVariant.color ? `- ${targetVariant.color}` : ""})?
+          </p>
+          <p className="text-xs text-slate-500">
+            Biến thể này sẽ bị gỡ bỏ khỏi sản phẩm sau khi bạn lưu thay đổi.
+            Thao tác này không thể hoàn tác.
+          </p>
+        </div>
+      ),
+      variant: "danger",
+      alertOnly: false,
+      confirmText: "Xóa biến thể",
+      cancelText: "Hủy",
+      onConfirm: () => {
+        setVariants(variants.filter((_, i) => i !== index));
+        toast.success(`Đã xóa biến thể ${targetVariant.sku}`);
+        closeConfirmDialog();
+      },
+    });
   };
 
   const handleAddImageUrl = () => {
@@ -121,12 +238,24 @@ export function ProductForm({ onClose, product }: ProductFormProps) {
     const data: any = {
       name: (formData.get("name") as string).trim(),
       description: formData.get("description") as string,
-      brandId: formData.get("brandId") ? Number(formData.get("brandId")) : undefined,
-      categoryId: formData.get("categoryId") ? Number(formData.get("categoryId")) : undefined,
-      material: formData.get("material") ? (formData.get("material") as string).trim() : undefined,
-      careInstructions: formData.get("careInstructions") ? (formData.get("careInstructions") as string).trim() : undefined,
-      season: formData.get("season") ? (formData.get("season") as string).trim() : undefined,
-      provider: formData.get("provider") ? (formData.get("provider") as string).trim() : "Fashion Shop Official",
+      brandId: formData.get("brandId")
+        ? Number(formData.get("brandId"))
+        : undefined,
+      categoryId: formData.get("categoryId")
+        ? Number(formData.get("categoryId"))
+        : undefined,
+      material: formData.get("material")
+        ? (formData.get("material") as string).trim()
+        : undefined,
+      careInstructions: formData.get("careInstructions")
+        ? (formData.get("careInstructions") as string).trim()
+        : undefined,
+      season: formData.get("season")
+        ? (formData.get("season") as string).trim()
+        : undefined,
+      provider: formData.get("provider")
+        ? (formData.get("provider") as string).trim()
+        : "Fashion Shop Official",
       variants: formattedVariants,
       images: validImages,
     };
@@ -136,32 +265,40 @@ export function ProductForm({ onClose, product }: ProductFormProps) {
         { id: product.id, data },
         {
           onSuccess: () => {
-            toast.success("Cập nhật sản phẩm thành công");
+            toast.success("Đã lưu thay đổi sản phẩm");
             onClose();
           },
-          onError: () => toast.error("Có lỗi xảy ra khi cập nhật"),
+          onError: () =>
+            toast.error(
+              "Không lưu được sản phẩm. Kiểm tra kết nối rồi thử lại.",
+            ),
         },
       );
     } else {
       createProduct.mutate(data, {
         onSuccess: () => {
-          toast.success("Thêm sản phẩm thành công");
+          toast.success("Đã tạo sản phẩm mới");
           onClose();
         },
-        onError: () => toast.error("Có lỗi xảy ra khi tạo sản phẩm"),
+        onError: () =>
+          toast.error(
+            "Không tạo được sản phẩm. Kiểm tra lại thông tin và thử lại.",
+          ),
       });
     }
   };
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 max-w-5xl mx-auto">
+    <div className="bg-card p-6 rounded-xl border border-border shadow-xs max-w-5xl mx-auto text-card-foreground">
       <div className="flex items-center justify-between pb-4 border-b mb-6">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={onClose}>
             <ArrowLeft className="w-5 h-5 text-gray-500" />
           </Button>
           <h2 className="text-xl font-bold text-gray-800">
-            {isEdit ? "Chỉnh sửa sản phẩm thời trang" : "Thêm mới sản phẩm thời trang"}
+            {isEdit
+              ? "Chỉnh sửa sản phẩm thời trang"
+              : "Thêm mới sản phẩm thời trang"}
           </h2>
         </div>
       </div>
@@ -215,7 +352,8 @@ export function ProductForm({ onClose, product }: ProductFormProps) {
                 <option value="">-- Chọn danh mục --</option>
                 {categories?.map((c: any) => (
                   <option key={c.id} value={c.id}>
-                    {c.parent ? `${c.parent.name} → ` : ""}{c.name}
+                    {c.parent ? `${c.parent.name} → ` : ""}
+                    {c.name}
                   </option>
                 ))}
               </select>
@@ -326,10 +464,12 @@ export function ProductForm({ onClose, product }: ProductFormProps) {
           <div className="flex justify-between items-center border-b pb-2">
             <div>
               <h3 className="text-base font-semibold text-gray-800">
-                3. Danh sách biến thể (Size & Màu) <span className="text-red-500">*</span>
+                3. Danh sách biến thể (Size & Màu){" "}
+                <span className="text-red-500">*</span>
               </h3>
               <p className="text-xs text-gray-500">
-                Mỗi sản phẩm phải có ít nhất 1 biến thể với Size, Màu, SKU và Giá bán.
+                Mỗi sản phẩm phải có ít nhất 1 biến thể với Size, Màu, SKU và
+                Giá bán.
               </p>
             </div>
             <Button
@@ -386,8 +526,16 @@ export function ProductForm({ onClose, product }: ProductFormProps) {
                       <td className="py-2.5 px-3 text-right font-medium text-rose-600">
                         {Number(v.sellingPrice).toLocaleString("vi-VN")} đ
                       </td>
-                      <td className="py-2.5 px-3 text-right font-semibold">
-                        {v.stock}
+                      <td className="py-2.5 px-3 text-right">
+                        {Number(v.stock) > 0 ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            {v.stock}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-500 border border-slate-200">
+                            0
+                          </span>
+                        )}
                       </td>
                       <td className="py-2.5 px-3 text-center">
                         <div className="flex items-center justify-center gap-1">
@@ -395,8 +543,9 @@ export function ProductForm({ onClose, product }: ProductFormProps) {
                             type="button"
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-blue-600"
+                            className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg"
                             onClick={() => handleOpenEditVariant(i)}
+                            title="Chỉnh sửa biến thể"
                           >
                             <Edit size={16} />
                           </Button>
@@ -404,8 +553,17 @@ export function ProductForm({ onClose, product }: ProductFormProps) {
                             type="button"
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-red-600"
+                            className={`h-8 w-8 rounded-lg transition-colors ${
+                              Number(v.stock) > 0
+                                ? "text-amber-500 hover:text-amber-700 hover:bg-amber-50"
+                                : "text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                            }`}
                             onClick={() => handleRemoveVariant(i)}
+                            title={
+                              Number(v.stock) > 0
+                                ? `Còn tồn kho (${v.stock}) - Không thể xóa`
+                                : "Xóa biến thể"
+                            }
                           >
                             <Trash2 size={16} />
                           </Button>
@@ -443,8 +601,22 @@ export function ProductForm({ onClose, product }: ProductFormProps) {
         onClose={() => setIsVariantModalOpen(false)}
         onSave={handleSaveVariant}
         initialData={
-          editingVariantIndex !== null ? variants[editingVariantIndex] : undefined
+          editingVariantIndex !== null
+            ? variants[editingVariantIndex]
+            : undefined
         }
+      />
+
+      <AdminConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={closeConfirmDialog}
+        onConfirm={confirmDialog.onConfirm}
+        title={confirmDialog.title}
+        description={confirmDialog.description}
+        variant={confirmDialog.variant}
+        confirmText={confirmDialog.confirmText}
+        cancelText={confirmDialog.cancelText}
+        alertOnly={confirmDialog.alertOnly}
       />
     </div>
   );

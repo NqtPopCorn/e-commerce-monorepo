@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useDeletePromotion, useGetPromotions } from "@/hooks/usePromotions";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,6 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Plus,
-  Edit,
   Trash2,
   Tag,
   Ticket,
@@ -25,6 +24,7 @@ import {
   Search,
   CheckCircle2,
   Eye,
+  RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Promotion, PromotionKind } from "@/types/promotion";
@@ -33,31 +33,66 @@ import {
   AdminStatCard,
   AdminStatusBadge,
   AdminDataTable,
+  AdminConfirmDialog,
+  AdminPageSkeleton,
 } from "@/components/admin";
+import { useTableParams } from "@/hooks/useTableParams";
+import { formatCurrency, formatDate } from "@/lib/format";
 
-export default function AdminPromotionsPage() {
-  const [selectedKind, setSelectedKind] = useState<PromotionKind | "ALL">(
-    "ALL",
-  );
-  const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
+function AdminPromotionsContent() {
+  const { params, setParams } = useTableParams({ page: 1, pageSize: 10 });
+  const selectedKind = (params.status || "ALL") as PromotionKind | "ALL";
+
+  // Debounced search
+  const [searchInput, setSearchInput] = useState(params.q);
+
+  useEffect(() => {
+    setSearchInput(params.q);
+  }, [params.q]);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      if (searchInput !== params.q) {
+        setParams({ q: searchInput.trim() || undefined, page: 1 });
+      }
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchInput, params.q, setParams]);
+
+  // Dialog state
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: React.ReactNode;
+    isLoading: boolean;
+    onConfirm?: () => Promise<void> | void;
+  }>({
+    isOpen: false,
+    title: "",
+    description: null,
+    isLoading: false,
+  });
 
   const queryParams = {
     ...(selectedKind !== "ALL" ? { kind: selectedKind } : {}),
-    ...(search.trim() ? { search: search.trim() } : {}),
-    page,
-    limit,
+    ...(params.q ? { search: params.q } : {}),
+    page: params.page,
+    limit: params.pageSize,
   };
 
-  const { data: response, isLoading } = useGetPromotions(queryParams);
+  const {
+    data: response,
+    isLoading,
+    isError,
+    refetch,
+  } = useGetPromotions(queryParams);
   const deleteMutation = useDeletePromotion();
 
   const promotions: Promotion[] = response?.data || [];
   const meta = response?.meta || {
     total: promotions.length,
-    page: 1,
-    limit: 10,
+    page: params.page,
+    limit: params.pageSize,
     totalPages: 1,
   };
 
@@ -66,37 +101,64 @@ export default function AdminPromotionsPage() {
   const voucherCount = promotions.filter((p) => p.kind === "VOUCHER").length;
 
   const handleDelete = (id: number, name: string) => {
-    if (confirm(`Bạn có chắc chắn muốn xóa chương trình "${name}"?`)) {
-      deleteMutation.mutate(id, {
-        onSuccess: () =>
-          toast.success("Xóa chương trình khuyến mãi thành công"),
-        onError: (err: any) =>
-          toast.error(err.response?.data?.message || "Xóa thất bại"),
-      });
-    }
+    setConfirmDialog({
+      isOpen: true,
+      title: "Xác nhận xóa chương trình",
+      description: (
+        <div className="space-y-2">
+          <p>
+            Bạn có chắc chắn muốn xóa chương trình khuyến mãi{" "}
+            <strong className="text-foreground">{name}</strong>?
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Hành động này sẽ vô hiệu hóa tất cả các mã hoặc chiết khấu liên
+            quan. Thao tác này không thể hoàn tác.
+          </p>
+        </div>
+      ),
+      isLoading: false,
+      onConfirm: async () => {
+        setConfirmDialog((prev) => ({ ...prev, isLoading: true }));
+        try {
+          await deleteMutation.mutateAsync(id);
+          toast.success(`Đã xóa chương trình "${name}"`);
+          setConfirmDialog((prev) => ({
+            ...prev,
+            isOpen: false,
+            isLoading: false,
+          }));
+        } catch (err: any) {
+          toast.error(
+            err?.response?.data?.message ||
+              "Không thể xóa chương trình. Thử lại sau.",
+          );
+          setConfirmDialog((prev) => ({ ...prev, isLoading: false }));
+        }
+      },
+    });
   };
 
   const getKindBadge = (kind: PromotionKind) => {
     switch (kind) {
       case "VOUCHER":
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-50 text-purple-700 border border-purple-200/80">
-            <Ticket className="w-3 h-3 text-purple-600" />
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20">
+            <Ticket className="w-3 h-3" />
             <span>Voucher</span>
           </span>
         );
       case "ORDER_AUTO":
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-sky-50 text-sky-700 border border-sky-200/80">
-            <Zap className="w-3 h-3 text-sky-600" />
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-info/10 text-info border border-info/20">
+            <Zap className="w-3 h-3" />
             <span>Tự động đơn hàng</span>
           </span>
         );
       case "CAMPAIGN":
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-200/80">
-            <Tag className="w-3 h-3 text-indigo-600" />
-            <span>Campaign sản phẩm</span>
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-secondary text-secondary-foreground border border-border">
+            <Tag className="w-3 h-3" />
+            <span>Campaign SP</span>
           </span>
         );
       default:
@@ -114,7 +176,7 @@ export default function AdminPromotionsPage() {
 
       if (groups.length === 0) {
         return (
-          <span className="text-slate-400 italic text-xs">
+          <span className="text-muted-foreground italic text-xs">
             Chưa có nhóm SKU
           </span>
         );
@@ -138,18 +200,18 @@ export default function AdminPromotionsPage() {
         const maxF = Math.max(...fixedDiscounts);
         discountText =
           minF === maxF
-            ? `Giảm ${minF.toLocaleString("vi-VN")}₫`
-            : `Giảm ${minF.toLocaleString("vi-VN")}₫ - ${maxF.toLocaleString("vi-VN")}₫`;
+            ? `Giảm ${formatCurrency(minF)}`
+            : `Giảm ${formatCurrency(minF)} - ${formatCurrency(maxF)}`;
       } else {
         discountText = "Nhiều mức giảm";
       }
 
       return (
         <div className="flex flex-col">
-          <span className="font-semibold text-rose-600 text-xs">
+          <span className="font-semibold text-primary text-xs">
             {discountText}
           </span>
-          <span className="text-[11px] text-slate-500 font-medium">
+          <span className="text-[11px] text-muted-foreground font-medium">
             {groups.length} nhóm · {totalVariants} SKU
           </span>
         </div>
@@ -157,8 +219,15 @@ export default function AdminPromotionsPage() {
     }
 
     if (!p.discountType || !p.discountValue) return "-";
-    if (p.discountType === "PERCENT") return `Giảm ${p.discountValue}% ${p.maxDiscountValue ? `(Max ${Number(p.maxDiscountValue).toLocaleString("vi-VN")}₫)` : ""}`;
-    return `Giảm ${Number(p.discountValue).toLocaleString("vi-VN")}₫`;
+    if (p.discountType === "PERCENT") {
+      return `Giảm ${p.discountValue}% ${p.maxDiscountValue ? `(Tối đa ${formatCurrency(Number(p.maxDiscountValue))})` : ""}`;
+    }
+    return `Giảm ${formatCurrency(Number(p.discountValue))}`;
+  };
+
+  const handleResetFilters = () => {
+    setSearchInput("");
+    setParams({ status: undefined, q: undefined, page: 1 });
   };
 
   return (
@@ -168,7 +237,7 @@ export default function AdminPromotionsPage() {
         description="Quản lý chiến dịch ưu đãi, mã giảm giá voucher và chính sách chiết khấu tự động toàn sàn."
         actions={
           <Link href="/admin/promotions/create">
-            <Button className="bg-rose-600 hover:bg-rose-700 text-white flex items-center gap-2 shadow-xs text-xs font-semibold h-9 px-4">
+            <Button className="flex items-center gap-2 shadow-xs text-xs font-semibold h-9 px-4">
               <Plus className="w-4 h-4" />
               <span>Tạo chương trình mới</span>
             </Button>
@@ -202,17 +271,16 @@ export default function AdminPromotionsPage() {
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
+      <div className="bg-card p-4 rounded-xl border border-border shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
         {/* Tabs Filter */}
         <Tabs
           value={selectedKind}
           onValueChange={(val) => {
-            setSelectedKind(val as any);
-            setPage(1);
+            setParams({ status: val === "ALL" ? undefined : val, page: 1 });
           }}
           className="w-full md:w-auto"
         >
-          <TabsList className="bg-slate-100 p-1 rounded-lg">
+          <TabsList className="bg-muted p-1 rounded-lg">
             <TabsTrigger value="ALL" className="text-xs">
               Tất cả
             </TabsTrigger>
@@ -230,15 +298,12 @@ export default function AdminPromotionsPage() {
 
         {/* Search input */}
         <div className="relative w-full md:w-72">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
           <Input
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
             placeholder="Tìm theo tên hoặc mã code..."
-            className="pl-9 h-9 text-xs bg-slate-50/70 border-slate-200 focus:bg-white"
+            className="pl-9 h-9 text-xs bg-background border-input"
           />
         </div>
       </div>
@@ -246,60 +311,70 @@ export default function AdminPromotionsPage() {
       {/* Promotions Data Table */}
       <AdminDataTable
         isLoading={isLoading}
+        isError={isError}
+        errorTitle="Không thể tải danh sách khuyến mãi"
+        onRetry={() => refetch()}
         isEmpty={promotions.length === 0}
         emptyTitle="Chưa có chương trình khuyến mãi nào"
         emptyDescription="Tạo chiến dịch hoặc voucher đầu tiên để kích cầu mua sắm cho cửa hàng."
         emptyAction={
-          <Link href="/admin/promotions/create">
+          selectedKind !== "ALL" || params.q ? (
             <Button
+              variant="outline"
               size="sm"
-              className="bg-rose-600 hover:bg-rose-700 text-white text-xs"
+              onClick={handleResetFilters}
+              className="text-xs"
             >
-              <Plus className="w-3.5 h-3.5 mr-1" />
-              Tạo chương trình ngay
+              <RotateCcw className="w-3.5 h-3.5 mr-1" />
+              Đặt lại bộ lọc
             </Button>
-          </Link>
+          ) : (
+            <Link href="/admin/promotions/create">
+              <Button size="sm" className="text-xs">
+                <Plus className="w-3.5 h-3.5 mr-1" />
+                Tạo chương trình ngay
+              </Button>
+            </Link>
+          )
         }
         pagination={{
           page: meta.page,
           limit: meta.limit,
           total: meta.total,
           totalPages: meta.totalPages,
-          onPageChange: (newPage) => setPage(newPage),
-          onLimitChange: (newLimit) => {
-            setLimit(newLimit);
-            setPage(1);
-          },
+          onPageChange: (newPage) => setParams({ page: newPage }),
+          onLimitChange: (newLimit) =>
+            setParams({ pageSize: newLimit, page: 1 }),
         }}
       >
         <Table>
-          <TableHeader className="bg-slate-50/80">
-            <TableRow className="border-b border-slate-200">
-              <TableHead className="font-semibold text-slate-500 text-xs">
+          <TableHeader className="bg-muted/50">
+            <TableRow className="border-b border-border">
+              <TableHead className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
                 Tên chương trình
               </TableHead>
-              <TableHead className="font-semibold text-slate-500 text-xs">
+              <TableHead className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
                 Phân loại
               </TableHead>
-              <TableHead className="font-semibold text-slate-500 text-xs">
+              <TableHead className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
                 Mã Voucher
               </TableHead>
-              <TableHead className="font-semibold text-slate-500 text-xs">
+              <TableHead className="font-semibold text-muted-foreground text-xs uppercase tracking-wider text-right">
                 Mức giảm
               </TableHead>
-              <TableHead className="text-center font-semibold text-slate-500 text-xs">
+              <TableHead className="text-center font-semibold text-muted-foreground text-xs uppercase tracking-wider">
                 Ưu tiên
               </TableHead>
-              <TableHead className="font-semibold text-slate-500 text-xs">
+              <TableHead className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
                 Thời gian áp dụng
               </TableHead>
-              <TableHead className="text-center font-semibold text-slate-500 text-xs">
+              <TableHead className="text-center font-semibold text-muted-foreground text-xs uppercase tracking-wider">
                 Lượt dùng
               </TableHead>
-              <TableHead className="text-center font-semibold text-slate-500 text-xs">
+              <TableHead className="text-center font-semibold text-muted-foreground text-xs uppercase tracking-wider">
                 Trạng thái
               </TableHead>
-              <TableHead className="text-right font-semibold text-slate-500 text-xs">
+              <TableHead className="text-right font-semibold text-muted-foreground text-xs uppercase tracking-wider w-32">
                 Thao tác
               </TableHead>
             </TableRow>
@@ -308,9 +383,9 @@ export default function AdminPromotionsPage() {
             {promotions.map((p) => (
               <TableRow
                 key={p.id}
-                className="hover:bg-slate-50/70 border-b border-slate-100 transition-colors"
+                className="hover:bg-muted/50 border-b border-border transition-colors"
               >
-                <TableCell className="font-semibold text-slate-900 text-xs max-w-xs truncate">
+                <TableCell className="font-medium text-foreground text-xs max-w-xs truncate">
                   {p.name}
                 </TableCell>
 
@@ -318,21 +393,22 @@ export default function AdminPromotionsPage() {
 
                 <TableCell className="font-mono text-xs">
                   {p.code ? (
-                    <span className="bg-slate-100 text-slate-800 px-2 py-0.5 rounded font-bold border border-slate-200/80">
+                    <span className="bg-muted text-foreground px-2 py-0.5 rounded font-bold border border-border">
                       {p.code}
                     </span>
                   ) : (
-                    <span className="text-slate-400">-</span>
+                    <span className="text-muted-foreground">-</span>
                   )}
                 </TableCell>
 
-                <TableCell className="font-semibold text-xs text-rose-600">
+                {/* Mức giảm căn phải */}
+                <TableCell className="font-semibold text-xs text-primary text-right tabular-nums">
                   {formatDiscount(p)}
                 </TableCell>
 
-                <TableCell className="text-center font-mono text-xs font-semibold text-slate-600">
+                <TableCell className="text-center font-mono text-xs font-semibold text-muted-foreground">
                   {p.kind === "CAMPAIGN" ? (
-                    <span className="text-indigo-600 font-bold">
+                    <span className="text-foreground font-bold">
                       {p.priority}
                     </span>
                   ) : (
@@ -340,21 +416,17 @@ export default function AdminPromotionsPage() {
                   )}
                 </TableCell>
 
-                <TableCell className="text-xs text-slate-600 whitespace-nowrap">
-                  <div>
-                    Từ: {new Date(p.startsAt).toLocaleDateString("vi-VN")}
-                  </div>
-                  <div className="text-[11px] text-slate-400">
-                    {p.endsAt
-                      ? `Đến: ${new Date(p.endsAt).toLocaleDateString("vi-VN")}`
-                      : "Vô thời hạn"}
+                <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                  <div>Từ: {formatDate(p.startsAt)}</div>
+                  <div className="text-[11px] text-muted-foreground/70">
+                    {p.endsAt ? `Đến: ${formatDate(p.endsAt)}` : "Vô thời hạn"}
                   </div>
                 </TableCell>
 
-                <TableCell className="text-center text-xs font-mono">
+                <TableCell className="text-center text-xs font-mono tabular-nums">
                   {p.kind === "VOUCHER" ? (
                     <span>
-                      <strong className="text-slate-900">{p.usedCount}</strong>
+                      <strong className="text-foreground">{p.usedCount}</strong>
                       {p.maxUses ? ` / ${p.maxUses}` : ""}
                     </span>
                   ) : (
@@ -376,7 +448,7 @@ export default function AdminPromotionsPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="h-7 px-2.5 text-xs text-slate-700 hover:text-rose-600 hover:border-rose-200"
+                        className="h-7 px-2.5 text-xs border-border text-foreground hover:bg-muted"
                       >
                         <Eye className="w-3.5 h-3.5 mr-1" />
                         Chi tiết
@@ -385,8 +457,9 @@ export default function AdminPromotionsPage() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-7 px-2 text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                      className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                       onClick={() => handleDelete(p.id, p.name)}
+                      aria-label={`Xóa chương trình ${p.name}`}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </Button>
@@ -397,6 +470,26 @@ export default function AdminPromotionsPage() {
           </TableBody>
         </Table>
       </AdminDataTable>
+
+      <AdminConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmDialog.onConfirm}
+        title={confirmDialog.title}
+        description={confirmDialog.description}
+        variant="danger"
+        confirmText="Xóa chương trình"
+        cancelText="Hủy"
+        isLoading={confirmDialog.isLoading}
+      />
     </div>
+  );
+}
+
+export default function AdminPromotionsPage() {
+  return (
+    <Suspense fallback={<AdminPageSkeleton />}>
+      <AdminPromotionsContent />
+    </Suspense>
   );
 }

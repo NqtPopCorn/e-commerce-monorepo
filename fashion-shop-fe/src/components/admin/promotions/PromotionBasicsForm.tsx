@@ -80,11 +80,13 @@ export function PromotionBasicsForm({
               }
               className="bg-white"
             />
-            <div className="p-2.5 rounded-md bg-indigo-50/70 border border-indigo-200/60 text-[11px] text-indigo-900 leading-relaxed">
-              <strong>💡 Quy tắc Rule Engine:</strong> Khi một SKU nằm trong
-              nhiều Campaign cùng chạy, hệ thống sẽ ưu tiên áp dụng Campaign có{" "}
-              <strong>Priority cao nhất</strong>. Nếu Priority bằng nhau,
-              Campaign mang lại số tiền giảm lớn hơn sẽ được chọn.
+            <div className="p-2.5 rounded-md bg-muted/60 border border-border text-[11px] text-muted-foreground leading-relaxed">
+              <strong className="text-foreground">Quy tắc ưu tiên:</strong> Khi
+              một SKU nằm trong nhiều Campaign cùng chạy, hệ thống sẽ ưu tiên áp
+              dụng Campaign có{" "}
+              <strong className="text-foreground">Priority cao nhất</strong>.
+              Nếu Priority bằng nhau, Campaign mang lại số tiền giảm lớn hơn sẽ
+              được chọn.
             </div>
           </div>
         )}
