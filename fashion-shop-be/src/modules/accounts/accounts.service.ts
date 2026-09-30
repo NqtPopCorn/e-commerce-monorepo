@@ -10,11 +10,15 @@ import { UpdateAccountDto } from "./dto/update-account.dto";
 import { CreateAccountDto } from "./dto/create-account.dto";
 import { UpdateAdminAccountDto } from "./dto/update-admin-account.dto";
 import { ChangePasswordDto } from "./dto/change-password.dto";
-import { CreateAddressDto, UpdateAddressDto } from "./dto/address.dto";
+import { UpdateAddressDto, CreateAddressDto } from "./dto/address.dto";
+import { AuditLogsService } from "../audit-logs/audit-logs.service";
 
 @Injectable()
 export class AccountsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditLogsService: AuditLogsService,
+  ) {}
 
   async me(id: number) {
     const user = await this.prisma.user.findUnique({
@@ -251,7 +255,20 @@ export class AccountsService {
     };
   }
 
-  async create(dto: CreateAccountDto) {
+  async create(
+    dto: CreateAccountDto,
+    currentUser?: { id: number; email: string; role: string },
+    req?: any,
+  ) {
+    const rawIp =
+      req?.headers?.["x-forwarded-for"] ||
+      req?.socket?.remoteAddress ||
+      req?.ip ||
+      null;
+    const ipAddress =
+      typeof rawIp === "string" ? rawIp.split(",")[0].trim() : null;
+    const userAgent = (req?.headers?.["user-agent"] as string) || null;
+
     const exists = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
@@ -290,10 +307,45 @@ export class AccountsService {
       },
     });
 
+    await this.auditLogsService.log({
+      userId: currentUser?.id,
+      userEmail: currentUser?.email,
+      userRole: currentUser?.role,
+      action: "ACCOUNT_CREATE",
+      entityType: "ACCOUNT",
+      entityId: String(user.id),
+      description: `Tạo tài khoản mới: ${user.email} (Vai trò: ${user.role})`,
+      newValue: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        status: user.status,
+        firstName: user.firstName,
+        lastName: user.lastName,
+      },
+      ipAddress,
+      userAgent,
+      status: "SUCCESS",
+    });
+
     return user;
   }
 
-  async updateAdmin(id: number, dto: UpdateAdminAccountDto) {
+  async updateAdmin(
+    id: number,
+    dto: UpdateAdminAccountDto,
+    currentUser?: { id: number; email: string; role: string },
+    req?: any,
+  ) {
+    const rawIp =
+      req?.headers?.["x-forwarded-for"] ||
+      req?.socket?.remoteAddress ||
+      req?.ip ||
+      null;
+    const ipAddress =
+      typeof rawIp === "string" ? rawIp.split(",")[0].trim() : null;
+    const userAgent = (req?.headers?.["user-agent"] as string) || null;
+
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException("Tài khoản không tồn tại");
 
@@ -306,7 +358,17 @@ export class AccountsService {
       }
     }
 
-    return this.prisma.user.update({
+    const oldValue = {
+      firstName: user.firstName,
+      lastName: user.lastName,
+      phone: user.phone,
+      role: user.role,
+      status: user.status,
+      tier: user.tier,
+      notes: user.notes,
+    };
+
+    const updated = await this.prisma.user.update({
       where: { id },
       data: {
         firstName: dto.firstName,
@@ -329,14 +391,93 @@ export class AccountsService {
         notes: true,
       },
     });
+
+    const newValue = {
+      firstName: updated.firstName,
+      lastName: updated.lastName,
+      phone: updated.phone,
+      role: updated.role,
+      status: updated.status,
+      tier: updated.tier,
+      notes: updated.notes,
+    };
+
+    const isRoleChanged = oldValue.role !== newValue.role;
+    const action = isRoleChanged ? "ACCOUNT_ROLE_UPDATE" : "ACCOUNT_UPDATE";
+    const description = isRoleChanged
+      ? `Cập nhật quyền tài khoản #${id} (${user.email}) từ ${oldValue.role} ➔ ${newValue.role}`
+      : `Cập nhật thông tin tài khoản #${id} (${user.email})`;
+
+    await this.auditLogsService.log({
+      userId: currentUser?.id,
+      userEmail: currentUser?.email,
+      userRole: currentUser?.role,
+      action,
+      entityType: "ACCOUNT",
+      entityId: String(id),
+      description,
+      oldValue,
+      newValue,
+      ipAddress,
+      userAgent,
+      status: "SUCCESS",
+    });
+
+    return updated;
   }
 
-  async updateStatus(id: number, status: string) {
-    return this.prisma.user.update({
+  async updateStatus(
+    id: number,
+    status: string,
+    currentUser?: { id: number; email: string; role: string },
+    req?: any,
+  ) {
+    const rawIp =
+      req?.headers?.["x-forwarded-for"] ||
+      req?.socket?.remoteAddress ||
+      req?.ip ||
+      null;
+    const ipAddress =
+      typeof rawIp === "string" ? rawIp.split(",")[0].trim() : null;
+    const userAgent = (req?.headers?.["user-agent"] as string) || null;
+
+    const existing = await this.prisma.user.findUnique({
+      where: { id },
+      select: { id: true, email: true, status: true },
+    });
+    if (!existing) throw new NotFoundException("Tài khoản không tồn tại");
+
+    const oldValue = { status: existing.status };
+
+    const updated = await this.prisma.user.update({
       where: { id },
       data: { status: status as any },
       select: { id: true, email: true, status: true },
     });
+
+    const newValue = { status: updated.status };
+
+    const isBlocking = status === "BLOCKED";
+    const description = isBlocking
+      ? `Khóa tài khoản #${id} (${existing.email})`
+      : `Mở khóa tài khoản #${id} (${existing.email})`;
+
+    await this.auditLogsService.log({
+      userId: currentUser?.id,
+      userEmail: currentUser?.email,
+      userRole: currentUser?.role,
+      action: "ACCOUNT_STATUS_UPDATE",
+      entityType: "ACCOUNT",
+      entityId: String(id),
+      description,
+      oldValue,
+      newValue,
+      ipAddress,
+      userAgent,
+      status: "SUCCESS",
+    });
+
+    return updated;
   }
 
   // Address CRUD

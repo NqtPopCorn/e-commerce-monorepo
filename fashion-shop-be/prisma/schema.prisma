@@ -25,6 +25,7 @@ model User {
   updatedAt   DateTime     @updatedAt @map("updated_at")
   orders      Order[]
   addresses   Address[]
+  auditLogs   AuditLog[]
 
   @@index([role, status])
   @@index([phone])
@@ -376,4 +377,31 @@ model OrderItem {
 
   @@unique([orderId, variantId])
   @@map("order_items")
+}
+
+model AuditLog {
+  id           Int      @id @default(autoincrement())
+  userId       Int?     @map("user_id")
+  userEmail    String?  @map("user_email")
+  userRole     String?  @map("user_role")
+  action       String
+  entityType   String   @map("entity_type")
+  entityId     String?  @map("entity_id")
+  description  String?
+  oldValue     Json?    @map("old_value")
+  newValue     Json?    @map("new_value")
+  ipAddress    String?  @map("ip_address")
+  userAgent    String?  @map("user_agent")
+  status       String   @default("SUCCESS")
+  errorMessage String?  @map("error_message")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([action])
+  @@index([status])
+  @@index([createdAt])
+  @@map("audit_logs")
 }

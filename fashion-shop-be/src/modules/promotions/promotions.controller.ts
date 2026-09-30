@@ -7,6 +7,7 @@ import {
   Patch,
   Delete,
   Query,
+  Req,
   UseGuards,
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
@@ -38,8 +39,8 @@ export class PromotionsController {
 
   @Roles(Role.ADMIN)
   @Post()
-  create(@Body() dto: CreatePromotionDto) {
-    return this.service.create(dto);
+  create(@Body() dto: CreatePromotionDto, @Req() req: any) {
+    return this.service.create(dto, req?.user, req);
   }
 
   @Roles(Role.ADMIN)
@@ -61,13 +62,17 @@ export class PromotionsController {
 
   @Roles(Role.ADMIN)
   @Patch(":id")
-  update(@Param("id") id: string, @Body() dto: UpdatePromotionDto) {
-    return this.service.update(+id, dto);
+  update(
+    @Param("id") id: string,
+    @Body() dto: UpdatePromotionDto,
+    @Req() req: any,
+  ) {
+    return this.service.update(+id, dto, req?.user, req);
   }
 
   @Roles(Role.ADMIN)
   @Delete(":id")
-  remove(@Param("id") id: string) {
-    return this.service.remove(+id);
+  remove(@Param("id") id: string, @Req() req: any) {
+    return this.service.remove(+id, req?.user, req);
   }
 }

@@ -111,21 +111,29 @@ export class AccountsController {
   @UseGuards(RolesGuard)
   @Roles("ADMIN")
   @Post()
-  create(@Body() dto: CreateAccountDto) {
-    return this.service.create(dto);
+  create(@Body() dto: CreateAccountDto, @Req() req: any) {
+    return this.service.create(dto, req?.user, req);
   }
 
   @UseGuards(RolesGuard)
   @Roles("ADMIN")
   @Patch(":id")
-  updateAdmin(@Param("id") id: string, @Body() dto: UpdateAdminAccountDto) {
-    return this.service.updateAdmin(+id, dto);
+  updateAdmin(
+    @Param("id") id: string,
+    @Body() dto: UpdateAdminAccountDto,
+    @Req() req: any,
+  ) {
+    return this.service.updateAdmin(+id, dto, req?.user, req);
   }
 
   @UseGuards(RolesGuard)
   @Roles("ADMIN")
   @Patch(":id/status")
-  updateStatus(@Param("id") id: string, @Body("status") status: string) {
-    return this.service.updateStatus(+id, status);
+  updateStatus(
+    @Param("id") id: string,
+    @Body("status") status: string,
+    @Req() req: any,
+  ) {
+    return this.service.updateStatus(+id, status, req?.user, req);
   }
 }

@@ -8,10 +8,14 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { CreatePromotionDto } from "./dto/create-promotion.dto";
 import { PromotionQueryDto } from "./dto/promotion-common.dto";
 import { UpdatePromotionDto } from "./dto/update-promotion.dto";
+import { AuditLogsService } from "../audit-logs/audit-logs.service";
 
 @Injectable()
 export class PromotionsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditLogsService: AuditLogsService,
+  ) {}
 
   private validatePromotionPayload(
     applicationType: PromotionApplicationType,
@@ -109,7 +113,11 @@ export class PromotionsService {
     }
   }
 
-  async create(dto: CreatePromotionDto) {
+  async create(
+    dto: CreatePromotionDto,
+    currentUser?: { id: number; email: string; role: string },
+    req?: any,
+  ) {
     this.validatePromotionPayload(dto.applicationType, dto, false);
 
     if (dto.groups) {
@@ -168,7 +176,7 @@ export class PromotionsService {
       }
     }
 
-    return this.prisma.promotion.create({
+    const created = await this.prisma.promotion.create({
       data: {
         ...rest,
         startsAt: new Date(startsAt),
@@ -209,6 +217,38 @@ export class PromotionsService {
         vouchers: true,
       },
     });
+
+    const rawIp =
+      req?.headers?.["x-forwarded-for"] ||
+      req?.socket?.remoteAddress ||
+      req?.ip ||
+      null;
+    const ipAddress =
+      typeof rawIp === "string" ? rawIp.split(",")[0].trim() : null;
+    const userAgent = (req?.headers?.["user-agent"] as string) || null;
+
+    await this.auditLogsService.log({
+      userId: currentUser?.id,
+      userEmail: currentUser?.email,
+      userRole: currentUser?.role,
+      action: "PROMOTION_CREATE",
+      entityType: "PROMOTION",
+      entityId: String(created.id),
+      description: `Tạo chương trình khuyến mãi: ${created.name}`,
+      newValue: {
+        id: created.id,
+        name: created.name,
+        applicationType: created.applicationType,
+        budgetLimit: created.budgetLimit,
+        startsAt: created.startsAt,
+        endsAt: created.endsAt,
+      },
+      ipAddress,
+      userAgent,
+      status: "SUCCESS",
+    });
+
+    return created;
   }
 
   async findAll(query?: PromotionQueryDto) {
@@ -375,7 +415,12 @@ export class PromotionsService {
     return voucher;
   }
 
-  async update(id: number, dto: UpdatePromotionDto) {
+  async update(
+    id: number,
+    dto: UpdatePromotionDto,
+    currentUser?: { id: number; email: string; role: string },
+    req?: any,
+  ) {
     const existing = await this.findOne(id);
     const targetType = dto.applicationType ?? existing.applicationType;
 
@@ -396,7 +441,7 @@ export class PromotionsService {
       ...rest
     } = dto;
 
-    return this.prisma.$transaction(async (tx) => {
+    const updated = await this.prisma.$transaction(async (tx) => {
       if (groups !== undefined) {
         await tx.promotionGroup.deleteMany({
           where: { promotionId: id },
@@ -465,10 +510,85 @@ export class PromotionsService {
         },
       });
     });
+
+    const rawIp =
+      req?.headers?.["x-forwarded-for"] ||
+      req?.socket?.remoteAddress ||
+      req?.ip ||
+      null;
+    const ipAddress =
+      typeof rawIp === "string" ? rawIp.split(",")[0].trim() : null;
+    const userAgent = (req?.headers?.["user-agent"] as string) || null;
+
+    await this.auditLogsService.log({
+      userId: currentUser?.id,
+      userEmail: currentUser?.email,
+      userRole: currentUser?.role,
+      action: "PROMOTION_UPDATE",
+      entityType: "PROMOTION",
+      entityId: String(id),
+      description: `Cập nhật chương trình khuyến mãi #${id} (${updated.name})`,
+      oldValue: {
+        name: existing.name,
+        applicationType: existing.applicationType,
+        budgetLimit: existing.budgetLimit,
+        startsAt: existing.startsAt,
+        endsAt: existing.endsAt,
+        active: existing.active,
+      },
+      newValue: {
+        name: updated.name,
+        applicationType: updated.applicationType,
+        budgetLimit: updated.budgetLimit,
+        startsAt: updated.startsAt,
+        endsAt: updated.endsAt,
+        active: updated.active,
+      },
+      ipAddress,
+      userAgent,
+      status: "SUCCESS",
+    });
+
+    return updated;
   }
 
-  async remove(id: number) {
-    await this.findOne(id);
-    return this.prisma.promotion.delete({ where: { id } });
+  async remove(
+    id: number,
+    currentUser?: { id: number; email: string; role: string },
+    req?: any,
+  ) {
+    const existing = await this.findOne(id);
+    const result = await this.prisma.promotion.delete({ where: { id } });
+
+    const rawIp =
+      req?.headers?.["x-forwarded-for"] ||
+      req?.socket?.remoteAddress ||
+      req?.ip ||
+      null;
+    const ipAddress =
+      typeof rawIp === "string" ? rawIp.split(",")[0].trim() : null;
+    const userAgent = (req?.headers?.["user-agent"] as string) || null;
+
+    await this.auditLogsService.log({
+      userId: currentUser?.id,
+      userEmail: currentUser?.email,
+      userRole: currentUser?.role,
+      action: "PROMOTION_DELETE",
+      entityType: "PROMOTION",
+      entityId: String(id),
+      description: `Xóa chương trình khuyến mãi #${id} (${existing.name})`,
+      oldValue: {
+        name: existing.name,
+        applicationType: existing.applicationType,
+        budgetLimit: existing.budgetLimit,
+        startsAt: existing.startsAt,
+        endsAt: existing.endsAt,
+      },
+      ipAddress,
+      userAgent,
+      status: "SUCCESS",
+    });
+
+    return result;
   }
 }

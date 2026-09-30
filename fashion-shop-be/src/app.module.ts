@@ -11,11 +11,13 @@ import { AccountsModule } from "./modules/accounts/accounts.module";
 import { HealthController } from "./health.controller";
 import { CategoriesModule } from "./modules/categories/categories.module";
 import { PurchasesModule } from "./modules/purchases/purchases.module";
+import { AuditLogsModule } from "./modules/audit-logs/audit-logs.module";
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
+    AuditLogsModule,
     AuthModule,
     ProductsModule,
     BrandsModule,

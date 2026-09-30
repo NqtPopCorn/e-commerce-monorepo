@@ -18,6 +18,7 @@ import {
   ChevronLeft,
   ChevronRight,
   MoreVertical,
+  History,
 } from "lucide-react";
 import { AdminHeaderBar } from "@/components/admin";
 
@@ -51,6 +52,7 @@ const navGroups: NavGroup[] = [
       { name: "Phân tích", link: "/admin/analytics", icon: BarChart3 },
       { name: "Tài khoản", link: "/admin/accounts", icon: Users },
       { name: "Khuyến mãi", link: "/admin/promotions", icon: Percent },
+      { name: "Nhật ký hoạt động", link: "/admin/audit-logs", icon: History },
     ],
   },
 ];
@@ -105,7 +107,8 @@ export default function AdminLayout({
       } else if (
         user.role === "STAFF" &&
         (pathname.startsWith("/admin/accounts") ||
-          pathname.startsWith("/admin/analytics"))
+          pathname.startsWith("/admin/analytics") ||
+          pathname.startsWith("/admin/audit-logs"))
       ) {
         router.push("/admin");
       }

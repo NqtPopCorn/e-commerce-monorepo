@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CreatePurchaseDto } from "./dto/create-purchase.dto";
 import { Prisma } from "@prisma/client";
+import { AuditLogsService } from "../audit-logs/audit-logs.service";
 
 export interface FindPurchasesQuery {
   page?: number;
@@ -12,9 +13,16 @@ export interface FindPurchasesQuery {
 
 @Injectable()
 export class PurchasesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditLogsService: AuditLogsService,
+  ) {}
 
-  async create(dto: CreatePurchaseDto) {
+  async create(
+    dto: CreatePurchaseDto,
+    currentUser?: { id: number; email: string; role: string },
+    req?: any,
+  ) {
     const code =
       dto.code ||
       `PN-${new Date().toISOString().slice(2, 10).replace(/-/g, "")}-${Math.floor(
@@ -26,8 +34,8 @@ export class PurchasesService {
       0,
     );
 
-    return this.prisma.$transaction(async (tx) => {
-      const receipt = await tx.purchaseReceipt.create({
+    const receipt = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.purchaseReceipt.create({
         data: {
           code,
           supplier: dto.supplier || "Fashion Shop Official",
@@ -64,8 +72,39 @@ export class PurchasesService {
         });
       }
 
-      return receipt;
+      return created;
     });
+
+    const rawIp =
+      req?.headers?.["x-forwarded-for"] ||
+      req?.socket?.remoteAddress ||
+      req?.ip ||
+      null;
+    const ipAddress =
+      typeof rawIp === "string" ? rawIp.split(",")[0].trim() : null;
+    const userAgent = (req?.headers?.["user-agent"] as string) || null;
+
+    await this.auditLogsService.log({
+      userId: currentUser?.id,
+      userEmail: currentUser?.email,
+      userRole: currentUser?.role,
+      action: "PURCHASE_RECEIPT_CREATE",
+      entityType: "PURCHASE",
+      entityId: String(receipt.id),
+      description: `Tạo phiếu nhập kho #${receipt.code} (Tổng: ${new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(totalAmount)}, ${dto.items.length} mặt hàng)`,
+      newValue: {
+        id: receipt.id,
+        code: receipt.code,
+        supplier: receipt.supplier,
+        totalAmount,
+        itemsCount: dto.items.length,
+      },
+      ipAddress,
+      userAgent,
+      status: "SUCCESS",
+    });
+
+    return receipt;
   }
 
   async findAll(query?: FindPurchasesQuery) {

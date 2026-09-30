@@ -18,13 +18,13 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post("register")
-  register(@Body() dto: RegisterDto) {
-    return this.authService.register(dto);
+  register(@Body() dto: RegisterDto, @Request() req: any) {
+    return this.authService.register(dto, req);
   }
 
   @Post("login")
-  login(@Body() dto: LoginDto) {
-    return this.authService.login(dto);
+  login(@Body() dto: LoginDto, @Request() req: any) {
+    return this.authService.login(dto, req);
   }
 
   @ApiBearerAuth()

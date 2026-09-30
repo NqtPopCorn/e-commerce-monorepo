@@ -23,6 +23,7 @@ const defaultLabels: Record<string, string> = {
   analytics: "Phân tích",
   accounts: "Tài khoản",
   promotions: "Khuyến mãi",
+  "audit-logs": "Nhật ký hoạt động",
 };
 
 export function AdminBreadcrumb({
