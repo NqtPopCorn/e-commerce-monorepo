@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { PrismaService } from '../../prisma/prisma.service';
 import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
 import { ProductsService } from './products.service';
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 describe('ProductsService', () => {
   let service: ProductsService;
@@ -81,6 +81,96 @@ describe('ProductsService', () => {
       prismaMock.product.findUnique.mockResolvedValue({ id: 1, slug: 'test' } as any);
       const res = await service.findBySlug('test');
       expect(res.slug).toBe('test');
+    });
+  });
+
+  describe('update', () => {
+    beforeEach(() => {
+      prismaMock.$transaction.mockImplementation(async (cb: any) => cb(prismaMock));
+    });
+
+    it('should throw BadRequestException when trying to delete a variant that has stock > 0', async () => {
+      prismaMock.product.findUnique.mockResolvedValue({
+        id: 1,
+        name: 'Áo Polo',
+        variants: [
+          { id: 10, sku: 'POLO-M', stock: 5 },
+          { id: 11, sku: 'POLO-L', stock: 0 },
+        ],
+      } as any);
+
+      prismaMock.productVariant.findMany.mockResolvedValue([
+        { id: 10, sku: 'POLO-M', stock: 5 },
+        { id: 11, sku: 'POLO-L', stock: 0 },
+      ] as any);
+
+      // Payload omits POLO-M (intending to delete it)
+      const updateDto = {
+        name: 'Áo Polo V2',
+        variants: [
+          { sku: 'POLO-L', stock: 0, listPrice: 200, sellingPrice: 180 },
+        ],
+      };
+
+      await expect(service.update(1, updateDto as any)).rejects.toThrow(BadRequestException);
+    });
+
+    it('should successfully update and delete variant with stock === 0', async () => {
+      prismaMock.product.findUnique.mockResolvedValue({
+        id: 1,
+        name: 'Áo Polo',
+        variants: [
+          { id: 10, sku: 'POLO-M', stock: 0 },
+          { id: 11, sku: 'POLO-L', stock: 0 },
+        ],
+      } as any);
+
+      prismaMock.productVariant.findMany.mockResolvedValue([
+        { id: 10, sku: 'POLO-M', stock: 0 },
+        { id: 11, sku: 'POLO-L', stock: 0 },
+      ] as any);
+
+      prismaMock.productVariant.deleteMany.mockResolvedValue({ count: 1 });
+      prismaMock.productVariant.update.mockResolvedValue({ id: 11, sku: 'POLO-L' } as any);
+      prismaMock.product.update.mockResolvedValue({ id: 1, name: 'Áo Polo V2' } as any);
+
+      const updateDto = {
+        name: 'Áo Polo V2',
+        variants: [
+          { sku: 'POLO-L', stock: 0, listPrice: 200, sellingPrice: 180 },
+        ],
+      };
+
+      const result = await service.update(1, updateDto as any);
+      expect(prismaMock.productVariant.deleteMany).toHaveBeenCalledWith({
+        where: { id: { in: [10] } },
+      });
+      expect(result.name).toBe('Áo Polo V2');
+    });
+  });
+
+  describe('remove', () => {
+    it('should throw BadRequestException when product has variants with stock > 0', async () => {
+      prismaMock.product.findUnique.mockResolvedValue({
+        id: 1,
+        name: 'Áo Polo',
+        variants: [{ id: 10, sku: 'POLO-M', stock: 8 }],
+      } as any);
+
+      await expect(service.remove(1)).rejects.toThrow(BadRequestException);
+    });
+
+    it('should successfully delete product when all variants have stock === 0', async () => {
+      prismaMock.product.findUnique.mockResolvedValue({
+        id: 1,
+        name: 'Áo Polo',
+        variants: [{ id: 10, sku: 'POLO-M', stock: 0 }],
+      } as any);
+      prismaMock.product.delete.mockResolvedValue({ id: 1 } as any);
+
+      const res = await service.remove(1);
+      expect(res.id).toBe(1);
+      expect(prismaMock.product.delete).toHaveBeenCalledWith({ where: { id: 1 } });
     });
   });
 });

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CreateProductDto } from "./dto/create-product.dto";
 import { UpdateProductDto } from "./dto/update-product.dto";
@@ -192,22 +192,70 @@ export class ProductsService {
     const { variants, images, ...productData } = dto;
     return this.prisma.$transaction(async (tx) => {
       if (variants) {
-        await tx.productVariant.deleteMany({ where: { productId: id } });
+        // Lấy danh sách biến thể hiện tại của sản phẩm trong database
+        const currentVariants = await tx.productVariant.findMany({
+          where: { productId: id },
+        });
+
+        // Xác định các biến thể bị gỡ bỏ (tồn tại trong DB nhưng không có trong danh sách cập nhật)
+        const incomingSkus = new Set(variants.map((v) => v.sku));
+        const variantsToDelete = currentVariants.filter((cv) => !incomingSkus.has(cv.sku));
+
+        // Kiểm tra logic: không thể xóa biến thể còn tồn kho (> 0)
+        for (const v of variantsToDelete) {
+          if (v.stock > 0) {
+            throw new BadRequestException(
+              `Không thể xóa biến thể có mã SKU '${v.sku}' vì vẫn còn tồn kho (${v.stock} sản phẩm).`,
+            );
+          }
+        }
+
+        // Xóa các biến thể đã bị gỡ bỏ và có tồn kho <= 0
+        if (variantsToDelete.length > 0) {
+          await tx.productVariant.deleteMany({
+            where: {
+              id: { in: variantsToDelete.map((v) => v.id) },
+            },
+          });
+        }
+
+        // Cập nhật hoặc tạo mới các biến thể
+        for (const v of variants) {
+          const existingVariant = currentVariants.find((cv) => cv.sku === v.sku);
+          if (existingVariant) {
+            await tx.productVariant.update({
+              where: { id: existingVariant.id },
+              data: {
+                barcode: v.barcode,
+                size: v.size,
+                color: v.color,
+                colorHex: v.colorHex,
+                imageUrl: v.imageUrl,
+                listPrice: v.listPrice,
+                sellingPrice: v.sellingPrice,
+                stock: v.stock !== undefined ? v.stock : existingVariant.stock,
+                weight: v.weight,
+              },
+            });
+          } else {
+            await tx.productVariant.create({
+              data: {
+                ...v,
+                productId: id,
+              },
+            });
+          }
+        }
       }
+
       if (images) {
         await tx.productImage.deleteMany({ where: { productId: id } });
       }
+
       return tx.product.update({
         where: { id },
         data: {
           ...productData,
-          ...(variants
-            ? {
-                variants: {
-                  create: variants,
-                },
-              }
-            : {}),
           ...(images
             ? {
                 images: {
@@ -227,7 +275,14 @@ export class ProductsService {
   }
 
   async remove(id: number) {
-    await this.findOne(id);
+    const product = await this.findOne(id);
+    const variantsWithStock = product.variants?.filter((v: any) => v.stock > 0) || [];
+    if (variantsWithStock.length > 0) {
+      const totalStock = variantsWithStock.reduce((acc: number, v: any) => acc + (v.stock || 0), 0);
+      throw new BadRequestException(
+        `Không thể xóa sản phẩm khi vẫn còn tồn kho (${totalStock} sản phẩm thuộc ${variantsWithStock.length} biến thể).`,
+      );
+    }
     return this.prisma.product.delete({ where: { id } });
   }
 }
