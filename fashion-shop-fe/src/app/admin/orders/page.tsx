@@ -240,6 +240,9 @@ function AdminOrdersContent() {
               <TableHead className="font-semibold text-muted-foreground text-xs uppercase tracking-wider text-center">
                 Trạng Thái
               </TableHead>
+              <TableHead className="font-semibold text-muted-foreground text-xs uppercase tracking-wider text-center">
+                Thanh Toán
+              </TableHead>
               <TableHead className="text-right font-semibold text-muted-foreground text-xs uppercase tracking-wider w-36">
                 Thao Tác
               </TableHead>
@@ -247,12 +250,15 @@ function AdminOrdersContent() {
           </TableHeader>
           <TableBody>
             {paginatedOrders.map((order: any) => {
-              const customerName =
+              const accountName =
                 [order.user?.firstName, order.user?.lastName]
                   .filter(Boolean)
                   .join(" ") ||
                 order.user?.name ||
                 "Khách vãng lai";
+              const displayName = order.recipientName || accountName;
+              const displayContact =
+                order.recipientPhone || order.user?.email || "N/A";
 
               return (
                 <TableRow
@@ -267,10 +273,10 @@ function AdminOrdersContent() {
                   <TableCell>
                     <div className="flex flex-col">
                       <span className="text-xs font-medium text-foreground">
-                        {customerName}
+                        {displayName}
                       </span>
                       <span className="text-[11px] text-muted-foreground font-mono">
-                        {order.user?.email || "N/A"}
+                        {displayContact}
                       </span>
                     </div>
                   </TableCell>
@@ -286,6 +292,31 @@ function AdminOrdersContent() {
 
                   <TableCell className="text-center">
                     <AdminStatusBadge status={order.status} size="sm" />
+                  </TableCell>
+
+                  <TableCell className="text-center">
+                    <div className="flex flex-col items-center gap-1">
+                      <span className="text-[11px] font-medium text-foreground">
+                        {order.paymentMethod === "COD" || !order.paymentMethod
+                          ? "COD"
+                          : order.paymentMethod}
+                      </span>
+                      <span
+                        className={`text-[10px] px-1.5 py-0.2 rounded-full font-semibold border ${
+                          order.paymentStatus === "PAID"
+                            ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30"
+                            : order.paymentStatus === "REFUNDED"
+                              ? "bg-purple-500/15 text-purple-700 dark:text-purple-400 border-purple-500/30"
+                              : "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30"
+                        }`}
+                      >
+                        {order.paymentStatus === "PAID"
+                          ? "Đã TT"
+                          : order.paymentStatus === "REFUNDED"
+                            ? "Hoàn tiền"
+                            : "Chưa TT"}
+                      </span>
+                    </div>
                   </TableCell>
 
                   <TableCell

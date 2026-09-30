@@ -1,30 +1,34 @@
 import { api } from "@/lib/api";
-import { CartInput } from "@/types/promotion";
+import {
+  Order,
+  CreateOrderParams,
+  UpdateOrderStatusParams,
+} from "@/types/order";
 
-export interface CreateOrderParams {
-  items: CartInput[];
-  voucherCode?: string;
-  recipientName?: string;
-  recipientPhone?: string;
-  shippingAddress?: string;
-  shippingNote?: string;
-}
+export type { CreateOrderParams };
 
 export const ordersService = {
-  create: async (data: CreateOrderParams) => {
+  create: async (data: CreateOrderParams): Promise<Order> => {
     const res = await api.post("/orders", data);
     return res.data;
   },
-  getMyOrders: async () => {
+  getMyOrders: async (): Promise<Order[]> => {
     const res = await api.get("/orders/mine");
     return res.data;
   },
-  getAdminOrders: async (status?: string) => {
+  getAdminOrders: async (status?: string): Promise<Order[]> => {
     const res = await api.get("/admin/orders", { params: { status } });
     return res.data;
   },
-  updateStatus: async (id: number, status: string) => {
-    const res = await api.patch(`/admin/orders/${id}/status`, { status });
+  updateStatus: async ({
+    id,
+    status,
+    paymentStatus,
+  }: UpdateOrderStatusParams): Promise<Order> => {
+    const res = await api.patch(`/admin/orders/${id}/status`, {
+      status,
+      paymentStatus,
+    });
     return res.data;
   },
 };

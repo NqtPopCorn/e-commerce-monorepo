@@ -12,7 +12,14 @@ import { useGetMyAddresses, useGetMe } from "@/hooks/useAccounts";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ChevronLeft, MapPin, Phone, User, CheckCircle2 } from "lucide-react";
+import {
+  ChevronLeft,
+  MapPin,
+  Phone,
+  User,
+  CheckCircle2,
+  Banknote,
+} from "lucide-react";
 import { VoucherInput } from "@/components/promotions/VoucherInput";
 import { PriceBreakdown } from "@/components/promotions/PriceBreakdown";
 
@@ -118,6 +125,7 @@ export default function CheckoutPage() {
       await createOrderMutation.mutateAsync({
         items: cartInputs,
         voucherCode: voucherCode || undefined,
+        paymentMethod: "COD",
         recipientName: recipientName.trim(),
         recipientPhone: recipientPhone.trim(),
         shippingAddress: address.trim(),
@@ -328,18 +336,25 @@ export default function CheckoutPage() {
           </div>
 
           <div className="bg-card p-6 rounded-2xl shadow-xs border border-border">
-            <h2 className="text-base font-bold text-foreground mb-4">
-              PHƯƠNG THỨC THANH TOÁN
+            <h2 className="text-base font-bold text-foreground mb-4 flex items-center gap-2">
+              <Banknote className="w-5 h-5 text-primary" />
+              <span>PHƯƠNG THỨC THANH TOÁN</span>
             </h2>
-            <div className="border border-primary/30 rounded-xl p-4 bg-primary/5 relative flex items-center gap-3">
-              <div className="w-5 h-5 rounded-full border-4 border-primary bg-background flex shrink-0" />
-              <div>
-                <span className="font-semibold text-xs text-foreground block">
-                  Thanh toán khi nhận hàng (COD)
-                </span>
-                <span className="text-[11px] text-muted-foreground block mt-0.5">
-                  Thanh toán bằng tiền mặt khi shipper giao tận nơi. Kiểm tra
-                  hàng trước khi nhận.
+            <div className="border border-primary bg-primary/5 rounded-xl p-4 relative flex items-start sm:items-center gap-3.5 shadow-xs">
+              <div className="w-5 h-5 rounded-full border-4 border-primary bg-background flex shrink-0 mt-0.5 sm:mt-0" />
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-xs text-foreground">
+                    Thanh toán khi nhận hàng (COD)
+                  </span>
+                  <span className="text-[10px] font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                    Mặc định
+                  </span>
+                </div>
+                <span className="text-[11px] text-muted-foreground block mt-1 leading-relaxed">
+                  Thanh toán bằng tiền mặt trực tiếp cho nhân viên giao hàng khi
+                  nhận hàng. Quý khách được quyền kiểm tra tình trạng hàng trước
+                  khi thanh toán.
                 </span>
               </div>
             </div>

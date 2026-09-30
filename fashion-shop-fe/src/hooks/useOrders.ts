@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ordersService } from "@/services/orders.service";
 import { useAuthStore } from "@/stores/auth.store";
+import { UpdateOrderStatusParams } from "@/types/order";
 
 export const useCreateOrder = () => {
   const queryClient = useQueryClient();
@@ -35,10 +36,11 @@ export const useGetAdminOrders = (status?: string) => {
 export const useUpdateOrderStatus = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, status }: { id: number; status: string }) =>
-      ordersService.updateStatus(id, status),
+    mutationFn: (params: UpdateOrderStatusParams) =>
+      ordersService.updateStatus(params),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
     },
   });
 };
