@@ -29,8 +29,10 @@ import {
   AdminStatusBadge,
   AdminDataTable,
   AdminPageSkeleton,
+  AdminSortHeader,
 } from "@/components/admin";
 import { useTableParams } from "@/hooks/useTableParams";
+import { useSortableTable } from "@/hooks/useSortableTable";
 import { useGetAuditLogs, useGetAuditLogSummary } from "@/hooks/useAuditLogs";
 import { AuditLog } from "@/types/audit-log";
 import { formatDateTime } from "@/lib/format";
@@ -127,6 +129,24 @@ function AuditLogsContent() {
     limit: params.pageSize,
     totalPages: 1,
   };
+
+  const {
+    sortedItems: sortedLogs,
+    sortField,
+    sortOrder,
+    handleSort,
+  } = useSortableTable(logs, {
+    defaultField: "createdAt",
+    defaultOrder: "desc",
+    customGetters: {
+      id: (l: AuditLog) => Number(l.id) || 0,
+      createdAt: (l: AuditLog) => new Date(l.createdAt).getTime(),
+      userEmail: (l: AuditLog) => (l.userEmail || "Hệ thống").toLowerCase(),
+      action: (l: AuditLog) =>
+        `${l.entityType || ""} ${l.action || ""}`.toLowerCase(),
+      status: (l: AuditLog) => l.status || "",
+    },
+  });
 
   const handleResetFilters = () => {
     setSearchInput("");
@@ -286,17 +306,45 @@ function AuditLogsContent() {
         <Table>
           <TableHeader className="bg-muted/50">
             <TableRow className="border-b border-border">
-              <TableHead className="w-[70px] font-semibold text-muted-foreground text-xs uppercase tracking-wider">
-                ID
+              <TableHead className="w-[70px]">
+                <AdminSortHeader
+                  title="ID"
+                  field="id"
+                  currentField={sortField}
+                  currentOrder={sortOrder}
+                  onSort={handleSort}
+                  defaultOrder="desc"
+                />
               </TableHead>
-              <TableHead className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
-                Thời gian
+              <TableHead>
+                <AdminSortHeader
+                  title="Thời gian"
+                  field="createdAt"
+                  currentField={sortField}
+                  currentOrder={sortOrder}
+                  onSort={handleSort}
+                  defaultOrder="desc"
+                />
               </TableHead>
-              <TableHead className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
-                Người thực hiện
+              <TableHead>
+                <AdminSortHeader
+                  title="Người thực hiện"
+                  field="userEmail"
+                  currentField={sortField}
+                  currentOrder={sortOrder}
+                  onSort={handleSort}
+                  defaultOrder="asc"
+                />
               </TableHead>
-              <TableHead className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
-                Phân loại & Hành động
+              <TableHead>
+                <AdminSortHeader
+                  title="Phân loại & Hành động"
+                  field="action"
+                  currentField={sortField}
+                  currentOrder={sortOrder}
+                  onSort={handleSort}
+                  defaultOrder="asc"
+                />
               </TableHead>
               <TableHead className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
                 Mô tả chi tiết
@@ -304,8 +352,15 @@ function AuditLogsContent() {
               <TableHead className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
                 Mạng & IP
               </TableHead>
-              <TableHead className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
-                Trạng thái
+              <TableHead>
+                <AdminSortHeader
+                  title="Trạng thái"
+                  field="status"
+                  currentField={sortField}
+                  currentOrder={sortOrder}
+                  onSort={handleSort}
+                  defaultOrder="asc"
+                />
               </TableHead>
               <TableHead className="text-right font-semibold text-muted-foreground text-xs uppercase tracking-wider w-20">
                 Chi tiết
@@ -313,7 +368,7 @@ function AuditLogsContent() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {logs.map((log) => {
+            {sortedLogs.map((log) => {
               const actorEmail = log.userEmail || "Hệ thống";
               const actorRole = log.userRole || log.user?.role || "SYSTEM";
               const isSuccess = log.status === "SUCCESS";
@@ -372,7 +427,10 @@ function AuditLogsContent() {
                           </span>
                         )}
                       </div>
-                      <p className="text-[11px] font-mono text-muted-foreground truncate max-w-[160px]" title={log.action}>
+                      <p
+                        className="text-[11px] font-mono text-muted-foreground truncate max-w-[160px]"
+                        title={log.action}
+                      >
                         {log.action}
                       </p>
                     </div>

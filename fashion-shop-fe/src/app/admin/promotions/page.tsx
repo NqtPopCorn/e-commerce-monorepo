@@ -35,8 +35,10 @@ import {
   AdminDataTable,
   AdminConfirmDialog,
   AdminPageSkeleton,
+  AdminSortHeader,
 } from "@/components/admin";
 import { useTableParams } from "@/hooks/useTableParams";
+import { useSortableTable } from "@/hooks/useSortableTable";
 import { formatCurrency, formatDate } from "@/lib/format";
 
 function AdminPromotionsContent() {
@@ -95,6 +97,28 @@ function AdminPromotionsContent() {
     limit: params.pageSize,
     totalPages: 1,
   };
+
+  const {
+    sortedItems: sortedPromotions,
+    sortField,
+    sortOrder,
+    handleSort,
+  } = useSortableTable(promotions, {
+    defaultField: "name",
+    defaultOrder: "asc",
+    customGetters: {
+      name: (p: Promotion) => p.name || "",
+      kind: (p: Promotion) => p.kind || p.applicationType || "",
+      code: (p: Promotion) => p.code || "",
+      discountValue: (p: Promotion) =>
+        Number(p.discountValue || p.groups?.[0]?.discountValue || 0),
+      priority: (p: Promotion) => Number(p.priority || 0),
+      startsAt: (p: Promotion) =>
+        p.startsAt ? new Date(p.startsAt).getTime() : 0,
+      usedCount: (p: Promotion) => Number(p.usedCount || 0),
+      active: (p: Promotion) => (p.active ? 1 : 0),
+    },
+  });
 
   const totalCount = meta.total || 0;
   const activeCount = promotions.filter((p) => p.active).length;
@@ -355,29 +379,89 @@ function AdminPromotionsContent() {
         <Table>
           <TableHeader className="bg-muted/50">
             <TableRow className="border-b border-border">
-              <TableHead className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
-                Tên chương trình
+              <TableHead>
+                <AdminSortHeader
+                  title="Tên chương trình"
+                  field="name"
+                  currentField={sortField}
+                  currentOrder={sortOrder}
+                  onSort={handleSort}
+                  defaultOrder="asc"
+                />
               </TableHead>
-              <TableHead className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
-                Phân loại
+              <TableHead>
+                <AdminSortHeader
+                  title="Phân loại"
+                  field="kind"
+                  currentField={sortField}
+                  currentOrder={sortOrder}
+                  onSort={handleSort}
+                  defaultOrder="asc"
+                />
               </TableHead>
-              <TableHead className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
-                Mã Voucher
+              <TableHead>
+                <AdminSortHeader
+                  title="Mã Voucher"
+                  field="code"
+                  currentField={sortField}
+                  currentOrder={sortOrder}
+                  onSort={handleSort}
+                  defaultOrder="asc"
+                />
               </TableHead>
-              <TableHead className="font-semibold text-muted-foreground text-xs uppercase tracking-wider text-right">
-                Mức giảm
+              <TableHead className="text-right">
+                <AdminSortHeader
+                  title="Mức giảm"
+                  field="discountValue"
+                  currentField={sortField}
+                  currentOrder={sortOrder}
+                  onSort={handleSort}
+                  defaultOrder="desc"
+                  align="right"
+                />
               </TableHead>
-              <TableHead className="text-center font-semibold text-muted-foreground text-xs uppercase tracking-wider">
-                Ưu tiên
+              <TableHead className="text-center">
+                <AdminSortHeader
+                  title="Ưu tiên"
+                  field="priority"
+                  currentField={sortField}
+                  currentOrder={sortOrder}
+                  onSort={handleSort}
+                  defaultOrder="desc"
+                  align="center"
+                />
               </TableHead>
-              <TableHead className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
-                Thời gian áp dụng
+              <TableHead>
+                <AdminSortHeader
+                  title="Thời gian áp dụng"
+                  field="startsAt"
+                  currentField={sortField}
+                  currentOrder={sortOrder}
+                  onSort={handleSort}
+                  defaultOrder="desc"
+                />
               </TableHead>
-              <TableHead className="text-center font-semibold text-muted-foreground text-xs uppercase tracking-wider">
-                Lượt dùng
+              <TableHead className="text-center">
+                <AdminSortHeader
+                  title="Lượt dùng"
+                  field="usedCount"
+                  currentField={sortField}
+                  currentOrder={sortOrder}
+                  onSort={handleSort}
+                  defaultOrder="desc"
+                  align="center"
+                />
               </TableHead>
-              <TableHead className="text-center font-semibold text-muted-foreground text-xs uppercase tracking-wider">
-                Trạng thái
+              <TableHead className="text-center">
+                <AdminSortHeader
+                  title="Trạng thái"
+                  field="active"
+                  currentField={sortField}
+                  currentOrder={sortOrder}
+                  onSort={handleSort}
+                  defaultOrder="desc"
+                  align="center"
+                />
               </TableHead>
               <TableHead className="text-right font-semibold text-muted-foreground text-xs uppercase tracking-wider w-32">
                 Thao tác
@@ -385,7 +469,7 @@ function AdminPromotionsContent() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {promotions.map((p) => (
+            {sortedPromotions.map((p) => (
               <TableRow
                 key={p.id}
                 className="hover:bg-muted/50 border-b border-border transition-colors"

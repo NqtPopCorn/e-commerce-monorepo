@@ -38,7 +38,9 @@ import {
   AdminDataTable,
   AdminConfirmDialog,
   AdminPageSkeleton,
+  AdminSortHeader,
 } from "@/components/admin";
+import { useSortableTable } from "@/hooks/useSortableTable";
 import { AccountDetailModal } from "@/components/admin/accounts/AccountDetailModal";
 import { CreateAccountModal } from "@/components/admin/accounts/CreateAccountModal";
 import { EditAccountModal } from "@/components/admin/accounts/EditAccountModal";
@@ -113,6 +115,28 @@ function AccountsContent() {
     limit: params.pageSize,
     totalPages: 1,
   };
+
+  const {
+    sortedItems: sortedUsers,
+    sortField,
+    sortOrder,
+    handleSort,
+  } = useSortableTable(users, {
+    defaultField: "id",
+    defaultOrder: "desc",
+    customGetters: {
+      id: (u: Account) => Number(u.id) || 0,
+      name: (u: Account) => {
+        const full =
+          [u.firstName, u.lastName].filter(Boolean).join(" ") || u.name || "";
+        return full.toLowerCase();
+      },
+      email: (u: Account) => (u.email || "").toLowerCase(),
+      role: (u: Account) => u.role || "",
+      tier: (u: Account) => u.tier || "",
+      status: (u: Account) => u.status || "",
+    },
+  });
 
   const handleToggleStatus = (
     id: number,
@@ -300,23 +324,65 @@ function AccountsContent() {
         <Table>
           <TableHeader className="bg-muted/50">
             <TableRow className="border-b border-border">
-              <TableHead className="w-[70px] font-semibold text-muted-foreground text-xs uppercase tracking-wider">
-                ID
+              <TableHead className="w-[70px]">
+                <AdminSortHeader
+                  title="ID"
+                  field="id"
+                  currentField={sortField}
+                  currentOrder={sortOrder}
+                  onSort={handleSort}
+                  defaultOrder="desc"
+                />
               </TableHead>
-              <TableHead className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
-                Người dùng
+              <TableHead>
+                <AdminSortHeader
+                  title="Người dùng"
+                  field="name"
+                  currentField={sortField}
+                  currentOrder={sortOrder}
+                  onSort={handleSort}
+                  defaultOrder="asc"
+                />
               </TableHead>
-              <TableHead className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
-                Email
+              <TableHead>
+                <AdminSortHeader
+                  title="Email"
+                  field="email"
+                  currentField={sortField}
+                  currentOrder={sortOrder}
+                  onSort={handleSort}
+                  defaultOrder="asc"
+                />
               </TableHead>
-              <TableHead className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
-                Vai trò
+              <TableHead>
+                <AdminSortHeader
+                  title="Vai trò"
+                  field="role"
+                  currentField={sortField}
+                  currentOrder={sortOrder}
+                  onSort={handleSort}
+                  defaultOrder="asc"
+                />
               </TableHead>
-              <TableHead className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
-                Hạng thành viên
+              <TableHead>
+                <AdminSortHeader
+                  title="Hạng thành viên"
+                  field="tier"
+                  currentField={sortField}
+                  currentOrder={sortOrder}
+                  onSort={handleSort}
+                  defaultOrder="asc"
+                />
               </TableHead>
-              <TableHead className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
-                Trạng thái
+              <TableHead>
+                <AdminSortHeader
+                  title="Trạng thái"
+                  field="status"
+                  currentField={sortField}
+                  currentOrder={sortOrder}
+                  onSort={handleSort}
+                  defaultOrder="asc"
+                />
               </TableHead>
               <TableHead className="text-right font-semibold text-muted-foreground text-xs uppercase tracking-wider w-44">
                 Thao tác
@@ -324,7 +390,7 @@ function AccountsContent() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {users.map((user) => {
+            {sortedUsers.map((user) => {
               const fullName =
                 [user.firstName, user.lastName].filter(Boolean).join(" ") ||
                 user.name ||

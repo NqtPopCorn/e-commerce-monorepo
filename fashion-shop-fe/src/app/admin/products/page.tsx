@@ -22,8 +22,10 @@ import {
   AdminDataTable,
   AdminConfirmDialog,
   AdminPageSkeleton,
+  AdminSortHeader,
   ConfirmDialogVariant,
 } from "@/components/admin";
+import { useSortableTable } from "@/hooks/useSortableTable";
 import {
   useDeleteProduct,
   useGetPaginatedProducts,
@@ -120,6 +122,27 @@ function AdminProductsContent() {
     limit: params.pageSize,
     totalPages: 1,
   };
+
+  const {
+    sortedItems: sortedProducts,
+    sortField,
+    sortOrder,
+    handleSort,
+  } = useSortableTable(products, {
+    defaultField: "id",
+    defaultOrder: "desc",
+    customGetters: {
+      id: (p: Product) => Number(p.id) || 0,
+      name: (p: Product) => p.name || "",
+      brand: (p: Product) => p.brand?.name || "",
+      category: (p: Product) => p.category?.name || "",
+      price: (p: Product) =>
+        Math.min(
+          ...(p.variants?.map((v: any) => Number(v.sellingPrice)) || [0]),
+        ),
+      variants: (p: Product) => p.variants?.length || 0,
+    },
+  });
 
   const hasActiveFilters =
     Boolean(params.q) ||
@@ -650,41 +673,67 @@ function AdminProductsContent() {
                   aria-label="Chọn tất cả trên trang hiện tại"
                 />
               </th>
-              <th
-                scope="col"
-                className="w-16 px-4 py-3 text-left uppercase tracking-wider"
-              >
-                ID
+              <th scope="col" className="w-16 px-4 py-3 text-left">
+                <AdminSortHeader
+                  title="ID"
+                  field="id"
+                  currentField={sortField}
+                  currentOrder={sortOrder}
+                  onSort={handleSort}
+                  defaultOrder="desc"
+                />
               </th>
-              <th
-                scope="col"
-                className="px-4 py-3 text-left uppercase tracking-wider"
-              >
-                Sản phẩm
+              <th scope="col" className="px-4 py-3 text-left">
+                <AdminSortHeader
+                  title="Sản phẩm"
+                  field="name"
+                  currentField={sortField}
+                  currentOrder={sortOrder}
+                  onSort={handleSort}
+                  defaultOrder="asc"
+                />
               </th>
-              <th
-                scope="col"
-                className="px-4 py-3 text-left uppercase tracking-wider"
-              >
-                Thương hiệu
+              <th scope="col" className="px-4 py-3 text-left">
+                <AdminSortHeader
+                  title="Thương hiệu"
+                  field="brand"
+                  currentField={sortField}
+                  currentOrder={sortOrder}
+                  onSort={handleSort}
+                  defaultOrder="asc"
+                />
               </th>
-              <th
-                scope="col"
-                className="px-4 py-3 text-left uppercase tracking-wider"
-              >
-                Danh mục
+              <th scope="col" className="px-4 py-3 text-left">
+                <AdminSortHeader
+                  title="Danh mục"
+                  field="category"
+                  currentField={sortField}
+                  currentOrder={sortOrder}
+                  onSort={handleSort}
+                  defaultOrder="asc"
+                />
               </th>
-              <th
-                scope="col"
-                className="px-4 py-3 text-right uppercase tracking-wider"
-              >
-                Khoảng giá
+              <th scope="col" className="px-4 py-3 text-right">
+                <AdminSortHeader
+                  title="Khoảng giá"
+                  field="price"
+                  currentField={sortField}
+                  currentOrder={sortOrder}
+                  onSort={handleSort}
+                  defaultOrder="asc"
+                  align="right"
+                />
               </th>
-              <th
-                scope="col"
-                className="px-4 py-3 text-center uppercase tracking-wider"
-              >
-                Biến thể
+              <th scope="col" className="px-4 py-3 text-center">
+                <AdminSortHeader
+                  title="Biến thể"
+                  field="variants"
+                  currentField={sortField}
+                  currentOrder={sortOrder}
+                  onSort={handleSort}
+                  defaultOrder="desc"
+                  align="center"
+                />
               </th>
               <th
                 scope="col"
@@ -696,7 +745,7 @@ function AdminProductsContent() {
           </thead>
 
           <tbody className="divide-y divide-border">
-            {products.map((product: Product) => {
+            {sortedProducts.map((product: Product) => {
               const isSelected = selectedIds.includes(product.id);
               const minPriceVal = Math.min(
                 ...(product.variants?.map((v) => Number(v.sellingPrice)) || [

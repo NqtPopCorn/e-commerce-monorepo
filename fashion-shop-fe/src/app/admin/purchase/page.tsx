@@ -31,8 +31,10 @@ import {
   AdminDataTable,
   AdminStatusBadge,
   AdminPageSkeleton,
+  AdminSortHeader,
 } from "@/components/admin";
 import { useTableParams } from "@/hooks/useTableParams";
+import { useSortableTable } from "@/hooks/useSortableTable";
 import { formatCurrency, formatNumber, formatDateTime } from "@/lib/format";
 
 function PurchaseContent() {
@@ -85,6 +87,28 @@ function PurchaseContent() {
     limit: params.pageSize,
     totalPages: 1,
   };
+
+  const {
+    sortedItems: sortedPurchases,
+    sortField,
+    sortOrder,
+    handleSort,
+  } = useSortableTable(purchases, {
+    defaultField: "createdAt",
+    defaultOrder: "desc",
+    customGetters: {
+      code: (p: PurchaseReceipt) => p.code || "",
+      createdAt: (p: PurchaseReceipt) => new Date(p.createdAt).getTime(),
+      supplier: (p: PurchaseReceipt) => p.supplier || "",
+      quantity: (p: PurchaseReceipt) =>
+        (p.items || []).reduce(
+          (sum, it) => sum + (Number(it.quantity) || 0),
+          0,
+        ),
+      totalAmount: (p: PurchaseReceipt) => Number(p.totalAmount) || 0,
+      status: (p: PurchaseReceipt) => p.status || "",
+    },
+  });
 
   const totalPurchases = statsData?.totalPurchases ?? 0;
   const totalSpending = statsData?.totalSpending ?? 0;
@@ -224,26 +248,71 @@ function PurchaseContent() {
         <Table>
           <TableHeader className="bg-muted/50">
             <TableRow className="border-b border-border">
-              <TableHead className="w-[130px] font-semibold text-muted-foreground text-xs uppercase tracking-wider">
-                Mã phiếu
+              <TableHead className="w-[130px]">
+                <AdminSortHeader
+                  title="Mã phiếu"
+                  field="code"
+                  currentField={sortField}
+                  currentOrder={sortOrder}
+                  onSort={handleSort}
+                  defaultOrder="desc"
+                />
               </TableHead>
-              <TableHead className="font-semibold text-muted-foreground text-xs uppercase tracking-wider min-w-[130px]">
-                Ngày nhập
+              <TableHead className="min-w-[130px]">
+                <AdminSortHeader
+                  title="Ngày nhập"
+                  field="createdAt"
+                  currentField={sortField}
+                  currentOrder={sortOrder}
+                  onSort={handleSort}
+                  defaultOrder="desc"
+                />
               </TableHead>
-              <TableHead className="font-semibold text-muted-foreground text-xs uppercase tracking-wider min-w-[150px]">
-                Nhà cung cấp
+              <TableHead className="min-w-[150px]">
+                <AdminSortHeader
+                  title="Nhà cung cấp"
+                  field="supplier"
+                  currentField={sortField}
+                  currentOrder={sortOrder}
+                  onSort={handleSort}
+                  defaultOrder="asc"
+                />
               </TableHead>
-              <TableHead className="font-semibold text-muted-foreground text-xs uppercase tracking-wider min-w-[200px]">
+              <TableHead className="min-w-[200px] font-semibold text-muted-foreground text-xs uppercase tracking-wider">
                 Mặt hàng nhập
               </TableHead>
-              <TableHead className="text-right font-semibold text-muted-foreground text-xs uppercase tracking-wider">
-                Số lượng
+              <TableHead className="text-right">
+                <AdminSortHeader
+                  title="Số lượng"
+                  field="quantity"
+                  currentField={sortField}
+                  currentOrder={sortOrder}
+                  onSort={handleSort}
+                  defaultOrder="desc"
+                  align="right"
+                />
               </TableHead>
-              <TableHead className="text-right font-semibold text-muted-foreground text-xs uppercase tracking-wider">
-                Tổng tiền
+              <TableHead className="text-right">
+                <AdminSortHeader
+                  title="Tổng tiền"
+                  field="totalAmount"
+                  currentField={sortField}
+                  currentOrder={sortOrder}
+                  onSort={handleSort}
+                  defaultOrder="desc"
+                  align="right"
+                />
               </TableHead>
-              <TableHead className="text-center font-semibold text-muted-foreground text-xs uppercase tracking-wider">
-                Trạng thái
+              <TableHead className="text-center">
+                <AdminSortHeader
+                  title="Trạng thái"
+                  field="status"
+                  currentField={sortField}
+                  currentOrder={sortOrder}
+                  onSort={handleSort}
+                  defaultOrder="asc"
+                  align="center"
+                />
               </TableHead>
               <TableHead className="text-right font-semibold text-muted-foreground text-xs uppercase tracking-wider w-24">
                 Thao tác
@@ -251,7 +320,7 @@ function PurchaseContent() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {purchases.map((p) => {
+            {sortedPurchases.map((p) => {
               const items = p.items || [];
               const receiptQty = items.reduce(
                 (sum, it) => sum + it.quantity,

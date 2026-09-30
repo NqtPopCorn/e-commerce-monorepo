@@ -27,8 +27,10 @@ import {
   AdminStatusBadge,
   AdminDataTable,
   AdminPageSkeleton,
+  AdminSortHeader,
 } from "@/components/admin";
 import { useTableParams } from "@/hooks/useTableParams";
+import { useSortableTable } from "@/hooks/useSortableTable";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 
 const ORDER_STATUSES = [
@@ -104,12 +106,39 @@ function AdminOrdersContent() {
     });
   }, [allOrders, activeTab, params.q]);
 
-  // Pagination
-  const total = filteredOrders.length;
+  // In-memory instant sort across filtered orders
+  const {
+    sortedItems: sortedOrders,
+    sortField,
+    sortOrder,
+    handleSort,
+  } = useSortableTable(filteredOrders, {
+    defaultField: "createdAt",
+    defaultOrder: "desc",
+    customGetters: {
+      id: (o: any) => Number(o.id) || 0,
+      customer: (o: any) => {
+        const name =
+          o.recipientName ||
+          [o.user?.firstName, o.user?.lastName].filter(Boolean).join(" ") ||
+          o.user?.name ||
+          "";
+        return name.toLowerCase();
+      },
+      createdAt: (o: any) => new Date(o.createdAt).getTime(),
+      total: (o: any) => Number(o.total) || 0,
+      status: (o: any) => o.status || "",
+      payment: (o: any) =>
+        `${o.paymentMethod || ""} ${o.paymentStatus || ""}`.toLowerCase(),
+    },
+  });
+
+  // Pagination on sorted items
+  const total = sortedOrders.length;
   const limit = params.pageSize;
   const currentPage = params.page;
   const totalPages = Math.ceil(total / limit) || 1;
-  const paginatedOrders = filteredOrders.slice(
+  const paginatedOrders = sortedOrders.slice(
     (currentPage - 1) * limit,
     currentPage * limit,
   );
@@ -225,23 +254,68 @@ function AdminOrdersContent() {
         <Table>
           <TableHeader className="bg-muted/50">
             <TableRow className="border-b border-border">
-              <TableHead className="w-[110px] font-semibold text-muted-foreground text-xs uppercase tracking-wider">
-                Mã Đơn
+              <TableHead className="w-[110px]">
+                <AdminSortHeader
+                  title="Mã Đơn"
+                  field="id"
+                  currentField={sortField}
+                  currentOrder={sortOrder}
+                  onSort={handleSort}
+                  defaultOrder="desc"
+                />
               </TableHead>
-              <TableHead className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
-                Khách Hàng
+              <TableHead>
+                <AdminSortHeader
+                  title="Khách Hàng"
+                  field="customer"
+                  currentField={sortField}
+                  currentOrder={sortOrder}
+                  onSort={handleSort}
+                  defaultOrder="asc"
+                />
               </TableHead>
-              <TableHead className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
-                Ngày Đặt
+              <TableHead>
+                <AdminSortHeader
+                  title="Ngày Đặt"
+                  field="createdAt"
+                  currentField={sortField}
+                  currentOrder={sortOrder}
+                  onSort={handleSort}
+                  defaultOrder="desc"
+                />
               </TableHead>
-              <TableHead className="font-semibold text-muted-foreground text-xs uppercase tracking-wider text-right">
-                Tổng Tiền
+              <TableHead className="text-right">
+                <AdminSortHeader
+                  title="Tổng Tiền"
+                  field="total"
+                  currentField={sortField}
+                  currentOrder={sortOrder}
+                  onSort={handleSort}
+                  defaultOrder="desc"
+                  align="right"
+                />
               </TableHead>
-              <TableHead className="font-semibold text-muted-foreground text-xs uppercase tracking-wider text-center">
-                Trạng Thái
+              <TableHead className="text-center">
+                <AdminSortHeader
+                  title="Trạng Thái"
+                  field="status"
+                  currentField={sortField}
+                  currentOrder={sortOrder}
+                  onSort={handleSort}
+                  defaultOrder="asc"
+                  align="center"
+                />
               </TableHead>
-              <TableHead className="font-semibold text-muted-foreground text-xs uppercase tracking-wider text-center">
-                Thanh Toán
+              <TableHead className="text-center">
+                <AdminSortHeader
+                  title="Thanh Toán"
+                  field="payment"
+                  currentField={sortField}
+                  currentOrder={sortOrder}
+                  onSort={handleSort}
+                  defaultOrder="asc"
+                  align="center"
+                />
               </TableHead>
               <TableHead className="text-right font-semibold text-muted-foreground text-xs uppercase tracking-wider w-36">
                 Thao Tác

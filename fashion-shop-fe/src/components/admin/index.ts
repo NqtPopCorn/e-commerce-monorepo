@@ -9,3 +9,4 @@ export * from "./AdminDataTable";
 export * from "./AdminHeaderBar";
 export * from "./AdminConfirmDialog";
 export * from "./AdminErrorState";
+export * from "./AdminSortHeader";
