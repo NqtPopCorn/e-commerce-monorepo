@@ -98,6 +98,7 @@ export function OrderDetailModal({
 }: OrderDetailModalProps) {
   const updateStatusMutation = useUpdateOrderStatus();
   const [isUpdatingPayment, setIsUpdatingPayment] = useState(false);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
   if (!order) return null;
 
@@ -148,8 +149,6 @@ export function OrderDetailModal({
       setIsUpdatingPayment(false);
     }
   };
-
-  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
   const handleUpdateStatus = async (newStatus: OrderStatus) => {
     setIsUpdatingStatus(true);

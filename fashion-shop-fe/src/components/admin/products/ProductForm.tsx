@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ChevronRight, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { AdminConfirmDialog, ConfirmDialogVariant } from "@/components/admin";
+import {
+  AdminConfirmDialog,
+  ConfirmDialogVariant,
+  AdminPageHeader,
+} from "@/components/admin";
 
 import { useCreateProduct, useUpdateProduct } from "@/hooks/useProducts";
 import { useGetBrands } from "@/hooks/useBrands";
@@ -288,38 +292,15 @@ export function ProductForm({ onClose, product }: ProductFormProps) {
   };
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-6 pb-24">
+    <div className="space-y-6 max-w-7xl mx-auto">
       {/* 1. Header: Breadcrumb & Title (Outside Card) */}
-      <div className="space-y-1.5">
-        <nav
-          aria-label="Breadcrumb"
-          className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium"
-        >
-          <button
-            type="button"
-            onClick={handleRequestClose}
-            className="hover:text-foreground transition-colors"
-          >
-            Tổng quan
-          </button>
-          <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
-          <button
-            type="button"
-            onClick={handleRequestClose}
-            className="hover:text-foreground transition-colors"
-          >
-            Sản phẩm
-          </button>
-          <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
-          <span className="text-foreground font-semibold">
-            {isEdit ? product?.name || "Sửa sản phẩm" : "Thêm sản phẩm"}
-          </span>
-        </nav>
-
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-          {isEdit ? "Sửa sản phẩm" : "Thêm sản phẩm"}
-        </h1>
-      </div>
+      <AdminPageHeader
+        breadcrumbs={[
+          { label: "Sản phẩm", onClick: handleRequestClose },
+          { label: isEdit ? product?.name || "Sửa sản phẩm" : "Thêm sản phẩm" },
+        ]}
+        title={isEdit ? "Sửa sản phẩm" : "Thêm sản phẩm"}
+      />
 
       {/* Main Form Form Body */}
       <form onSubmit={handleSubmit(onSubmit, onError)} noValidate>
@@ -520,49 +501,47 @@ export function ProductForm({ onClose, product }: ProductFormProps) {
         </div>
 
         {/* 5. Sticky Bottom Action Bar */}
-        <div className="fixed bottom-0 left-0 right-0 z-20 bg-background/95 backdrop-blur-xs border-t border-border py-3 px-4 lg:px-8 shadow-sm">
-          <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
-            <div>
-              {isDirty ? (
-                <span className="text-xs text-amber-600 dark:text-amber-400 font-medium flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                  Có thay đổi chưa lưu
-                </span>
-              ) : (
-                <span className="text-xs text-muted-foreground hidden sm:inline">
-                  {isEdit ? "Chế độ chỉnh sửa sản phẩm" : "Tạo sản phẩm mới"}
-                </span>
-              )}
-            </div>
+        <div className="sticky bottom-4 z-10 bg-card/95 backdrop-blur-xs border border-border rounded-xl px-5 py-3 shadow-md mt-6 flex items-center justify-between gap-4">
+          <div>
+            {isDirty ? (
+              <span className="text-xs text-amber-600 dark:text-amber-400 font-medium flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                Có thay đổi chưa lưu
+              </span>
+            ) : (
+              <span className="text-xs text-muted-foreground hidden sm:inline">
+                {isEdit ? "Chế độ chỉnh sửa sản phẩm" : "Tạo sản phẩm mới"}
+              </span>
+            )}
+          </div>
 
-            <div className="flex items-center gap-2.5">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleRequestClose}
-                disabled={isSubmitting}
-                className="h-9 text-xs font-medium"
-              >
-                Hủy
-              </Button>
+          <div className="flex items-center gap-2.5">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleRequestClose}
+              disabled={isSubmitting}
+              className="h-9 text-xs font-medium"
+            >
+              Hủy
+            </Button>
 
-              <Button
-                type="submit"
-                size="sm"
-                disabled={isSubmitting}
-                className="h-9 text-xs font-medium min-w-[110px]"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                    <span>{isEdit ? "Lưu thay đổi" : "Tạo sản phẩm"}</span>
-                  </>
-                ) : (
+            <Button
+              type="submit"
+              size="sm"
+              disabled={isSubmitting}
+              className="h-9 text-xs font-medium min-w-[110px]"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
                   <span>{isEdit ? "Lưu thay đổi" : "Tạo sản phẩm"}</span>
-                )}
-              </Button>
-            </div>
+                </>
+              ) : (
+                <span>{isEdit ? "Lưu thay đổi" : "Tạo sản phẩm"}</span>
+              )}
+            </Button>
           </div>
         </div>
       </form>

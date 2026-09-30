@@ -12,6 +12,7 @@ import { HealthController } from "./health.controller";
 import { CategoriesModule } from "./modules/categories/categories.module";
 import { PurchasesModule } from "./modules/purchases/purchases.module";
 import { AuditLogsModule } from "./modules/audit-logs/audit-logs.module";
+import { UploadModule } from "./modules/upload/upload.module";
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { AuditLogsModule } from "./modules/audit-logs/audit-logs.module";
     AccountsModule,
     CategoriesModule,
     PurchasesModule,
+    UploadModule,
   ],
   controllers: [HealthController],
 })

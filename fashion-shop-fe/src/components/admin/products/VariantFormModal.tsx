@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ImageUpload } from "@/components/common/ImageUpload";
 
 interface VariantFormModalProps {
   isOpen: boolean;
@@ -218,17 +219,32 @@ export function VariantFormModal({
                 />
               </div>
 
-              <div className="space-y-1.5 md:col-span-2">
+              <div className="space-y-2 md:col-span-2 border-t pt-3">
                 <Label className="text-xs font-medium">
-                  Ảnh riêng cho biến thể (URL)
+                  Ảnh riêng cho biến thể
                 </Label>
-                <Input
-                  name="imageUrl"
-                  placeholder="https://..."
-                  value={formData.imageUrl || ""}
-                  onChange={handleChange}
-                  className="text-xs h-9"
-                />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+                  <ImageUpload
+                    folder="products"
+                    value={formData.imageUrl || ""}
+                    onChange={(url) => {
+                      setFormData((prev: any) => ({ ...prev, imageUrl: url }));
+                    }}
+                    hint="Tải ảnh riêng cho màu/mẫu biến thể này"
+                  />
+                  <div className="space-y-1">
+                    <Label className="text-[11px] text-muted-foreground">
+                      Hoặc nhập liên kết ảnh trực tiếp:
+                    </Label>
+                    <Input
+                      name="imageUrl"
+                      placeholder="https://..."
+                      value={formData.imageUrl || ""}
+                      onChange={handleChange}
+                      className="text-xs h-9"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           </DialogBody>
