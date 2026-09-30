@@ -495,13 +495,28 @@ async function main() {
   await prisma.promotionVariant.deleteMany();
   await prisma.promotionGroup.deleteMany();
   await prisma.promotionApplication.deleteMany();
+  await prisma.voucher.deleteMany();
   await prisma.promotion.deleteMany();
+  await prisma.campaign.deleteMany();
 
-  const campaign = await prisma.promotion.create({
+  const summerCampaign = await prisma.campaign.create({
     data: {
       name: "Tuần lễ thời trang Hè - Ưu đãi bùng nổ",
-      kind: "CAMPAIGN",
+      description: "Chiến dịch trợ giá lớn mùa hè 2026",
+      budgetLimit: 20000000,
+      spentAmount: 0,
+      status: "ACTIVE",
+      startsAt: new Date("2026-01-01"),
+    },
+  });
+
+  await prisma.promotion.create({
+    data: {
+      campaignId: summerCampaign.id,
+      name: "Giảm giá sâu BST Áo & Quần Hè",
+      applicationType: "AUTO",
       priority: 10,
+      budgetLimit: 15000000,
       startsAt: new Date("2026-01-01"),
       active: true,
       groups: {
@@ -511,6 +526,7 @@ async function main() {
             sortOrder: 1,
             discountType: "PERCENT",
             discountValue: 20,
+            maxDiscountValue: 100000,
             variants: {
               create: variants.slice(0, 6).map((v) => ({ variantId: v.id })),
             },
@@ -532,57 +548,109 @@ async function main() {
   await prisma.promotion.create({
     data: {
       name: "Giảm 50k cho đơn từ 400k",
-      kind: "ORDER_AUTO",
-      discountType: "FIXED",
-      discountValue: 50000,
+      applicationType: "AUTO",
       minOrderAmount: 400000,
       priority: 5,
       startsAt: new Date("2026-01-01"),
       active: true,
+      groups: {
+        create: [
+          {
+            name: "Giảm 50k đơn hàng",
+            sortOrder: 1,
+            discountType: "FIXED",
+            discountValue: 50000,
+          },
+        ],
+      },
     },
   });
 
   await prisma.promotion.create({
     data: {
       name: "Giảm 10% cho đơn từ 800k",
-      kind: "ORDER_AUTO",
-      discountType: "PERCENT",
-      discountValue: 10,
+      applicationType: "AUTO",
       minOrderAmount: 800000,
       priority: 10,
       startsAt: new Date("2026-01-01"),
       active: true,
+      groups: {
+        create: [
+          {
+            name: "Giảm 10% đơn hàng",
+            sortOrder: 1,
+            discountType: "PERCENT",
+            discountValue: 10,
+            maxDiscountValue: 150000,
+          },
+        ],
+      },
     },
   });
 
   await prisma.promotion.create({
     data: {
       name: "Voucher khách hàng thân thiết - Giảm 50k",
-      kind: "VOUCHER",
-      code: "FASHION50K",
-      discountType: "FIXED",
-      discountValue: 50000,
+      applicationType: "VOUCHER",
       minOrderAmount: 250000,
-      maxUses: 100,
+      budgetLimit: 10000000,
       startsAt: new Date("2026-01-01"),
       active: true,
+      groups: {
+        create: [
+          {
+            name: "Giảm 50k",
+            sortOrder: 1,
+            discountType: "FIXED",
+            discountValue: 50000,
+          },
+        ],
+      },
+      vouchers: {
+        create: [
+          {
+            code: "FASHION50K",
+            maxUses: 100,
+            maxUsesPerCustomer: 1,
+            active: true,
+          },
+        ],
+      },
     },
   });
 
   await prisma.promotion.create({
     data: {
       name: "Voucher chào bạn mới - Giảm 15%",
-      kind: "VOUCHER",
-      code: "WELCOMEFASHION",
-      discountType: "PERCENT",
-      discountValue: 15,
+      applicationType: "VOUCHER",
       minOrderAmount: 300000,
-      maxUses: 500,
+      budgetLimit: 5000000,
       startsAt: new Date("2026-01-01"),
       active: true,
+      groups: {
+        create: [
+          {
+            name: "Giảm 15%",
+            sortOrder: 1,
+            discountType: "PERCENT",
+            discountValue: 15,
+            maxDiscountValue: 80000,
+          },
+        ],
+      },
+      vouchers: {
+        create: [
+          {
+            code: "WELCOMEFASHION",
+            maxUses: 500,
+            maxUsesPerCustomer: 1,
+            active: true,
+          },
+        ],
+      },
     },
   });
-  console.log("Created 1 campaign, 2 auto promotions, and 2 vouchers");
+  console.log("Created 1 campaign, 3 auto promotions, and 2 voucher promotions");
 
   // 6. Create Mock Orders
   const orders = [];

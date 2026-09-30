@@ -1,7 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { PromotionPricingService } from "./promotion-pricing.service";
 import { PrismaService } from "../../prisma/prisma.service";
-import { DiscountType, PromotionKind } from "@prisma/client";
+import { DiscountType, PromotionApplicationType } from "@prisma/client";
 import { mockDeep, DeepMockProxy } from "jest-mock-extended";
 
 describe("PromotionPricingService", () => {
@@ -51,10 +51,12 @@ describe("PromotionPricingService", () => {
         {
           id: 10,
           name: "Low Priority Campaign",
-          kind: PromotionKind.CAMPAIGN,
+          applicationType: PromotionApplicationType.AUTO,
           priority: 5,
           active: true,
           startsAt: new Date("2026-01-01"),
+          budgetLimit: null,
+          spentAmount: 0,
           groups: [
             {
               id: 101,
@@ -67,10 +69,12 @@ describe("PromotionPricingService", () => {
         {
           id: 20,
           name: "High Priority Campaign",
-          kind: PromotionKind.CAMPAIGN,
+          applicationType: PromotionApplicationType.AUTO,
           priority: 10,
           active: true,
           startsAt: new Date("2026-01-01"),
+          budgetLimit: null,
+          spentAmount: 0,
           groups: [
             {
               id: 201,
@@ -96,10 +100,12 @@ describe("PromotionPricingService", () => {
         {
           id: 30,
           name: "Campaign 30",
-          kind: PromotionKind.CAMPAIGN,
+          applicationType: PromotionApplicationType.AUTO,
           priority: 10,
           active: true,
           startsAt: new Date("2026-01-01"),
+          budgetLimit: null,
+          spentAmount: 0,
           groups: [
             {
               id: 301,
@@ -112,10 +118,12 @@ describe("PromotionPricingService", () => {
         {
           id: 10,
           name: "Campaign 10",
-          kind: PromotionKind.CAMPAIGN,
+          applicationType: PromotionApplicationType.AUTO,
           priority: 10,
           active: true,
           startsAt: new Date("2026-01-01"),
+          budgetLimit: null,
+          spentAmount: 0,
           groups: [
             {
               id: 101,
@@ -142,24 +150,36 @@ describe("PromotionPricingService", () => {
         {
           id: 1,
           name: "Auto Promo 50k",
-          kind: PromotionKind.ORDER_AUTO,
-          discountType: DiscountType.FIXED,
-          discountValue: 50000,
+          applicationType: PromotionApplicationType.AUTO,
           minOrderAmount: 300000,
           active: true,
           startsAt: new Date("2026-01-01"),
-          groups: [],
+          budgetLimit: null,
+          spentAmount: 0,
+          groups: [
+            {
+              discountType: DiscountType.FIXED,
+              discountValue: 50000,
+              variants: [],
+            },
+          ],
         } as any,
         {
           id: 2,
           name: "Auto Promo 20%",
-          kind: PromotionKind.ORDER_AUTO,
-          discountType: DiscountType.PERCENT,
-          discountValue: 20,
+          applicationType: PromotionApplicationType.AUTO,
           minOrderAmount: 400000,
           active: true,
           startsAt: new Date("2026-01-01"),
-          groups: [],
+          budgetLimit: null,
+          spentAmount: 0,
+          groups: [
+            {
+              discountType: DiscountType.PERCENT,
+              discountValue: 20,
+              variants: [],
+            },
+          ],
         } as any,
       ]);
 
@@ -179,28 +199,47 @@ describe("PromotionPricingService", () => {
         {
           id: 1,
           name: "Auto Promo 100k",
-          kind: PromotionKind.ORDER_AUTO,
-          discountType: DiscountType.FIXED,
-          discountValue: 100000,
+          applicationType: PromotionApplicationType.AUTO,
           minOrderAmount: 300000,
           active: true,
           startsAt: new Date("2026-01-01"),
-          groups: [],
+          budgetLimit: null,
+          spentAmount: 0,
+          groups: [
+            {
+              discountType: DiscountType.FIXED,
+              discountValue: 100000,
+              variants: [],
+            },
+          ],
         } as any,
       ]);
 
-      prismaMock.promotion.findUnique.mockResolvedValue({
+      prismaMock.voucher.findUnique.mockResolvedValue({
         id: 99,
-        name: "Voucher 10%",
-        kind: PromotionKind.VOUCHER,
         code: "VOUCHER10",
-        discountType: DiscountType.PERCENT,
-        discountValue: 10,
-        minOrderAmount: 300000,
         active: true,
         startsAt: new Date("2026-01-01"),
         usedCount: 0,
         maxUses: 10,
+        promotion: {
+          id: 99,
+          name: "Voucher 10%",
+          applicationType: PromotionApplicationType.VOUCHER,
+          minOrderAmount: 300000,
+          active: true,
+          startsAt: new Date("2026-01-01"),
+          usedCount: 0,
+          maxUses: 10,
+          budgetLimit: null,
+          spentAmount: 0,
+          groups: [
+            {
+              discountType: DiscountType.PERCENT,
+              discountValue: 10,
+            },
+          ],
+        },
       } as any);
 
       const res = await service.quote(
@@ -220,17 +259,28 @@ describe("PromotionPricingService", () => {
 
       prismaMock.promotion.findMany.mockResolvedValue([]);
 
-      prismaMock.promotion.findUnique.mockResolvedValue({
+      prismaMock.voucher.findUnique.mockResolvedValue({
         id: 99,
-        name: "Exhausted Voucher",
-        kind: PromotionKind.VOUCHER,
         code: "EXHAUSTED",
-        discountType: DiscountType.FIXED,
-        discountValue: 50000,
         active: true,
         startsAt: new Date("2026-01-01"),
         usedCount: 10,
         maxUses: 10,
+        promotion: {
+          id: 99,
+          name: "Exhausted Voucher",
+          applicationType: PromotionApplicationType.VOUCHER,
+          active: true,
+          startsAt: new Date("2026-01-01"),
+          budgetLimit: null,
+          spentAmount: 0,
+          groups: [
+            {
+              discountType: DiscountType.FIXED,
+              discountValue: 50000,
+            },
+          ],
+        },
       } as any);
 
       const res = await service.quote(

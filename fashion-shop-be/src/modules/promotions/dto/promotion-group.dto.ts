@@ -1,12 +1,11 @@
 import { DiscountType } from "@prisma/client";
-import { Type } from "class-transformer";
 import {
-  ArrayMinSize,
   IsArray,
   IsEnum,
   IsInt,
   IsNotEmpty,
   IsNumber,
+  IsOptional,
   IsString,
   Min,
 } from "class-validator";
@@ -16,9 +15,10 @@ export class PromotionGroupDto {
   @IsNotEmpty()
   name!: string;
 
+  @IsOptional()
   @IsInt()
   @Min(0)
-  sortOrder!: number;
+  sortOrder?: number;
 
   @IsEnum(DiscountType)
   discountType!: DiscountType;
@@ -27,8 +27,13 @@ export class PromotionGroupDto {
   @Min(1)
   discountValue!: number;
 
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  maxDiscountValue?: number;
+
+  @IsOptional()
   @IsArray()
   @IsInt({ each: true })
-  @ArrayMinSize(1)
-  variantIds!: number[];
+  variantIds?: number[];
 }

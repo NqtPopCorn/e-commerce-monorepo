@@ -55,22 +55,38 @@ export class OrdersService {
 
       const voucherApp = quote.applied.find((a) => a.scope === "VOUCHER");
       if (voucherApp) {
-        const voucher = await tx.promotion.findUnique({
-          where: { id: voucherApp.id },
-        });
-        if (
-          !voucher ||
-          !voucher.active ||
-          (voucher.maxUses !== null && voucher.usedCount >= voucher.maxUses)
-        ) {
+        let isExhausted = false;
+        if (voucherApp.code) {
+          const voucher = await tx.voucher.findUnique({
+            where: { code: voucherApp.code.trim().toUpperCase() },
+            include: { promotion: true },
+          });
+          if (
+            !voucher ||
+            !voucher.active ||
+            !voucher.promotion.active ||
+            (voucher.maxUses !== null && voucher.usedCount >= voucher.maxUses)
+          ) {
+            isExhausted = true;
+          }
+        } else {
+          const promo = await tx.promotion.findUnique({
+            where: { id: voucherApp.id },
+          });
+          if (
+            !promo ||
+            !promo.active ||
+            (promo.maxUses !== null && promo.usedCount >= promo.maxUses)
+          ) {
+            isExhausted = true;
+          }
+        }
+
+        if (isExhausted) {
           throw new BadRequestException(
             "Voucher đã hết lượt sử dụng hoặc không khả dụng",
           );
         }
-        await tx.promotion.update({
-          where: { id: voucherApp.id },
-          data: { usedCount: { increment: 1 } },
-        });
       }
 
       const order = await tx.order.create({
@@ -104,7 +120,7 @@ export class OrdersService {
       });
 
       const itemMapByVariant = new Map(
-        order.items.map((item) => [item.variantId, item.id]),
+        (order?.items || []).map((item) => [item.variantId, item.id]),
       );
 
       for (const app of quote.applied) {
@@ -131,6 +147,37 @@ export class OrdersService {
             discountAmount: app.discountAmount,
           },
         });
+
+        const promo = await tx.promotion.findUnique({
+          where: { id: app.id },
+          select: { campaignId: true },
+        });
+
+        await tx.promotion.update({
+          where: { id: app.id },
+          data: {
+            spentAmount: { increment: app.discountAmount },
+            usedCount: { increment: 1 },
+          },
+        });
+
+        if (promo?.campaignId) {
+          await tx.campaign.update({
+            where: { id: promo.campaignId },
+            data: {
+              spentAmount: { increment: app.discountAmount },
+            },
+          });
+        }
+
+        if (app.scope === "VOUCHER" && app.code) {
+          await tx.voucher.update({
+            where: { code: app.code.trim().toUpperCase() },
+            data: {
+              usedCount: { increment: 1 },
+            },
+          });
+        }
       }
 
       return tx.order.findUnique({
@@ -188,6 +235,40 @@ export class OrdersService {
           data: { stock: { increment: item.quantity } },
         });
       }
+
+      for (const app of order.promotionApplications || []) {
+        const promo = await tx.promotion.findUnique({
+          where: { id: app.promotionId },
+          select: { campaignId: true },
+        });
+
+        await tx.promotion.update({
+          where: { id: app.promotionId },
+          data: {
+            spentAmount: { decrement: app.discountAmount },
+            usedCount: { decrement: 1 },
+          },
+        });
+
+        if (promo?.campaignId) {
+          await tx.campaign.update({
+            where: { id: promo.campaignId },
+            data: {
+              spentAmount: { decrement: app.discountAmount },
+            },
+          });
+        }
+
+        if (app.scope === "VOUCHER" && app.promotionCode) {
+          await tx.voucher.update({
+            where: { code: app.promotionCode.trim().toUpperCase() },
+            data: {
+              usedCount: { decrement: 1 },
+            },
+          });
+        }
+      }
+
       return tx.order.update({
         where: { id: orderId },
         data: { status: "CANCELLED" },

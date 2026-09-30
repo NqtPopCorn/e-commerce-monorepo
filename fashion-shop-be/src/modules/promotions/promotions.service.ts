@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { DiscountType, Prisma, PromotionKind } from "@prisma/client";
+import { DiscountType, Prisma, PromotionApplicationType } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CreatePromotionDto } from "./dto/create-promotion.dto";
 import { PromotionQueryDto } from "./dto/promotion-common.dto";
@@ -14,7 +14,7 @@ export class PromotionsService {
   constructor(private readonly prisma: PrismaService) {}
 
   private validatePromotionPayload(
-    kind: PromotionKind,
+    applicationType: PromotionApplicationType,
     dto: Partial<CreatePromotionDto>,
     isUpdate = false,
   ) {
@@ -26,101 +26,65 @@ export class PromotionsService {
       }
     }
 
-    if (kind === PromotionKind.VOUCHER) {
-      if (!isUpdate && !dto.code?.trim()) {
-        throw new BadRequestException("Voucher bắt buộc phải có mã code");
-      }
-      if (dto.groups && dto.groups.length > 0) {
-        throw new BadRequestException(
-          "Voucher không được chứa campaign groups",
-        );
-      }
-      if (
-        dto.discountType === DiscountType.PERCENT &&
-        dto.discountValue !== undefined
-      ) {
-        if (
-          !Number.isInteger(dto.discountValue) ||
-          dto.discountValue < 1 ||
-          dto.discountValue > 100
-        ) {
-          throw new BadRequestException(
-            "Phần trăm giảm giá phải là số nguyên từ 1 đến 100",
-          );
-        }
-      }
-    } else if (kind === PromotionKind.ORDER_AUTO) {
-      if (dto.code && dto.code.trim().length > 0) {
-        throw new BadRequestException(
-          "Khuyến mãi tự động không được chứa mã code",
-        );
-      }
-      if (dto.groups && dto.groups.length > 0) {
-        throw new BadRequestException(
-          "Khuyến mãi tự động không được chứa campaign groups",
-        );
-      }
-      if (
-        dto.discountType === DiscountType.PERCENT &&
-        dto.discountValue !== undefined
-      ) {
-        if (
-          !Number.isInteger(dto.discountValue) ||
-          dto.discountValue < 1 ||
-          dto.discountValue > 100
-        ) {
-          throw new BadRequestException(
-            "Phần trăm giảm giá phải là số nguyên từ 1 đến 100",
-          );
-        }
-      }
-    } else if (kind === PromotionKind.CAMPAIGN) {
-      if (dto.code && dto.code.trim().length > 0) {
-        throw new BadRequestException("Campaign không được chứa mã code");
-      }
-      if (
-        dto.discountType !== undefined ||
-        dto.discountValue !== undefined ||
-        dto.minOrderAmount !== undefined
-      ) {
-        throw new BadRequestException(
-          "Campaign không được chứa các trường giảm giá cấp hóa đơn",
-        );
-      }
-      if (!isUpdate && (!dto.groups || dto.groups.length === 0)) {
-        throw new BadRequestException(
-          "Campaign phải chứa ít nhất 1 nhóm sản phẩm",
-        );
-      }
+    if (
+      dto.budgetLimit !== undefined &&
+      dto.budgetLimit !== null &&
+      dto.budgetLimit < 0
+    ) {
+      throw new BadRequestException(
+        "Ngân sách (budgetLimit) không được nhỏ hơn 0",
+      );
+    }
 
-      if (dto.groups) {
-        const seenVariantIds = new Set<number>();
-        for (const group of dto.groups) {
-          if (group.discountType === DiscountType.PERCENT) {
-            if (
-              !Number.isInteger(group.discountValue) ||
-              group.discountValue < 1 ||
-              group.discountValue > 100
-            ) {
-              throw new BadRequestException(
-                `Nhóm "${group.name}": Phần trăm giảm giá phải là số nguyên từ 1 đến 100`,
-              );
-            }
-          }
-          if (group.discountValue <= 0) {
+    if (applicationType === PromotionApplicationType.VOUCHER) {
+      const hasVouchers =
+        (dto.vouchers && dto.vouchers.length > 0) || dto.code?.trim();
+      if (!isUpdate && !hasVouchers) {
+        throw new BadRequestException(
+          "Chương trình khuyến mãi Voucher bắt buộc phải có ít nhất 1 mã code",
+        );
+      }
+    }
+
+    if (!isUpdate && (!dto.groups || dto.groups.length === 0)) {
+      throw new BadRequestException(
+        "Chương trình khuyến mãi phải có ít nhất 1 nhóm quy tắc chiết khấu (groups)",
+      );
+    }
+
+    if (dto.groups) {
+      const seenVariantIds = new Set<number>();
+      for (const group of dto.groups) {
+        if (group.discountType === DiscountType.PERCENT) {
+          if (
+            !Number.isInteger(group.discountValue) ||
+            group.discountValue < 1 ||
+            group.discountValue > 100
+          ) {
             throw new BadRequestException(
-              `Nhóm "${group.name}": Giá trị giảm giá phải lớn hơn 0`,
+              `Nhóm "${group.name}": Phần trăm giảm giá phải là số nguyên từ 1 đến 100`,
             );
           }
-          if (!group.variantIds || group.variantIds.length === 0) {
-            throw new BadRequestException(
-              `Nhóm "${group.name}" không có sản phẩm/biến thể nào`,
-            );
-          }
+        }
+        if (group.discountValue <= 0) {
+          throw new BadRequestException(
+            `Nhóm "${group.name}": Giá trị giảm giá phải lớn hơn 0`,
+          );
+        }
+        if (
+          group.maxDiscountValue !== undefined &&
+          group.maxDiscountValue !== null &&
+          group.maxDiscountValue < 0
+        ) {
+          throw new BadRequestException(
+            `Nhóm "${group.name}": Giảm giá tối đa không được âm`,
+          );
+        }
+        if (group.variantIds && group.variantIds.length > 0) {
           for (const vId of group.variantIds) {
             if (seenVariantIds.has(vId)) {
               throw new BadRequestException(
-                `Biến thể ID ${vId} bị trùng lặp trong campaign`,
+                `Biến thể ID ${vId} bị trùng lặp giữa các nhóm sản phẩm`,
               );
             }
             seenVariantIds.add(vId);
@@ -146,47 +110,103 @@ export class PromotionsService {
   }
 
   async create(dto: CreatePromotionDto) {
-    this.validatePromotionPayload(dto.kind, dto, false);
+    this.validatePromotionPayload(dto.applicationType, dto, false);
 
-    if (dto.kind === PromotionKind.CAMPAIGN && dto.groups) {
-      const allVariantIds = dto.groups.flatMap((g) => g.variantIds);
+    if (dto.groups) {
+      const allVariantIds = dto.groups.flatMap((g) => g.variantIds || []);
       await this.verifyVariantIdsExist(allVariantIds);
     }
 
-    const { groups, startsAt, endsAt, code, ...rest } = dto;
+    const {
+      groups,
+      vouchers,
+      code,
+      maxUsesPerCustomer,
+      startsAt,
+      endsAt,
+      ...rest
+    } = dto;
+
+    const vouchersToCreate: {
+      code: string;
+      maxUses?: number;
+      maxUsesPerCustomer?: number;
+      startsAt?: Date | null;
+      endsAt?: Date | null;
+      active?: boolean;
+    }[] = [];
+
+    if (dto.applicationType === PromotionApplicationType.VOUCHER) {
+      if (vouchers && vouchers.length > 0) {
+        for (const v of vouchers) {
+          vouchersToCreate.push({
+            code: v.code.trim().toUpperCase(),
+            maxUses: v.maxUses ?? dto.maxUses,
+            maxUsesPerCustomer: v.maxUsesPerCustomer ?? maxUsesPerCustomer ?? 1,
+            startsAt: v.startsAt
+              ? new Date(v.startsAt)
+              : startsAt
+                ? new Date(startsAt)
+                : null,
+            endsAt: v.endsAt
+              ? new Date(v.endsAt)
+              : endsAt
+                ? new Date(endsAt)
+                : null,
+            active: v.active ?? dto.active ?? true,
+          });
+        }
+      } else if (code && code.trim().length > 0) {
+        vouchersToCreate.push({
+          code: code.trim().toUpperCase(),
+          maxUses: dto.maxUses,
+          maxUsesPerCustomer: maxUsesPerCustomer ?? 1,
+          startsAt: startsAt ? new Date(startsAt) : null,
+          endsAt: endsAt ? new Date(endsAt) : null,
+          active: dto.active ?? true,
+        });
+      }
+    }
 
     return this.prisma.promotion.create({
       data: {
         ...rest,
-        code:
-          dto.kind === PromotionKind.VOUCHER
-            ? code?.trim().toUpperCase()
-            : null,
         startsAt: new Date(startsAt),
         endsAt: endsAt ? new Date(endsAt) : null,
-        groups:
-          dto.kind === PromotionKind.CAMPAIGN && groups
+        groups: groups
+          ? {
+              create: groups.map((g, idx) => ({
+                name: g.name,
+                sortOrder: g.sortOrder ?? idx + 1,
+                discountType: g.discountType,
+                discountValue: g.discountValue,
+                maxDiscountValue: g.maxDiscountValue,
+                variants:
+                  g.variantIds && g.variantIds.length > 0
+                    ? {
+                        create: g.variantIds.map((variantId) => ({
+                          variantId,
+                        })),
+                      }
+                    : undefined,
+              })),
+            }
+          : undefined,
+        vouchers:
+          vouchersToCreate.length > 0
             ? {
-                create: groups.map((g) => ({
-                  name: g.name,
-                  sortOrder: g.sortOrder,
-                  discountType: g.discountType,
-                  discountValue: g.discountValue,
-                  variants: {
-                    create: g.variantIds.map((variantId) => ({
-                      variantId,
-                    })),
-                  },
-                })),
+                create: vouchersToCreate,
               }
             : undefined,
       },
       include: {
+        campaign: true,
         groups: {
           include: {
             variants: true,
           },
         },
+        vouchers: true,
       },
     });
   }
@@ -194,8 +214,11 @@ export class PromotionsService {
   async findAll(query?: PromotionQueryDto) {
     const where: Prisma.PromotionWhereInput = {};
 
-    if (query?.kind) {
-      where.kind = query.kind;
+    if (query?.applicationType) {
+      where.applicationType = query.applicationType;
+    }
+    if (query?.campaignId !== undefined) {
+      where.campaignId = query.campaignId;
     }
     if (query?.active !== undefined) {
       where.active = query.active;
@@ -212,9 +235,26 @@ export class PromotionsService {
     if (query?.search) {
       where.OR = [
         { name: { contains: query.search, mode: "insensitive" } },
-        { code: { contains: query.search, mode: "insensitive" } },
+        { description: { contains: query.search, mode: "insensitive" } },
+        {
+          vouchers: {
+            some: { code: { contains: query.search, mode: "insensitive" } },
+          },
+        },
       ];
     }
+
+    const include = {
+      campaign: true,
+      groups: {
+        include: {
+          variants: {
+            select: { variantId: true },
+          },
+        },
+      },
+      vouchers: true,
+    };
 
     if (query?.page !== undefined || query?.limit !== undefined) {
       const pageNum = Math.max(1, Number(query?.page) || 1);
@@ -225,15 +265,7 @@ export class PromotionsService {
         this.prisma.promotion.count({ where }),
         this.prisma.promotion.findMany({
           where,
-          include: {
-            groups: {
-              include: {
-                variants: {
-                  select: { variantId: true },
-                },
-              },
-            },
-          },
+          include,
           orderBy: [{ priority: "desc" }, { createdAt: "desc" }],
           skip,
           take,
@@ -253,15 +285,7 @@ export class PromotionsService {
 
     return this.prisma.promotion.findMany({
       where,
-      include: {
-        groups: {
-          include: {
-            variants: {
-              select: { variantId: true },
-            },
-          },
-        },
-      },
+      include,
       orderBy: [{ priority: "desc" }, { createdAt: "desc" }],
     });
   }
@@ -270,6 +294,8 @@ export class PromotionsService {
     const promotion = await this.prisma.promotion.findUnique({
       where: { id },
       include: {
+        campaign: true,
+        vouchers: true,
         groups: {
           orderBy: { sortOrder: "asc" },
           include: {
@@ -295,35 +321,90 @@ export class PromotionsService {
 
   async checkCode(code: string) {
     const normalizedCode = code.trim().toUpperCase();
-    const p = await this.prisma.promotion.findUnique({
+    const now = new Date();
+
+    const voucher = await this.prisma.voucher.findUnique({
       where: { code: normalizedCode },
+      include: {
+        promotion: {
+          include: {
+            campaign: true,
+            groups: {
+              orderBy: { sortOrder: "asc" },
+            },
+          },
+        },
+      },
     });
-    if (!p) throw new NotFoundException("Mã khuyến mãi không tồn tại");
-    if (!p.active) throw new BadRequestException("Mã khuyến mãi đã bị khoá");
-    if (p.endsAt && p.endsAt < new Date())
+
+    if (!voucher) throw new NotFoundException("Mã khuyến mãi không tồn tại");
+    if (!voucher.active || !voucher.promotion.active)
+      throw new BadRequestException("Mã khuyến mãi đã bị khoá");
+    if (voucher.startsAt && voucher.startsAt > now)
+      throw new BadRequestException("Mã khuyến mãi chưa đến đợt áp dụng");
+    if (voucher.endsAt && voucher.endsAt <= now)
       throw new BadRequestException("Mã khuyến mãi đã hết hạn");
-    if (p.maxUses && p.usedCount >= p.maxUses)
+    if (voucher.maxUses !== null && voucher.usedCount >= voucher.maxUses)
       throw new BadRequestException("Mã khuyến mãi đã hết lượt sử dụng");
 
-    return p;
+    // Kiểm tra ngân sách chương trình
+    const promoRemaining =
+      voucher.promotion.budgetLimit !== null
+        ? Math.max(
+            0,
+            Number(voucher.promotion.budgetLimit) -
+              Number(voucher.promotion.spentAmount),
+          )
+        : Infinity;
+    const campaignRemaining =
+      voucher.promotion.campaign &&
+      voucher.promotion.campaign.budgetLimit !== null
+        ? Math.max(
+            0,
+            Number(voucher.promotion.campaign.budgetLimit) -
+              Number(voucher.promotion.campaign.spentAmount),
+          )
+        : Infinity;
+
+    if (Math.min(promoRemaining, campaignRemaining) <= 0) {
+      throw new BadRequestException(
+        "Chương trình khuyến mãi đã hết ngân sách khả dụng",
+      );
+    }
+
+    return voucher;
   }
 
   async update(id: number, dto: UpdatePromotionDto) {
     const existing = await this.findOne(id);
-    const targetKind = dto.kind ?? existing.kind;
+    const targetType = dto.applicationType ?? existing.applicationType;
 
-    this.validatePromotionPayload(targetKind, dto, true);
+    this.validatePromotionPayload(targetType, dto, true);
 
-    if (targetKind === PromotionKind.CAMPAIGN && dto.groups) {
-      const allVariantIds = dto.groups.flatMap((g) => g.variantIds);
+    if (dto.groups) {
+      const allVariantIds = dto.groups.flatMap((g) => g.variantIds || []);
       await this.verifyVariantIdsExist(allVariantIds);
     }
 
-    const { groups, startsAt, endsAt, code, ...rest } = dto;
+    const {
+      groups,
+      vouchers,
+      code,
+      maxUsesPerCustomer,
+      startsAt,
+      endsAt,
+      ...rest
+    } = dto;
 
     return this.prisma.$transaction(async (tx) => {
-      if (targetKind === PromotionKind.CAMPAIGN && groups !== undefined) {
+      if (groups !== undefined) {
         await tx.promotionGroup.deleteMany({
+          where: { promotionId: id },
+        });
+      }
+
+      if (vouchers !== undefined && vouchers.length > 0) {
+        await tx.voucher.deleteMany({
           where: { promotionId: id },
         });
       }
@@ -332,12 +413,6 @@ export class PromotionsService {
         where: { id },
         data: {
           ...rest,
-          code:
-            targetKind === PromotionKind.VOUCHER
-              ? code !== undefined
-                ? code.trim().toUpperCase()
-                : existing.code
-              : null,
           startsAt: startsAt ? new Date(startsAt) : undefined,
           endsAt:
             endsAt !== undefined
@@ -346,28 +421,47 @@ export class PromotionsService {
                 : null
               : undefined,
           groups:
-            targetKind === PromotionKind.CAMPAIGN && groups !== undefined
+            groups !== undefined
               ? {
-                  create: groups.map((g) => ({
+                  create: groups.map((g, idx) => ({
                     name: g.name,
-                    sortOrder: g.sortOrder,
+                    sortOrder: g.sortOrder ?? idx + 1,
                     discountType: g.discountType,
                     discountValue: g.discountValue,
-                    variants: {
-                      create: g.variantIds.map((variantId) => ({
-                        variantId,
-                      })),
-                    },
+                    maxDiscountValue: g.maxDiscountValue,
+                    variants:
+                      g.variantIds && g.variantIds.length > 0
+                        ? {
+                            create: g.variantIds.map((variantId) => ({
+                              variantId,
+                            })),
+                          }
+                        : undefined,
+                  })),
+                }
+              : undefined,
+          vouchers:
+            vouchers !== undefined && vouchers.length > 0
+              ? {
+                  create: vouchers.map((v) => ({
+                    code: v.code.trim().toUpperCase(),
+                    maxUses: v.maxUses,
+                    maxUsesPerCustomer: v.maxUsesPerCustomer ?? 1,
+                    startsAt: v.startsAt ? new Date(v.startsAt) : null,
+                    endsAt: v.endsAt ? new Date(v.endsAt) : null,
+                    active: v.active ?? true,
                   })),
                 }
               : undefined,
         },
         include: {
+          campaign: true,
           groups: {
             include: {
               variants: true,
             },
           },
+          vouchers: true,
         },
       });
     });

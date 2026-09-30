@@ -1,4 +1,4 @@
-import { DiscountType, PromotionKind } from "@prisma/client";
+import { PromotionApplicationType } from "@prisma/client";
 import { Type } from "class-transformer";
 import {
   ArrayMinSize,
@@ -15,6 +15,7 @@ import {
   ValidateIf,
   ValidateNested,
 } from "class-validator";
+import { CreateVoucherDto } from "./create-voucher.dto";
 import { PromotionGroupDto } from "./promotion-group.dto";
 
 export class CreatePromotionDto {
@@ -22,54 +23,31 @@ export class CreatePromotionDto {
   @IsNotEmpty()
   name!: string;
 
-  @IsEnum(PromotionKind)
-  kind!: PromotionKind;
-
-  @ValidateIf((o) => o.kind === PromotionKind.VOUCHER)
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  code?: string;
+  description?: string;
 
-  @ValidateIf(
-    (o) =>
-      o.kind === PromotionKind.VOUCHER || o.kind === PromotionKind.ORDER_AUTO,
-  )
-  @IsEnum(DiscountType)
-  discountType?: DiscountType;
+  @IsEnum(PromotionApplicationType)
+  applicationType!: PromotionApplicationType;
 
-  @ValidateIf(
-    (o) =>
-      o.kind === PromotionKind.VOUCHER || o.kind === PromotionKind.ORDER_AUTO,
-  )
-  @IsNumber()
-  @Min(1)
-  discountValue?: number;
+  @IsOptional()
+  @IsInt()
+  campaignId?: number;
 
-  @ValidateIf(
-    (o) =>
-      o.kind === PromotionKind.VOUCHER || o.kind === PromotionKind.ORDER_AUTO,
-  )
   @IsOptional()
   @IsNumber()
   @Min(0)
   minOrderAmount?: number;
 
-  @ValidateIf(
-    (o) =>
-      (o.kind === PromotionKind.VOUCHER ||
-        o.kind === PromotionKind.ORDER_AUTO) &&
-      o.discountType === DiscountType.PERCENT,
-  )
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  maxDiscountValue?: number;
-
   @IsOptional()
   @IsInt()
   priority?: number;
 
-  @ValidateIf((o) => o.kind === PromotionKind.VOUCHER)
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  budgetLimit?: number;
+
   @IsOptional()
   @IsInt()
   @Min(1)
@@ -86,10 +64,28 @@ export class CreatePromotionDto {
   @IsBoolean()
   active?: boolean;
 
-  @ValidateIf((o) => o.kind === PromotionKind.CAMPAIGN)
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => PromotionGroupDto)
   @ArrayMinSize(1)
-  groups?: PromotionGroupDto[];
+  groups!: PromotionGroupDto[];
+
+  @ValidateIf((o) => o.applicationType === PromotionApplicationType.VOUCHER)
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateVoucherDto)
+  vouchers?: CreateVoucherDto[];
+
+  // Tiện ích hỗ trợ tạo nhanh 1 voucher đơn lẻ qua form
+  @ValidateIf((o) => o.applicationType === PromotionApplicationType.VOUCHER)
+  @IsOptional()
+  @IsString()
+  code?: string;
+
+  @ValidateIf((o) => o.applicationType === PromotionApplicationType.VOUCHER)
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  maxUsesPerCustomer?: number;
 }

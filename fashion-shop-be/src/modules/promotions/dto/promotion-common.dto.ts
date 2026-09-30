@@ -1,4 +1,4 @@
-import { PromotionKind } from "@prisma/client";
+import { PromotionApplicationType } from "@prisma/client";
 import { Transform, Type } from "class-transformer";
 import {
   IsBoolean,
@@ -12,8 +12,13 @@ import {
 
 export class PromotionQueryDto {
   @IsOptional()
-  @IsEnum(PromotionKind)
-  kind?: PromotionKind;
+  @IsEnum(PromotionApplicationType)
+  applicationType?: PromotionApplicationType;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  campaignId?: number;
 
   @IsOptional()
   @Transform(({ value }) => {
