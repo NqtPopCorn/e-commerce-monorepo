@@ -272,6 +272,8 @@ model Order {
   id                    Int                    @id @default(autoincrement())
   userId                Int                    @map("user_id")
   status                OrderStatus            @default(PENDING)
+  paymentMethod         PaymentMethod          @default(COD) @map("payment_method")
+  paymentStatus         PaymentStatus          @default(UNPAID) @map("payment_status")
   recipientName         String?                @map("recipient_name")
   recipientPhone        String?                @map("recipient_phone")
   shippingAddress       String?                @map("shipping_address")
@@ -297,6 +299,17 @@ enum OrderStatus {
   SHIPPING
   COMPLETED
   CANCELLED
+}
+
+enum PaymentMethod {
+  COD
+  BANK_TRANSFER
+}
+
+enum PaymentStatus {
+  UNPAID
+  PAID
+  REFUNDED
 }
 
 model OrderItem {
