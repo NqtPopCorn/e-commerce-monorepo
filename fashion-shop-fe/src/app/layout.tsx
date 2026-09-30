@@ -18,8 +18,8 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="vi" className={inter.variable}>
-      <body className="font-sans antialiased bg-slate-50/70 text-slate-900 selection:bg-rose-500 selection:text-white">
+    <html lang="vi" className={inter.variable} suppressHydrationWarning>
+      <body className="font-sans antialiased bg-background text-foreground selection:bg-primary selection:text-primary-foreground min-h-screen">
         <Providers>{children}</Providers>
       </body>
     </html>
