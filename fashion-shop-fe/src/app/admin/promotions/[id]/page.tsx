@@ -103,38 +103,11 @@ export default function PromotionDetailPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between border-b pb-4">
-        <div>
-          <button
-            onClick={() => setIsEditing(false)}
-            className="inline-flex items-center text-xs font-semibold text-slate-500 hover:text-slate-900 mb-2 transition-colors cursor-pointer"
-          >
-            <ArrowLeft className="w-3.5 h-3.5 mr-1" />
-            Hủy & Quay lại xem chi tiết
-          </button>
-          <h1 className="text-xl font-bold text-slate-900">
-            Chỉnh sửa: {promotion.name}
-          </h1>
-          <p className="text-slate-500 mt-0.5 text-xs">
-            Cập nhật các thông số chiết khấu và cấu hình nhóm sản phẩm.
-          </p>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setIsEditing(false)}
-          className="text-xs h-8 border-slate-300"
-        >
-          Thoát chế độ sửa
-        </Button>
-      </div>
-
-      <PromotionForm
-        initialData={promotion}
-        onSubmit={handleSubmit}
-        isLoading={updateMutation.isPending}
-      />
-    </div>
+    <PromotionForm
+      initialData={promotion}
+      onSubmit={handleSubmit}
+      isLoading={updateMutation.isPending}
+      onCancel={() => setIsEditing(false)}
+    />
   );
 }
