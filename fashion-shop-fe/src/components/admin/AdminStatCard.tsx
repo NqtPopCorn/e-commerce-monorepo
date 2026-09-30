@@ -3,7 +3,8 @@
 import React from "react";
 import { ArrowUpRight, ArrowDownRight, Minus } from "lucide-react";
 
-export type StatCardColor = "rose" | "indigo" | "emerald" | "amber" | "sky" | "slate";
+export type StatCardColor =
+  "rose" | "indigo" | "emerald" | "amber" | "sky" | "slate";
 
 interface AdminStatCardProps {
   title: string;
@@ -30,34 +31,34 @@ const colorStyles: Record<
   }
 > = {
   rose: {
-    iconBg: "bg-rose-50 border-rose-100",
-    iconText: "text-rose-600",
-    borderAccent: "group-hover:border-rose-200",
+    iconBg: "bg-primary/10 border-primary/20",
+    iconText: "text-primary",
+    borderAccent: "group-hover:border-primary/40",
   },
   indigo: {
-    iconBg: "bg-indigo-50 border-indigo-100",
-    iconText: "text-indigo-600",
-    borderAccent: "group-hover:border-indigo-200",
+    iconBg: "bg-info/10 border-info/20",
+    iconText: "text-info",
+    borderAccent: "group-hover:border-info/40",
   },
   emerald: {
-    iconBg: "bg-emerald-50 border-emerald-100",
-    iconText: "text-emerald-600",
-    borderAccent: "group-hover:border-emerald-200",
+    iconBg: "bg-success/10 border-success/20",
+    iconText: "text-success",
+    borderAccent: "group-hover:border-success/40",
   },
   amber: {
-    iconBg: "bg-amber-50 border-amber-100",
-    iconText: "text-amber-600",
-    borderAccent: "group-hover:border-amber-200",
+    iconBg: "bg-warning/10 border-warning/20",
+    iconText: "text-warning",
+    borderAccent: "group-hover:border-warning/40",
   },
   sky: {
-    iconBg: "bg-sky-50 border-sky-100",
-    iconText: "text-sky-600",
-    borderAccent: "group-hover:border-sky-200",
+    iconBg: "bg-info/10 border-info/20",
+    iconText: "text-info",
+    borderAccent: "group-hover:border-info/40",
   },
   slate: {
-    iconBg: "bg-slate-100 border-slate-200",
-    iconText: "text-slate-700",
-    borderAccent: "group-hover:border-slate-300",
+    iconBg: "bg-muted border-border",
+    iconText: "text-muted-foreground",
+    borderAccent: "group-hover:border-border",
   },
 };
 
@@ -76,17 +77,17 @@ export function AdminStatCard({
   return (
     <div
       onClick={onClick}
-      className={`group relative bg-white border border-slate-200/80 rounded-xl p-5 shadow-xs transition-all duration-200 hover:shadow-card-hover hover:-translate-y-0.5 ${
+      className={`group relative bg-card border border-border rounded-xl p-5 shadow-xs transition-all duration-200 hover:shadow-card-hover hover:-translate-y-0.5 ${
         styles.borderAccent
       } ${onClick ? "cursor-pointer" : ""} ${className}`}
     >
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-1.5 flex-1 min-w-0">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider truncate">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider truncate">
             {title}
           </p>
           <div className="flex items-baseline gap-2">
-            <h3 className="text-2xl font-bold text-slate-900 tracking-tight">
+            <h3 className="text-2xl font-bold text-foreground tracking-tight tabular-nums">
               {value}
             </h3>
           </div>
@@ -94,12 +95,12 @@ export function AdminStatCard({
             <div className="flex items-center gap-2 pt-0.5 flex-wrap">
               {trend && (
                 <span
-                  className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[11px] font-semibold ${
+                  className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[11px] font-semibold border ${
                     trend.neutral
-                      ? "bg-slate-100 text-slate-600"
+                      ? "bg-muted text-muted-foreground border-border"
                       : trend.isPositive
-                      ? "bg-emerald-50 text-emerald-700"
-                      : "bg-rose-50 text-rose-700"
+                        ? "bg-success/10 text-success border-success/20"
+                        : "bg-destructive/10 text-destructive border-destructive/20"
                   }`}
                 >
                   {trend.neutral ? (
@@ -109,11 +110,11 @@ export function AdminStatCard({
                   ) : (
                     <ArrowDownRight className="w-3 h-3" />
                   )}
-                  {trend.value}
+                  <span>{trend.value}</span>
                 </span>
               )}
               {subtitle && (
-                <span className="text-xs text-slate-500 truncate">
+                <span className="text-xs text-muted-foreground truncate">
                   {subtitle}
                 </span>
               )}

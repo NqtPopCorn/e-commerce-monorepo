@@ -26,13 +26,13 @@ export function AdminPageHeader({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pt-1">
         <div className="space-y-1 min-w-0">
           <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900 truncate">
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground truncate">
               {title}
             </h1>
             {badge && <div className="shrink-0">{badge}</div>}
           </div>
           {description && (
-            <p className="text-sm text-slate-500 leading-relaxed max-w-3xl">
+            <p className="text-sm text-muted-foreground leading-relaxed max-w-3xl">
               {description}
             </p>
           )}

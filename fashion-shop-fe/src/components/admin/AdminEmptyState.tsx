@@ -20,16 +20,16 @@ export function AdminEmptyState({
 }: AdminEmptyStateProps) {
   return (
     <div
-      className={`flex flex-col items-center justify-center text-center py-12 px-4 rounded-xl bg-white border border-slate-200/80 ${className}`}
+      className={`flex flex-col items-center justify-center text-center py-12 px-4 rounded-xl bg-card border border-border ${className}`}
     >
-      <div className="w-14 h-14 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 mb-4 shadow-2xs">
+      <div className="w-14 h-14 rounded-2xl bg-muted/60 border border-border flex items-center justify-center text-muted-foreground mb-4">
         <Icon className="w-7 h-7" />
       </div>
-      <h3 className="text-base font-semibold text-slate-800 tracking-tight">
+      <h3 className="text-base font-semibold text-foreground tracking-tight">
         {title}
       </h3>
       {description && (
-        <p className="mt-1 text-sm text-slate-500 max-w-sm leading-relaxed">
+        <p className="mt-1 text-sm text-muted-foreground max-w-sm leading-relaxed">
           {description}
         </p>
       )}

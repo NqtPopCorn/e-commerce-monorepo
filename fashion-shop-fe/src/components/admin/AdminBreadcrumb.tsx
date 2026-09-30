@@ -36,11 +36,11 @@ export function AdminBreadcrumb({
     return (
       <nav
         aria-label="Breadcrumb"
-        className={`flex items-center gap-1.5 text-xs text-slate-500 font-medium ${className}`}
+        className={`flex items-center gap-1.5 text-xs text-muted-foreground font-medium ${className}`}
       >
         <Link
           href="/admin"
-          className="flex items-center gap-1 text-slate-400 hover:text-slate-700 transition-colors"
+          className="flex items-center gap-1 text-muted-foreground/70 hover:text-foreground transition-colors"
         >
           <Home className="w-3.5 h-3.5" />
           <span>Admin</span>
@@ -49,16 +49,16 @@ export function AdminBreadcrumb({
           const isLast = idx === items.length - 1;
           return (
             <React.Fragment key={idx}>
-              <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
               {item.href && !isLast ? (
                 <Link
                   href={item.href}
-                  className="hover:text-slate-800 transition-colors"
+                  className="hover:text-foreground transition-colors"
                 >
                   {item.label}
                 </Link>
               ) : (
-                <span className={isLast ? "text-slate-900 font-semibold" : ""}>
+                <span className={isLast ? "text-foreground font-semibold" : ""}>
                   {item.label}
                 </span>
               )}
@@ -76,9 +76,9 @@ export function AdminBreadcrumb({
     return (
       <nav
         aria-label="Breadcrumb"
-        className={`flex items-center gap-1.5 text-xs text-slate-700 font-semibold ${className}`}
+        className={`flex items-center gap-1.5 text-xs text-foreground font-semibold ${className}`}
       >
-        <Home className="w-3.5 h-3.5 text-rose-600" />
+        <Home className="w-3.5 h-3.5 text-primary" />
         <span>Dashboard</span>
       </nav>
     );
@@ -99,31 +99,30 @@ export function AdminBreadcrumb({
   return (
     <nav
       aria-label="Breadcrumb"
-      className={`flex items-center gap-1.5 text-xs text-slate-500 font-medium ${className}`}
+      className={`flex items-center gap-1.5 text-xs text-muted-foreground font-medium ${className}`}
     >
       <Link
         href="/admin"
-        className="text-slate-400 hover:text-slate-700 transition-colors p-0.5"
+        className="text-muted-foreground/70 hover:text-foreground transition-colors p-0.5"
         title="Admin Home"
       >
         <Home className="w-3.5 h-3.5" />
       </Link>
       {breadcrumbItems.map((item, idx) => {
-        const isFirst = idx === 0;
         const isLast = idx === breadcrumbItems.length - 1;
 
         return (
           <React.Fragment key={idx}>
-            <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
             {item.href && !isLast ? (
               <Link
                 href={item.href}
-                className="hover:text-slate-800 transition-colors"
+                className="hover:text-foreground transition-colors"
               >
                 {item.label}
               </Link>
             ) : (
-              <span className={isLast ? "text-slate-900 font-semibold" : ""}>
+              <span className={isLast ? "text-foreground font-semibold" : ""}>
                 {item.label}
               </span>
             )}

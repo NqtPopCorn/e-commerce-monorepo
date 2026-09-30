@@ -67,23 +67,34 @@ export function AdminPagination({
 
   return (
     <div
-      className={`flex flex-col sm:flex-row items-center justify-between gap-4 px-4 py-3.5 bg-white border-t border-slate-200 text-xs text-slate-600 ${className}`}
+      className={`flex flex-col sm:flex-row items-center justify-between gap-4 px-4 py-3.5 bg-card border-t border-border text-xs text-muted-foreground ${className}`}
     >
       {/* Items count & page size */}
       <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
         <p className="font-medium">
-          Hiển thị <span className="font-semibold text-slate-900">{startItem}</span> -{" "}
-          <span className="font-semibold text-slate-900">{endItem}</span> trên{" "}
-          <span className="font-semibold text-slate-900">{total}</span> mục
+          Hiển thị{" "}
+          <span className="font-semibold text-foreground tabular-nums">
+            {startItem}
+          </span>{" "}
+          -{" "}
+          <span className="font-semibold text-foreground tabular-nums">
+            {endItem}
+          </span>{" "}
+          trên{" "}
+          <span className="font-semibold text-foreground tabular-nums">
+            {total}
+          </span>{" "}
+          mục
         </p>
 
         {onLimitChange && (
           <div className="flex items-center gap-1.5 ml-2">
-            <span className="text-slate-400">/ trang:</span>
+            <span className="text-muted-foreground">/ trang:</span>
             <select
               value={limit}
               onChange={(e) => onLimitChange(Number(e.target.value))}
-              className="h-7 px-2 bg-slate-50 border border-slate-200 rounded-md text-xs font-medium text-slate-700 focus:outline-none focus:ring-1 focus:ring-rose-500 cursor-pointer"
+              aria-label="Số dòng trên mỗi trang"
+              className="h-7 px-2 bg-background border border-border rounded-md text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
             >
               {pageSizeOptions.map((opt) => (
                 <option key={opt} value={opt}>
@@ -102,8 +113,9 @@ export function AdminPagination({
           type="button"
           disabled={page <= 1}
           onClick={() => onPageChange(1)}
-          className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="p-1.5 rounded-lg border border-border text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           title="Trang đầu"
+          aria-label="Trang đầu"
         >
           <ChevronsLeft className="w-3.5 h-3.5" />
         </button>
@@ -113,8 +125,9 @@ export function AdminPagination({
           type="button"
           disabled={page <= 1}
           onClick={() => onPageChange(page - 1)}
-          className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="p-1.5 rounded-lg border border-border text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           title="Trang trước"
+          aria-label="Trang trước"
         >
           <ChevronLeft className="w-3.5 h-3.5" />
         </button>
@@ -126,7 +139,7 @@ export function AdminPagination({
               return (
                 <span
                   key={`ellipsis-${idx}`}
-                  className="px-2 py-1 text-slate-400 text-xs"
+                  className="px-2 py-1 text-muted-foreground text-xs"
                 >
                   ...
                 </span>
@@ -138,10 +151,11 @@ export function AdminPagination({
                 key={p}
                 type="button"
                 onClick={() => onPageChange(Number(p))}
-                className={`min-w-[32px] h-8 px-2 rounded-lg text-xs font-semibold transition-colors ${
+                aria-current={isCurrent ? "page" : undefined}
+                className={`min-w-[32px] h-8 px-2 rounded-lg text-xs font-semibold tabular-nums transition-colors ${
                   isCurrent
-                    ? "bg-rose-600 text-white shadow-2xs"
-                    : "border border-slate-200 text-slate-700 hover:bg-slate-50"
+                    ? "bg-primary text-primary-foreground shadow-2xs"
+                    : "border border-border text-foreground hover:bg-muted"
                 }`}
               >
                 {p}
@@ -155,8 +169,9 @@ export function AdminPagination({
           type="button"
           disabled={page >= totalPages}
           onClick={() => onPageChange(page + 1)}
-          className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="p-1.5 rounded-lg border border-border text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           title="Trang tiếp"
+          aria-label="Trang tiếp"
         >
           <ChevronRight className="w-3.5 h-3.5" />
         </button>
@@ -166,8 +181,9 @@ export function AdminPagination({
           type="button"
           disabled={page >= totalPages}
           onClick={() => onPageChange(totalPages)}
-          className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="p-1.5 rounded-lg border border-border text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           title="Trang cuối"
+          aria-label="Trang cuối"
         >
           <ChevronsRight className="w-3.5 h-3.5" />
         </button>

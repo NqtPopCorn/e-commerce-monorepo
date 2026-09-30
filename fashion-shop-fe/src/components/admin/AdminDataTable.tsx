@@ -4,6 +4,7 @@ import React from "react";
 import { AdminPagination } from "./AdminPagination";
 import { AdminTableSkeleton } from "./AdminLoadingSkeleton";
 import { AdminEmptyState } from "./AdminEmptyState";
+import { AdminErrorState } from "./AdminErrorState";
 
 interface PaginationProps {
   page: number;
@@ -18,6 +19,10 @@ interface PaginationProps {
 interface AdminDataTableProps {
   children?: React.ReactNode;
   isLoading?: boolean;
+  isError?: boolean;
+  errorTitle?: string;
+  errorDescription?: string;
+  onRetry?: () => void;
   skeletonRows?: number;
   skeletonCols?: number;
   isEmpty?: boolean;
@@ -31,6 +36,10 @@ interface AdminDataTableProps {
 export function AdminDataTable({
   children,
   isLoading = false,
+  isError = false,
+  errorTitle,
+  errorDescription,
+  onRetry,
   skeletonRows = 6,
   skeletonCols = 5,
   isEmpty = false,
@@ -40,13 +49,25 @@ export function AdminDataTable({
   pagination,
   className = "",
 }: AdminDataTableProps) {
+  if (isError) {
+    return (
+      <div className={`p-2 ${className}`}>
+        <AdminErrorState
+          title={errorTitle}
+          description={errorDescription}
+          onRetry={onRetry}
+        />
+      </div>
+    );
+  }
+
   if (isLoading) {
     return <AdminTableSkeleton rows={skeletonRows} cols={skeletonCols} />;
   }
 
   return (
     <div
-      className={`bg-white border border-slate-200/80 rounded-xl overflow-hidden shadow-xs flex flex-col ${className}`}
+      className={`bg-card border border-border rounded-xl overflow-hidden shadow-xs flex flex-col ${className}`}
     >
       <div className="overflow-x-auto admin-scrollbar">
         {isEmpty ? (
