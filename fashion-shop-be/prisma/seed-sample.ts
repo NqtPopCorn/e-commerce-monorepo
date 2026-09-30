@@ -252,19 +252,34 @@ async function main() {
     products.push(product);
     variants.push(...product.variants);
 
-    // Create a batch for each variant
-    for (const variant of product.variants) {
-      await prisma.batch.create({
+    // Create a purchase receipt for the product's variants
+    if (product.variants.length > 0) {
+      const receiptItems = product.variants.map((variant) => ({
+        variantId: variant.id,
+        quantity: variant.stock,
+        costPrice: Math.round(Number(variant.sellingPrice) * 0.6),
+      }));
+      const totalAmount = receiptItems.reduce(
+        (sum, item) => sum + item.quantity * item.costPrice,
+        0,
+      );
+
+      await prisma.purchaseReceipt.create({
         data: {
-          code: `BATCH-${faker.string.alphanumeric(6).toUpperCase()}`,
-          quantity: variant.stock,
-          variantId: variant.id,
+          code: `PN-${faker.string.alphanumeric(8).toUpperCase()}`,
+          supplier: product.provider || "Fashion Shop Official",
+          note: `Nhập kho ban đầu cho ${product.name}`,
+          totalAmount,
+          status: "COMPLETED",
+          items: {
+            create: receiptItems,
+          },
         },
       });
     }
   }
 
-  console.log(`Created ${products.length} fashion products with variants, images, and batches`);
+  console.log(`Created ${products.length} fashion products with variants, images, and purchase receipts`);
 
   // 5. Create Promotions
   console.log("Creating promotions...");
