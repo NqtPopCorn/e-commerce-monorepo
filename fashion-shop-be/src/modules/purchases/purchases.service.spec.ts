@@ -2,6 +2,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { PrismaService } from "../../prisma/prisma.service";
 import { mockDeep, DeepMockProxy } from "jest-mock-extended";
 import { PurchasesService } from "./purchases.service";
+import { AuditLogsService } from "../audit-logs/audit-logs.service";
 import { NotFoundException } from "@nestjs/common";
 
 describe("PurchasesService", () => {
@@ -18,6 +19,10 @@ describe("PurchasesService", () => {
       providers: [
         PurchasesService,
         { provide: PrismaService, useValue: prismaMock },
+        {
+          provide: AuditLogsService,
+          useValue: { log: jest.fn().mockResolvedValue(undefined) },
+        },
       ],
     }).compile();
 

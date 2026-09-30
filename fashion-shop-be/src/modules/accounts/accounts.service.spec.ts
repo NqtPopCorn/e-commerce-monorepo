@@ -2,6 +2,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { PrismaService } from "../../prisma/prisma.service";
 import { mockDeep, DeepMockProxy } from "jest-mock-extended";
 import { AccountsService } from "./accounts.service";
+import { AuditLogsService } from "../audit-logs/audit-logs.service";
 
 describe("AccountsService", () => {
   let service: AccountsService;
@@ -14,6 +15,10 @@ describe("AccountsService", () => {
       providers: [
         AccountsService,
         { provide: PrismaService, useValue: prismaMock },
+        {
+          provide: AuditLogsService,
+          useValue: { log: jest.fn().mockResolvedValue(undefined) },
+        },
       ],
     }).compile();
 
@@ -63,8 +68,14 @@ describe("AccountsService", () => {
 
   describe("updateStatus", () => {
     it("should update user status", async () => {
+      prismaMock.user.findUnique.mockResolvedValue({
+        id: 2,
+        email: "user@test.com",
+        status: "BLOCKED",
+      } as any);
       prismaMock.user.update.mockResolvedValue({
         id: 2,
+        email: "user@test.com",
         status: "ACTIVE",
       } as any);
       const res = await service.updateStatus(2, "ACTIVE");

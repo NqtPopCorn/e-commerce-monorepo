@@ -2,6 +2,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { PrismaService } from "../../prisma/prisma.service";
 import { mockDeep, DeepMockProxy } from "jest-mock-extended";
 import { PromotionsService } from "./promotions.service";
+import { AuditLogsService } from "../audit-logs/audit-logs.service";
 import { BadRequestException, NotFoundException } from "@nestjs/common";
 import { DiscountType, PromotionApplicationType } from "@prisma/client";
 
@@ -19,6 +20,10 @@ describe("PromotionsService", () => {
       providers: [
         PromotionsService,
         { provide: PrismaService, useValue: prismaMock },
+        {
+          provide: AuditLogsService,
+          useValue: { log: jest.fn().mockResolvedValue(undefined) },
+        },
       ],
     }).compile();
 
