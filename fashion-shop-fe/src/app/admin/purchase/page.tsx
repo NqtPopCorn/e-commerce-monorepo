@@ -1,7 +1,17 @@
 "use client";
-import React, { useState } from "react";
+
+import React, { useState, useEffect, Suspense } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, Eye, Search, FileDown } from "lucide-react";
+import {
+  Plus,
+  Eye,
+  Search,
+  FileDown,
+  Truck,
+  Package,
+  CircleDollarSign,
+  RotateCcw,
+} from "lucide-react";
 import { CreatePurchaseModal } from "@/components/admin/purchase/CreatePurchaseModal";
 import { PurchaseDetailModal } from "@/components/admin/purchase/PurchaseDetailModal";
 import {
@@ -12,164 +22,375 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useGetBatches } from "@/hooks/useBatches";
+import { useGetPurchases, useGetPurchaseStats } from "@/hooks/usePurchases";
+import { PurchaseReceipt } from "@/types/purchase";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import {
+  AdminPageHeader,
+  AdminStatCard,
+  AdminDataTable,
+  AdminStatusBadge,
+  AdminPageSkeleton,
+  AdminSortHeader,
+} from "@/components/admin";
+import { useTableParams } from "@/hooks/useTableParams";
+import { useSortableTable } from "@/hooks/useSortableTable";
+import { formatCurrency, formatNumber, formatDateTime } from "@/lib/format";
 
-export default function PurchasePage() {
-  const { data: batches, isLoading } = useGetBatches();
+function PurchaseContent() {
+  const { params, setParams } = useTableParams({ page: 1, pageSize: 10 });
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const [selectedPurchase, setSelectedPurchase] = useState<any>(null);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedPurchase, setSelectedPurchase] =
+    useState<PurchaseReceipt | null>(null);
 
-  const handleView = (purchase: any) => {
+  // Debounced search
+  const [searchInput, setSearchInput] = useState(params.q);
+
+  useEffect(() => {
+    setSearchInput(params.q);
+  }, [params.q]);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      if (searchInput !== params.q) {
+        setParams({ q: searchInput.trim() || undefined, page: 1 });
+      }
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchInput, params.q, setParams]);
+
+  // Fetch paginated purchases from backend
+  const {
+    data: purchasesData,
+    isLoading,
+    isError,
+    refetch,
+  } = useGetPurchases({
+    page: params.page,
+    limit: params.pageSize,
+    search: params.q || undefined,
+  });
+
+  // Fetch warehouse purchase stats from backend
+  const { data: statsData } = useGetPurchaseStats();
+
+  const handleView = (purchase: PurchaseReceipt) => {
     setSelectedPurchase(purchase);
     setIsDetailOpen(true);
   };
 
-  const filteredBatches = batches?.filter((b: any) => 
-    b.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (b.variant?.product?.name || b.variant?.book?.title || "")
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase())
-  );
+  const purchases = purchasesData?.data || [];
+  const meta = purchasesData?.meta || {
+    total: 0,
+    page: params.page,
+    limit: params.pageSize,
+    totalPages: 1,
+  };
+
+  const {
+    sortedItems: sortedPurchases,
+    sortField,
+    sortOrder,
+    handleSort,
+  } = useSortableTable(purchases, {
+    defaultField: "createdAt",
+    defaultOrder: "desc",
+    customGetters: {
+      code: (p: PurchaseReceipt) => p.code || "",
+      createdAt: (p: PurchaseReceipt) => new Date(p.createdAt).getTime(),
+      supplier: (p: PurchaseReceipt) => p.supplier || "",
+      quantity: (p: PurchaseReceipt) =>
+        (p.items || []).reduce(
+          (sum, it) => sum + (Number(it.quantity) || 0),
+          0,
+        ),
+      totalAmount: (p: PurchaseReceipt) => Number(p.totalAmount) || 0,
+      status: (p: PurchaseReceipt) => p.status || "",
+    },
+  });
+
+  const totalPurchases = statsData?.totalPurchases ?? 0;
+  const totalSpending = statsData?.totalSpending ?? 0;
+  const totalQuantity = statsData?.totalQuantity ?? 0;
+
+  const handleResetFilters = () => {
+    setSearchInput("");
+    setParams({ q: undefined, page: 1 });
+  };
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-6 rounded-xl shadow-sm border border-gray-100 gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">
-            Quản lý Nhập kho
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Theo dõi và quản lý các lô hàng nhập kho của bạn
-          </p>
+      <AdminPageHeader
+        title="Quản Lý Nhập Kho"
+        description="Theo dõi lịch sử các đợt nhập hàng, đối tác cung ứng, giá vốn và lưu vết tồn kho theo từng phiếu nhập."
+        actions={
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-1.5 text-xs border-border"
+            >
+              <FileDown className="w-4 h-4 text-muted-foreground" />
+              <span>Xuất Excel</span>
+            </Button>
+            <Button
+              size="sm"
+              className="flex items-center gap-1.5 text-xs font-semibold shadow-xs"
+              onClick={() => setIsCreateOpen(true)}
+            >
+              <Plus className="w-4 h-4" />
+              <span>Tạo Phiếu Nhập</span>
+            </Button>
+          </div>
+        }
+      />
+
+      {/* KPI Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+        <AdminStatCard
+          title="Tổng Phiếu Nhập"
+          value={formatNumber(totalPurchases)}
+          subtitle="Đợt nhập hàng đã tạo"
+          icon={Truck}
+          color="rose"
+        />
+        <AdminStatCard
+          title="Tổng Vốn Nhập Kho"
+          value={formatCurrency(totalSpending)}
+          subtitle="Tổng giá trị hàng nhập kho"
+          icon={CircleDollarSign}
+          color="emerald"
+        />
+        <AdminStatCard
+          title="Tổng Số Lượng Nhập"
+          value={`${formatNumber(totalQuantity)} chiếc`}
+          subtitle="Sản phẩm đã nhập vào kho"
+          icon={Package}
+          color="indigo"
+        />
+      </div>
+
+      {/* Search and Filters */}
+      <div className="bg-card p-4 rounded-xl border border-border shadow-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="relative w-full sm:w-80">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Tìm theo mã phiếu, nhà cung cấp..."
+            className="pl-9 bg-background border-input text-xs h-9 w-full"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+          />
         </div>
-        <div className="flex gap-3">
-          <Button
-            variant="outline"
-            className="flex items-center gap-2 text-gray-600"
-          >
-            <FileDown className="w-4 h-4" /> Xuất Excel
-          </Button>
-          <Button
-            className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
-            onClick={() => setIsCreateOpen(true)}
-          >
-            <Plus className="w-4 h-4" /> Tạo Phiếu Nhập
-          </Button>
+        <div className="flex items-center gap-3">
+          {params.q && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleResetFilters}
+              className="text-xs border-border"
+            >
+              <RotateCcw className="w-3.5 h-3.5 mr-1" />
+              Đặt lại
+            </Button>
+          )}
+          <span className="text-xs text-muted-foreground font-medium">
+            Tìm thấy{" "}
+            <span className="font-semibold text-foreground tabular-nums">
+              {meta.total}
+            </span>{" "}
+            phiếu nhập
+          </span>
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="p-4 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-gray-50/50">
-          <div className="relative w-full sm:w-80">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <Input
-              placeholder="Tìm theo mã phiếu hoặc tên sách..."
-              className="pl-9 border-gray-200 focus-visible:ring-blue-500 bg-white w-full"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <div className="text-sm text-gray-500 font-medium whitespace-nowrap">
-            Tổng số: <span className="text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">{filteredBatches?.length || 0}</span> phiếu nhập
-          </div>
-        </div>
+      {/* Purchases Data Table with Server-side Pagination */}
+      <AdminDataTable
+        isLoading={isLoading}
+        isError={isError}
+        errorTitle="Không thể tải danh sách phiếu nhập"
+        onRetry={() => refetch()}
+        isEmpty={purchases.length === 0}
+        emptyTitle="Không tìm thấy phiếu nhập nào"
+        emptyDescription="Thử tìm kiếm với từ khóa khác hoặc tạo phiếu nhập hàng mới."
+        emptyAction={
+          params.q ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleResetFilters}
+              className="text-xs"
+            >
+              <RotateCcw className="w-3.5 h-3.5 mr-1" />
+              Xóa tìm kiếm
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              onClick={() => setIsCreateOpen(true)}
+              className="text-xs"
+            >
+              <Plus className="w-3.5 h-3.5 mr-1" />
+              Tạo phiếu nhập mới
+            </Button>
+          )
+        }
+        pagination={{
+          page: meta.page,
+          limit: meta.limit,
+          total: meta.total,
+          totalPages: meta.totalPages,
+          onPageChange: (newPage) => setParams({ page: newPage }),
+          onLimitChange: (newLimit) =>
+            setParams({ pageSize: newLimit, page: 1 }),
+        }}
+      >
+        <Table>
+          <TableHeader className="bg-muted/50">
+            <TableRow className="border-b border-border">
+              <TableHead className="w-[130px]">
+                <AdminSortHeader
+                  title="Mã phiếu"
+                  field="code"
+                  currentField={sortField}
+                  currentOrder={sortOrder}
+                  onSort={handleSort}
+                  defaultOrder="desc"
+                />
+              </TableHead>
+              <TableHead className="min-w-[130px]">
+                <AdminSortHeader
+                  title="Ngày nhập"
+                  field="createdAt"
+                  currentField={sortField}
+                  currentOrder={sortOrder}
+                  onSort={handleSort}
+                  defaultOrder="desc"
+                />
+              </TableHead>
+              <TableHead className="min-w-[150px]">
+                <AdminSortHeader
+                  title="Nhà cung cấp"
+                  field="supplier"
+                  currentField={sortField}
+                  currentOrder={sortOrder}
+                  onSort={handleSort}
+                  defaultOrder="asc"
+                />
+              </TableHead>
+              <TableHead className="min-w-[200px] font-semibold text-muted-foreground text-xs uppercase tracking-wider">
+                Mặt hàng nhập
+              </TableHead>
+              <TableHead className="text-right">
+                <AdminSortHeader
+                  title="Số lượng"
+                  field="quantity"
+                  currentField={sortField}
+                  currentOrder={sortOrder}
+                  onSort={handleSort}
+                  defaultOrder="desc"
+                  align="right"
+                />
+              </TableHead>
+              <TableHead className="text-right">
+                <AdminSortHeader
+                  title="Tổng tiền"
+                  field="totalAmount"
+                  currentField={sortField}
+                  currentOrder={sortOrder}
+                  onSort={handleSort}
+                  defaultOrder="desc"
+                  align="right"
+                />
+              </TableHead>
+              <TableHead className="text-center">
+                <AdminSortHeader
+                  title="Trạng thái"
+                  field="status"
+                  currentField={sortField}
+                  currentOrder={sortOrder}
+                  onSort={handleSort}
+                  defaultOrder="asc"
+                  align="center"
+                />
+              </TableHead>
+              <TableHead className="text-right font-semibold text-muted-foreground text-xs uppercase tracking-wider w-24">
+                Thao tác
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {sortedPurchases.map((p) => {
+              const items = p.items || [];
+              const receiptQty = items.reduce(
+                (sum, it) => sum + it.quantity,
+                0,
+              );
+              const firstItem = items[0];
+              const firstItemName =
+                firstItem?.variant?.product?.name || "Mặt hàng";
+              const extraItemsCount = items.length - 1;
 
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader className="bg-gray-50/80">
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="w-[130px] font-semibold text-gray-600">Mã phiếu</TableHead>
-                <TableHead className="font-semibold text-gray-600 min-w-[150px]">Ngày nhập</TableHead>
-                <TableHead className="font-semibold text-gray-600 min-w-[250px]">Sản phẩm</TableHead>
-                <TableHead className="font-semibold text-gray-600">Người tạo</TableHead>
-                <TableHead className="text-right font-semibold text-gray-600">Số lượng</TableHead>
-                <TableHead className="text-center font-semibold text-gray-600">Trạng thái</TableHead>
-                <TableHead className="text-right font-semibold text-gray-600">Hành động</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={7}
-                    className="text-center py-12 text-gray-500"
-                  >
-                    <div className="flex flex-col items-center justify-center space-y-3">
-                      <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
-                      <p className="font-medium text-gray-500">Đang tải dữ liệu...</p>
-                    </div>
+              return (
+                <TableRow
+                  key={p.id}
+                  className="hover:bg-muted/50 border-b border-border transition-colors group"
+                >
+                  <TableCell className="font-mono text-xs font-semibold text-foreground tabular-nums">
+                    {p.code}
                   </TableCell>
-                </TableRow>
-              ) : filteredBatches?.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center py-12">
-                    <div className="flex flex-col items-center justify-center text-gray-500">
-                      <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
-                        <Search className="w-6 h-6 text-gray-400" />
-                      </div>
-                      <p className="text-lg font-medium text-gray-700">Không tìm thấy phiếu nhập nào</p>
-                      <p className="text-sm mt-1">Hãy thử thay đổi từ khóa tìm kiếm của bạn</p>
-                    </div>
+                  <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                    {formatDateTime(p.createdAt)}
                   </TableCell>
-                </TableRow>
-              ) : (
-                filteredBatches?.map((p: any) => (
-                  <TableRow key={p.id} className="hover:bg-blue-50/30 transition-colors group">
-                    <TableCell className="font-semibold text-gray-800">
-                      {p.code}
-                    </TableCell>
-                    <TableCell className="text-gray-600">
-                      {new Intl.DateTimeFormat("vi-VN", {
-                        day: "2-digit",
-                        month: "2-digit",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      }).format(new Date(p.createdAt))}
-                    </TableCell>
-                    <TableCell>
-                      <div className="font-medium text-gray-900 line-clamp-1">{p.variant?.product?.name || p.variant?.book?.title || 'Sản phẩm không xác định'}</div>
-                      <div className="text-xs text-gray-500 mt-0.5">SKU: {p.variant?.sku || 'N/A'}</div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-bold">
-                          A
-                        </div>
-                        <span className="text-sm font-medium text-gray-700">Admin</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <span className="inline-flex items-center justify-center px-2.5 py-1 rounded-md bg-indigo-50 text-indigo-700 font-semibold border border-indigo-100">
-                        {p.quantity} chiếc
+                  <TableCell className="text-xs font-medium text-foreground">
+                    {p.supplier || "Fashion Shop Official"}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-medium text-xs text-foreground line-clamp-1 max-w-[180px]">
+                        {firstItemName}
                       </span>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-emerald-200">
-                        Hoàn thành
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleView(p)}
-                        className="text-blue-600 hover:text-blue-800 hover:bg-blue-100 transition-colors opacity-0 group-hover:opacity-100 md:opacity-100 focus:opacity-100"
-                      >
-                        <Eye className="w-4 h-4 mr-1.5" /> Chi tiết
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </div>
+                      {extraItemsCount > 0 && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-muted text-muted-foreground tabular-nums">
+                          +{extraItemsCount} SP
+                        </span>
+                      )}
+                    </div>
+                  </TableCell>
+                  {/* Số lượng căn phải */}
+                  <TableCell className="text-right tabular-nums">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-muted text-foreground text-xs font-semibold tabular-nums">
+                      {formatNumber(receiptQty)} chiếc
+                    </span>
+                  </TableCell>
+                  {/* Tổng tiền căn phải */}
+                  <TableCell className="text-right font-semibold text-xs text-foreground tabular-nums">
+                    {formatCurrency(Number(p.totalAmount || 0))}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <AdminStatusBadge
+                      status={p.status || "COMPLETED"}
+                      customLabel="Đã nhập kho"
+                      size="sm"
+                    />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleView(p)}
+                      className="h-7 px-2 text-xs text-primary hover:text-primary hover:bg-primary/10"
+                    >
+                      <Eye className="w-3.5 h-3.5 mr-1" />
+                      Chi tiết
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </AdminDataTable>
 
       <CreatePurchaseModal
         isOpen={isCreateOpen}
@@ -181,5 +402,13 @@ export default function PurchasePage() {
         purchase={selectedPurchase}
       />
     </div>
+  );
+}
+
+export default function PurchasePage() {
+  return (
+    <Suspense fallback={<AdminPageSkeleton />}>
+      <PurchaseContent />
+    </Suspense>
   );
 }

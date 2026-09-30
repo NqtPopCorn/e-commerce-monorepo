@@ -70,11 +70,31 @@ async function main() {
 
   // 2. Create Brands
   const brandData = [
-    { name: "Uniqlo", slug: "uniqlo", logo: "https://images.unsplash.com/photo-1544441893-675973e31985?w=100&q=80" },
-    { name: "Zara", slug: "zara", logo: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=100&q=80" },
-    { name: "H&M", slug: "hm", logo: "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=100&q=80" },
-    { name: "Nike", slug: "nike", logo: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=100&q=80" },
-    { name: "Adidas", slug: "adidas", logo: "https://images.unsplash.com/photo-1518002171953-a080ee817e1f?w=100&q=80" },
+    {
+      name: "Uniqlo",
+      slug: "uniqlo",
+      logo: "https://images.unsplash.com/photo-1544441893-675973e31985?w=100&q=80",
+    },
+    {
+      name: "Zara",
+      slug: "zara",
+      logo: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=100&q=80",
+    },
+    {
+      name: "H&M",
+      slug: "hm",
+      logo: "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=100&q=80",
+    },
+    {
+      name: "Nike",
+      slug: "nike",
+      logo: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=100&q=80",
+    },
+    {
+      name: "Adidas",
+      slug: "adidas",
+      logo: "https://images.unsplash.com/photo-1518002171953-a080ee817e1f?w=100&q=80",
+    },
   ];
   const brands = [];
   for (const b of brandData) {
@@ -128,36 +148,216 @@ async function main() {
 
   // 4. Sample Fashion Product Templates
   const productTemplates = [
-    { name: "Áo Thun Cotton Compact Cổ Tròn", cat: "Áo thun", mat: "100% Cotton Compact", care: "Giặt máy nhẹ, không dùng thuốc tẩy", season: "Xuân Hè" },
-    { name: "Áo Polo Thể Thao Pique Co Giãn", cat: "Áo polo", mat: "95% Cotton, 5% Spandex", care: "Giặt nước lạnh, sấy nhiệt độ thấp", season: "Bốn mùa" },
-    { name: "Áo Sơ Mi Oxford Dài Tay Regular", cat: "Áo sơ mi", mat: "Cotton Oxford cao cấp", care: "Ủi ở nhiệt độ trung bình", season: "Bốn mùa" },
-    { name: "Áo Khoác Gió Chống Nước Thể Thao", cat: "Áo khoác", mat: "Polyester tráng PU", care: "Không vắt mạnh, phơi bóng râm", season: "Thu Đông" },
-    { name: "Áo Khoác Blazer Hàn Quốc Casual", cat: "Áo khoác", mat: "Kaki tuyết mưa", care: "Nên giặt hấp", season: "Thu Đông" },
-    { name: "Quần Jeans Slim Fit Co Giãn 4 Chiều", cat: "Quần jeans", mat: "Denim 12oz, 2% Elastane", care: "Giặt mặt trái, tránh ánh nắng gắt", season: "Bốn mùa" },
-    { name: "Quần Kaki Ống Đứng Lịch Lãm", cat: "Quần kaki", mat: "Kaki co giãn nhẹ", care: "Giặt máy bình thường", season: "Bốn mùa" },
-    { name: "Quần Short Thể Thao Thoáng Khí", cat: "Quần short", mat: "Polyester Quick-Dry", care: "Giặt nhanh, mau khô", season: "Mùa hè" },
-    { name: "Quần Tây Âu Xếp Ly Thanh Lịch", cat: "Quần âu", mat: "Wool blend cao cấp", care: "Giặt khô hoặc giặt tay", season: "Bốn mùa" },
-    { name: "Váy Suông Hoa Nhí Cổ Vuông Dáng Dài", cat: "Váy liền", mat: "Voan lụa mềm mại", care: "Giặt tay nhẹ nhàng", season: "Xuân Hè" },
-    { name: "Đầm Xòe Công Sở Thắt Nơ Eo", cat: "Váy liền", mat: "Cotton lụa", care: "Ủi hơi nước", season: "Xuân Hè" },
-    { name: "Chân Váy Chữ A Xếp Ly Tầng", cat: "Chân váy", mat: "Vải tuyết mưa", care: "Treo thẳng khi phơi", season: "Bốn mùa" },
-    { name: "Mũ Lưỡi Trai Classic Canvas", cat: "Mũ nón", mat: "100% Canvas", care: "Giặt tay bằng bàn chải mềm", season: "Bốn mùa" },
-    { name: "Thắt Lưng Da Bò Khóa Kim Loại", cat: "Thắt lưng", mat: "100% Da bò thật", care: "Bảo quản nơi khô ráo, tránh ẩm", season: "Bốn mùa" },
-    { name: "Áo Thun Oversize Unisex In Họa Tiết", cat: "Áo thun", mat: "Cotton 2 chiều 250gsm", care: "Không ủi trực tiếp lên hình in", season: "Hè" },
-    { name: "Áo Sơ Mi Linen Cổ Tàu Thoáng Mát", cat: "Áo sơ mi", mat: "100% Linen tự nhiên", care: "Giặt nước mát, không vắt xoắn", season: "Mùa hè" },
-    { name: "Áo Khoác Bomber Lót Bông Giữ Ấm", cat: "Áo khoác", mat: "Nylon dù chống gió", care: "Giặt hấp hoặc giặt tay", season: "Mùa đông" },
-    { name: "Quần Jeans Ống Rộng Phong Cách Retro", cat: "Quần jeans", mat: "Cotton Denim 100%", care: "Giặt riêng lần đầu", season: "Bốn mùa" },
-    { name: "Quần Short Kaki Túi Hộp Chino", cat: "Quần short", mat: "Cotton Chino dày dặn", care: "Giặt máy bình thường", season: "Mùa hè" },
-    { name: "Váy Len Dệt Kim Ôm Body Cổ Lọ", cat: "Váy liền", mat: "Len Acrylic dệt mềm", care: "Phơi nằm ngang tránh dão", season: "Mùa đông" },
-    { name: "Áo Polo Phối Bo Cổ Cổ Điển", cat: "Áo polo", mat: "Cotton Spandex", care: "Giặt nhẹ với nước lạnh", season: "Bốn mùa" },
-    { name: "Chân Váy Jean Midi Xẻ Tà Trước", cat: "Chân váy", mat: "Denim co giãn nhẹ", care: "Giặt mặt trái", season: "Bốn mùa" },
-    { name: "Áo Thun Graphic Vintage Streetwear", cat: "Áo thun", mat: "100% Cotton 220gsm", care: "Lộn trái khi phơi", season: "Bốn mùa" },
-    { name: "Áo Khoác Denim Rách Gấu Phủi Bụi", cat: "Áo khoác", mat: "Denim cotton wash mềm", care: "Giặt riêng đồ sáng màu", season: "Bốn mùa" },
-    { name: "Quần Kaki Jogger Bo Gấu Thể Thao", cat: "Quần kaki", mat: "Kaki chun năng động", care: "Giặt máy nhiệt độ thường", season: "Bốn mùa" },
-    { name: "Áo Sơ Mi Họa Tiết Hawaii Đi Biển", cat: "Áo sơ mi", mat: "Vải Rayon mát rượi", care: "Ủi nhẹ mặt trái", season: "Mùa hè" },
-    { name: "Đầm Dạ Hội Ren Thêu Hoa Cao Cấp", cat: "Đầm dạ hội", mat: "Ren thêu thủ công", care: "Giặt khô chuyên dụng", season: "Bốn mùa" },
-    { name: "Mũ Bucket Vành Tròn Vải Dù", cat: "Mũ nón", mat: "Polyester chống nước", care: "Lau sạch bằng khăn ẩm", season: "Bốn mùa" },
-    { name: "Túi Tote Canvas Đựng Laptop", cat: "Túi xách", mat: "Canvas dày dặn 12oz", care: "Giặt tay nhẹ nhàng", season: "Bốn mùa" },
-    { name: "Áo Hoodie Nỉ Bông Có Mũ Dày Dặn", cat: "Áo khoác", mat: "Nỉ bông Cotton 320gsm", care: "Giặt mặt trái, tránh sấy nóng", season: "Mùa đông" },
+    {
+      name: "Áo Thun Cotton Compact Cổ Tròn",
+      cat: "Áo thun",
+      mat: "100% Cotton Compact",
+      care: "Giặt máy nhẹ, không dùng thuốc tẩy",
+      season: "Xuân Hè",
+    },
+    {
+      name: "Áo Polo Thể Thao Pique Co Giãn",
+      cat: "Áo polo",
+      mat: "95% Cotton, 5% Spandex",
+      care: "Giặt nước lạnh, sấy nhiệt độ thấp",
+      season: "Bốn mùa",
+    },
+    {
+      name: "Áo Sơ Mi Oxford Dài Tay Regular",
+      cat: "Áo sơ mi",
+      mat: "Cotton Oxford cao cấp",
+      care: "Ủi ở nhiệt độ trung bình",
+      season: "Bốn mùa",
+    },
+    {
+      name: "Áo Khoác Gió Chống Nước Thể Thao",
+      cat: "Áo khoác",
+      mat: "Polyester tráng PU",
+      care: "Không vắt mạnh, phơi bóng râm",
+      season: "Thu Đông",
+    },
+    {
+      name: "Áo Khoác Blazer Hàn Quốc Casual",
+      cat: "Áo khoác",
+      mat: "Kaki tuyết mưa",
+      care: "Nên giặt hấp",
+      season: "Thu Đông",
+    },
+    {
+      name: "Quần Jeans Slim Fit Co Giãn 4 Chiều",
+      cat: "Quần jeans",
+      mat: "Denim 12oz, 2% Elastane",
+      care: "Giặt mặt trái, tránh ánh nắng gắt",
+      season: "Bốn mùa",
+    },
+    {
+      name: "Quần Kaki Ống Đứng Lịch Lãm",
+      cat: "Quần kaki",
+      mat: "Kaki co giãn nhẹ",
+      care: "Giặt máy bình thường",
+      season: "Bốn mùa",
+    },
+    {
+      name: "Quần Short Thể Thao Thoáng Khí",
+      cat: "Quần short",
+      mat: "Polyester Quick-Dry",
+      care: "Giặt nhanh, mau khô",
+      season: "Mùa hè",
+    },
+    {
+      name: "Quần Tây Âu Xếp Ly Thanh Lịch",
+      cat: "Quần âu",
+      mat: "Wool blend cao cấp",
+      care: "Giặt khô hoặc giặt tay",
+      season: "Bốn mùa",
+    },
+    {
+      name: "Váy Suông Hoa Nhí Cổ Vuông Dáng Dài",
+      cat: "Váy liền",
+      mat: "Voan lụa mềm mại",
+      care: "Giặt tay nhẹ nhàng",
+      season: "Xuân Hè",
+    },
+    {
+      name: "Đầm Xòe Công Sở Thắt Nơ Eo",
+      cat: "Váy liền",
+      mat: "Cotton lụa",
+      care: "Ủi hơi nước",
+      season: "Xuân Hè",
+    },
+    {
+      name: "Chân Váy Chữ A Xếp Ly Tầng",
+      cat: "Chân váy",
+      mat: "Vải tuyết mưa",
+      care: "Treo thẳng khi phơi",
+      season: "Bốn mùa",
+    },
+    {
+      name: "Mũ Lưỡi Trai Classic Canvas",
+      cat: "Mũ nón",
+      mat: "100% Canvas",
+      care: "Giặt tay bằng bàn chải mềm",
+      season: "Bốn mùa",
+    },
+    {
+      name: "Thắt Lưng Da Bò Khóa Kim Loại",
+      cat: "Thắt lưng",
+      mat: "100% Da bò thật",
+      care: "Bảo quản nơi khô ráo, tránh ẩm",
+      season: "Bốn mùa",
+    },
+    {
+      name: "Áo Thun Oversize Unisex In Họa Tiết",
+      cat: "Áo thun",
+      mat: "Cotton 2 chiều 250gsm",
+      care: "Không ủi trực tiếp lên hình in",
+      season: "Hè",
+    },
+    {
+      name: "Áo Sơ Mi Linen Cổ Tàu Thoáng Mát",
+      cat: "Áo sơ mi",
+      mat: "100% Linen tự nhiên",
+      care: "Giặt nước mát, không vắt xoắn",
+      season: "Mùa hè",
+    },
+    {
+      name: "Áo Khoác Bomber Lót Bông Giữ Ấm",
+      cat: "Áo khoác",
+      mat: "Nylon dù chống gió",
+      care: "Giặt hấp hoặc giặt tay",
+      season: "Mùa đông",
+    },
+    {
+      name: "Quần Jeans Ống Rộng Phong Cách Retro",
+      cat: "Quần jeans",
+      mat: "Cotton Denim 100%",
+      care: "Giặt riêng lần đầu",
+      season: "Bốn mùa",
+    },
+    {
+      name: "Quần Short Kaki Túi Hộp Chino",
+      cat: "Quần short",
+      mat: "Cotton Chino dày dặn",
+      care: "Giặt máy bình thường",
+      season: "Mùa hè",
+    },
+    {
+      name: "Váy Len Dệt Kim Ôm Body Cổ Lọ",
+      cat: "Váy liền",
+      mat: "Len Acrylic dệt mềm",
+      care: "Phơi nằm ngang tránh dão",
+      season: "Mùa đông",
+    },
+    {
+      name: "Áo Polo Phối Bo Cổ Cổ Điển",
+      cat: "Áo polo",
+      mat: "Cotton Spandex",
+      care: "Giặt nhẹ với nước lạnh",
+      season: "Bốn mùa",
+    },
+    {
+      name: "Chân Váy Jean Midi Xẻ Tà Trước",
+      cat: "Chân váy",
+      mat: "Denim co giãn nhẹ",
+      care: "Giặt mặt trái",
+      season: "Bốn mùa",
+    },
+    {
+      name: "Áo Thun Graphic Vintage Streetwear",
+      cat: "Áo thun",
+      mat: "100% Cotton 220gsm",
+      care: "Lộn trái khi phơi",
+      season: "Bốn mùa",
+    },
+    {
+      name: "Áo Khoác Denim Rách Gấu Phủi Bụi",
+      cat: "Áo khoác",
+      mat: "Denim cotton wash mềm",
+      care: "Giặt riêng đồ sáng màu",
+      season: "Bốn mùa",
+    },
+    {
+      name: "Quần Kaki Jogger Bo Gấu Thể Thao",
+      cat: "Quần kaki",
+      mat: "Kaki chun năng động",
+      care: "Giặt máy nhiệt độ thường",
+      season: "Bốn mùa",
+    },
+    {
+      name: "Áo Sơ Mi Họa Tiết Hawaii Đi Biển",
+      cat: "Áo sơ mi",
+      mat: "Vải Rayon mát rượi",
+      care: "Ủi nhẹ mặt trái",
+      season: "Mùa hè",
+    },
+    {
+      name: "Đầm Dạ Hội Ren Thêu Hoa Cao Cấp",
+      cat: "Đầm dạ hội",
+      mat: "Ren thêu thủ công",
+      care: "Giặt khô chuyên dụng",
+      season: "Bốn mùa",
+    },
+    {
+      name: "Mũ Bucket Vành Tròn Vải Dù",
+      cat: "Mũ nón",
+      mat: "Polyester chống nước",
+      care: "Lau sạch bằng khăn ẩm",
+      season: "Bốn mùa",
+    },
+    {
+      name: "Túi Tote Canvas Đựng Laptop",
+      cat: "Túi xách",
+      mat: "Canvas dày dặn 12oz",
+      care: "Giặt tay nhẹ nhàng",
+      season: "Bốn mùa",
+    },
+    {
+      name: "Áo Hoodie Nỉ Bông Có Mũ Dày Dặn",
+      cat: "Áo khoác",
+      mat: "Nỉ bông Cotton 320gsm",
+      care: "Giặt mặt trái, tránh sấy nóng",
+      season: "Mùa đông",
+    },
   ];
 
   const fashionImages = [
@@ -189,12 +389,17 @@ async function main() {
   for (let i = 0; i < productTemplates.length; i++) {
     const tpl = productTemplates[i];
     const brand = faker.helpers.arrayElement(brands);
-    const category = subCategories.find((c) => c.name === tpl.cat) || faker.helpers.arrayElement(subCategories);
+    const category =
+      subCategories.find((c) => c.name === tpl.cat) ||
+      faker.helpers.arrayElement(subCategories);
     const slug = `${slugify(tpl.name)}-${faker.string.alphanumeric(5).toLowerCase()}`;
 
     // Variants: 2 to 4 combinations of size and color
     const pickedSizes = faker.helpers.arrayElements(sizes, { min: 2, max: 4 });
-    const pickedColors = faker.helpers.arrayElements(colors, { min: 1, max: 2 });
+    const pickedColors = faker.helpers.arrayElements(colors, {
+      min: 1,
+      max: 2,
+    });
     const variantData = [];
 
     const baseListPrice = faker.number.int({ min: 199, max: 899 }) * 1000;
@@ -219,11 +424,13 @@ async function main() {
     }
 
     // Images for product
-    const prodImages = faker.helpers.arrayElements(fashionImages, { min: 2, max: 4 }).map((url, idx) => ({
-      url,
-      altText: `${tpl.name} - Ảnh ${idx + 1}`,
-      sortOrder: idx,
-    }));
+    const prodImages = faker.helpers
+      .arrayElements(fashionImages, { min: 2, max: 4 })
+      .map((url, idx) => ({
+        url,
+        altText: `${tpl.name} - Ảnh ${idx + 1}`,
+        sortOrder: idx,
+      }));
 
     const product = await prisma.product.create({
       data: {
@@ -252,32 +459,64 @@ async function main() {
     products.push(product);
     variants.push(...product.variants);
 
-    // Create a batch for each variant
-    for (const variant of product.variants) {
-      await prisma.batch.create({
+    // Create a purchase receipt for the product's variants
+    if (product.variants.length > 0) {
+      const receiptItems = product.variants.map((variant) => ({
+        variantId: variant.id,
+        quantity: variant.stock,
+        costPrice: Math.round(Number(variant.sellingPrice) * 0.6),
+      }));
+      const totalAmount = receiptItems.reduce(
+        (sum, item) => sum + item.quantity * item.costPrice,
+        0,
+      );
+
+      await prisma.purchaseReceipt.create({
         data: {
-          code: `BATCH-${faker.string.alphanumeric(6).toUpperCase()}`,
-          quantity: variant.stock,
-          variantId: variant.id,
+          code: `PN-${faker.string.alphanumeric(8).toUpperCase()}`,
+          supplier: product.provider || "Fashion Shop Official",
+          note: `Nhập kho ban đầu cho ${product.name}`,
+          totalAmount,
+          status: "COMPLETED",
+          items: {
+            create: receiptItems,
+          },
         },
       });
     }
   }
 
-  console.log(`Created ${products.length} fashion products with variants, images, and batches`);
+  console.log(
+    `Created ${products.length} fashion products with variants, images, and purchase receipts`,
+  );
 
   // 5. Create Promotions
   console.log("Creating promotions...");
   await prisma.promotionVariant.deleteMany();
   await prisma.promotionGroup.deleteMany();
   await prisma.promotionApplication.deleteMany();
+  await prisma.voucher.deleteMany();
   await prisma.promotion.deleteMany();
+  await prisma.campaign.deleteMany();
 
-  const campaign = await prisma.promotion.create({
+  const summerCampaign = await prisma.campaign.create({
     data: {
       name: "Tuần lễ thời trang Hè - Ưu đãi bùng nổ",
-      kind: "CAMPAIGN",
+      description: "Chiến dịch trợ giá lớn mùa hè 2026",
+      budgetLimit: 20000000,
+      spentAmount: 0,
+      status: "ACTIVE",
+      startsAt: new Date("2026-01-01"),
+    },
+  });
+
+  await prisma.promotion.create({
+    data: {
+      campaignId: summerCampaign.id,
+      name: "Giảm giá sâu BST Áo & Quần Hè",
+      applicationType: "AUTO",
       priority: 10,
+      budgetLimit: 15000000,
       startsAt: new Date("2026-01-01"),
       active: true,
       groups: {
@@ -287,6 +526,7 @@ async function main() {
             sortOrder: 1,
             discountType: "PERCENT",
             discountValue: 20,
+            maxDiscountValue: 100000,
             variants: {
               create: variants.slice(0, 6).map((v) => ({ variantId: v.id })),
             },
@@ -308,57 +548,109 @@ async function main() {
   await prisma.promotion.create({
     data: {
       name: "Giảm 50k cho đơn từ 400k",
-      kind: "ORDER_AUTO",
-      discountType: "FIXED",
-      discountValue: 50000,
+      applicationType: "AUTO",
       minOrderAmount: 400000,
       priority: 5,
       startsAt: new Date("2026-01-01"),
       active: true,
+      groups: {
+        create: [
+          {
+            name: "Giảm 50k đơn hàng",
+            sortOrder: 1,
+            discountType: "FIXED",
+            discountValue: 50000,
+          },
+        ],
+      },
     },
   });
 
   await prisma.promotion.create({
     data: {
       name: "Giảm 10% cho đơn từ 800k",
-      kind: "ORDER_AUTO",
-      discountType: "PERCENT",
-      discountValue: 10,
+      applicationType: "AUTO",
       minOrderAmount: 800000,
       priority: 10,
       startsAt: new Date("2026-01-01"),
       active: true,
+      groups: {
+        create: [
+          {
+            name: "Giảm 10% đơn hàng",
+            sortOrder: 1,
+            discountType: "PERCENT",
+            discountValue: 10,
+            maxDiscountValue: 150000,
+          },
+        ],
+      },
     },
   });
 
   await prisma.promotion.create({
     data: {
       name: "Voucher khách hàng thân thiết - Giảm 50k",
-      kind: "VOUCHER",
-      code: "FASHION50K",
-      discountType: "FIXED",
-      discountValue: 50000,
+      applicationType: "VOUCHER",
       minOrderAmount: 250000,
-      maxUses: 100,
+      budgetLimit: 10000000,
       startsAt: new Date("2026-01-01"),
       active: true,
+      groups: {
+        create: [
+          {
+            name: "Giảm 50k",
+            sortOrder: 1,
+            discountType: "FIXED",
+            discountValue: 50000,
+          },
+        ],
+      },
+      vouchers: {
+        create: [
+          {
+            code: "FASHION50K",
+            maxUses: 100,
+            maxUsesPerCustomer: 1,
+            active: true,
+          },
+        ],
+      },
     },
   });
 
   await prisma.promotion.create({
     data: {
       name: "Voucher chào bạn mới - Giảm 15%",
-      kind: "VOUCHER",
-      code: "WELCOMEFASHION",
-      discountType: "PERCENT",
-      discountValue: 15,
+      applicationType: "VOUCHER",
       minOrderAmount: 300000,
-      maxUses: 500,
+      budgetLimit: 5000000,
       startsAt: new Date("2026-01-01"),
       active: true,
+      groups: {
+        create: [
+          {
+            name: "Giảm 15%",
+            sortOrder: 1,
+            discountType: "PERCENT",
+            discountValue: 15,
+            maxDiscountValue: 80000,
+          },
+        ],
+      },
+      vouchers: {
+        create: [
+          {
+            code: "WELCOMEFASHION",
+            maxUses: 500,
+            maxUsesPerCustomer: 1,
+            active: true,
+          },
+        ],
+      },
     },
   });
-  console.log("Created 1 campaign, 2 auto promotions, and 2 vouchers");
+  console.log("Created 1 campaign, 3 auto promotions, and 2 voucher promotions");
 
   // 6. Create Mock Orders
   const orders = [];

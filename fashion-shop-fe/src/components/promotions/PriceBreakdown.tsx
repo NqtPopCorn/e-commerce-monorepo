@@ -24,8 +24,14 @@ export function PriceBreakdown({
 
   if (!quote) return null;
 
-  const { subtotal, productDiscount, orderDiscount, voucherDiscount, total, applied } =
-    quote;
+  const {
+    subtotal,
+    productDiscount,
+    orderDiscount,
+    voucherDiscount,
+    total,
+    applied,
+  } = quote;
   const finalTotal = total + shippingFee;
 
   const campaignApps = applied.filter((a) => a.scope === "LINE");
@@ -49,11 +55,15 @@ export function PriceBreakdown({
             <div>Ưu đãi sản phẩm</div>
             {campaignApps.length > 0 && (
               <div className="text-xs text-emerald-700/80 font-normal">
-                {Array.from(new Set(campaignApps.map((a) => a.name))).join(", ")}
+                {Array.from(new Set(campaignApps.map((a) => a.name))).join(
+                  ", ",
+                )}
               </div>
             )}
           </div>
-          <span className="font-semibold">- {productDiscount.toLocaleString()}đ</span>
+          <span className="font-semibold">
+            - {productDiscount.toLocaleString()}đ
+          </span>
         </div>
       )}
 
@@ -68,7 +78,9 @@ export function PriceBreakdown({
               </div>
             )}
           </div>
-          <span className="font-semibold">- {orderDiscount.toLocaleString()}đ</span>
+          <span className="font-semibold">
+            - {orderDiscount.toLocaleString()}đ
+          </span>
         </div>
       )}
 
@@ -85,7 +97,9 @@ export function PriceBreakdown({
               </div>
             )}
           </div>
-          <span className="font-semibold">- {voucherDiscount.toLocaleString()}đ</span>
+          <span className="font-semibold">
+            - {voucherDiscount.toLocaleString()}đ
+          </span>
         </div>
       )}
 

@@ -1,17 +1,39 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { toast } from "sonner";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  AdminConfirmDialog,
+  ConfirmDialogVariant,
+  AdminPageHeader,
+} from "@/components/admin";
+
 import { useCreateProduct, useUpdateProduct } from "@/hooks/useProducts";
 import { useGetBrands } from "@/hooks/useBrands";
-import { useQuery } from "@tanstack/react-query";
-import { categoriesService } from "@/services/categories.service";
-import { Trash2, Plus, Edit, ArrowLeft, Image as ImageIcon } from "lucide-react";
-import { VariantFormModal } from "./VariantFormModal";
+import { useGetCategories } from "@/hooks/useCategories";
+
+import {
+  productFormSchema,
+  ProductFormValues,
+  FormVariant,
+} from "@/lib/product-validation";
+import { ProductImageGrid } from "./ProductImageGrid";
+import { ProductVariantTable } from "./ProductVariantTable";
 
 interface ProductFormProps {
   onClose: () => void;
@@ -23,428 +45,518 @@ export function ProductForm({ onClose, product }: ProductFormProps) {
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
 
-  const { data: brands } = useGetBrands();
-  const { data: categories } = useQuery({
-    queryKey: ["categories"],
-    queryFn: categoriesService.getAll,
+  const { data: brands = [] } = useGetBrands();
+  const { data: categories = [] } = useGetCategories();
+
+  // Convert initial product values
+  const defaultValues: ProductFormValues = {
+    name: product?.name || "",
+    description: product?.description || "",
+    brandId: product?.brandId ? Number(product.brandId) : undefined,
+    categoryId: product?.categoryId ? Number(product.categoryId) : undefined,
+    material: product?.material || "",
+    careInstructions: product?.careInstructions || "",
+    season: product?.season || "",
+    provider: product?.provider || "Fashion Shop Official",
+    images: product?.images?.map((img: any) => img.url) || [],
+    variants: product?.variants?.length
+      ? product.variants.map((v: any) => ({
+          id: v.id,
+          sku: v.sku || "",
+          barcode: v.barcode || "",
+          size: v.size || "",
+          color: v.color || "",
+          colorHex: v.colorHex || "#000000",
+          imageUrl: v.imageUrl || "",
+          listPrice: Number(v.listPrice) || 0,
+          sellingPrice: Number(v.sellingPrice) || 0,
+          stock: Number(v.stock) || 0,
+          weight: v.weight ? Number(v.weight) : undefined,
+        }))
+      : [
+          {
+            sku: "",
+            barcode: "",
+            size: "",
+            color: "",
+            colorHex: "#000000",
+            imageUrl: "",
+            listPrice: 0,
+            sellingPrice: 0,
+            stock: 0,
+            weight: undefined,
+          },
+        ],
+  };
+
+  const {
+    register,
+    control,
+    handleSubmit,
+    setValue,
+    watch,
+    formState: { errors, isDirty },
+  } = useForm<ProductFormValues>({
+    resolver: zodResolver(productFormSchema) as any,
+    defaultValues,
+    mode: "onTouched",
   });
 
-  const [variants, setVariants] = useState<any[]>(
-    product?.variants?.length ? product.variants : [],
-  );
+  const watchedImages = watch("images") || [];
 
-  const [imageUrls, setImageUrls] = useState<string[]>(
-    product?.images?.length
-      ? product.images.map((img: any) => img.url)
-      : [""]
-  );
+  // Dialog state
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: React.ReactNode;
+    variant: ConfirmDialogVariant;
+    confirmText?: string;
+    cancelText?: string;
+    alertOnly?: boolean;
+    onConfirm?: () => void;
+  }>({
+    isOpen: false,
+    title: "",
+    description: null,
+    variant: "danger",
+    alertOnly: false,
+  });
 
-  const [isVariantModalOpen, setIsVariantModalOpen] = useState(false);
-  const [editingVariantIndex, setEditingVariantIndex] = useState<number | null>(
-    null,
-  );
-
-  const handleOpenAddVariant = () => {
-    setEditingVariantIndex(null);
-    setIsVariantModalOpen(true);
+  const closeConfirmDialog = () => {
+    setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
   };
 
-  const handleOpenEditVariant = (index: number) => {
-    setEditingVariantIndex(index);
-    setIsVariantModalOpen(true);
-  };
+  // Cảnh báo beforeunload khi có dữ liệu chưa lưu
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isDirty]);
 
-  const handleSaveVariant = (variantData: any) => {
-    if (editingVariantIndex !== null) {
-      const newVariants = [...variants];
-      newVariants[editingVariantIndex] = variantData;
-      setVariants(newVariants);
+  // Xử lý nút Hủy
+  const handleRequestClose = () => {
+    if (isDirty) {
+      setConfirmDialog({
+        isOpen: true,
+        title: "Bỏ thay đổi?",
+        description: "Các thay đổi chưa lưu sẽ mất.",
+        variant: "danger",
+        confirmText: "Bỏ thay đổi",
+        cancelText: "Tiếp tục chỉnh sửa",
+        onConfirm: () => {
+          closeConfirmDialog();
+          onClose();
+        },
+      });
     } else {
-      setVariants([...variants, variantData]);
+      onClose();
     }
   };
 
-  const handleRemoveVariant = (index: number) => {
-    if (variants.length === 1) {
-      toast.error("Phải có ít nhất 1 biến thể sản phẩm");
-      return;
-    }
-    if (confirm("Bạn có chắc muốn xóa biến thể này?")) {
-      setVariants(variants.filter((_, i) => i !== index));
-    }
-  };
-
-  const handleAddImageUrl = () => {
-    setImageUrls([...imageUrls, ""]);
-  };
-
-  const handleRemoveImageUrl = (idx: number) => {
-    setImageUrls(imageUrls.filter((_, i) => i !== idx));
-  };
-
-  const handleImageUrlChange = (idx: number, val: string) => {
-    const list = [...imageUrls];
-    list[idx] = val;
-    setImageUrls(list);
-  };
-
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-
-    if (variants.length === 0) {
-      toast.error("Vui lòng thêm ít nhất 1 biến thể sản phẩm");
+  // Xử lý xóa biến thể đã có trong DB
+  const handleRequestDeleteExistingVariant = (
+    index: number,
+    variant: FormVariant,
+  ) => {
+    const currentVariants = watch("variants") || [];
+    if (currentVariants.length <= 1) {
+      setConfirmDialog({
+        isOpen: true,
+        title: "Không thể xóa biến thể",
+        description: "Sản phẩm cần ít nhất một biến thể.",
+        variant: "warning",
+        alertOnly: true,
+        confirmText: "Đã hiểu",
+      });
       return;
     }
 
-    const formattedVariants = variants.map((v) => ({
-      sku: String(v.sku).trim(),
-      barcode: v.barcode ? String(v.barcode).trim() : undefined,
-      size: v.size ? String(v.size).trim() : undefined,
-      color: v.color ? String(v.color).trim() : undefined,
-      colorHex: v.colorHex ? String(v.colorHex).trim() : undefined,
-      imageUrl: v.imageUrl ? String(v.imageUrl).trim() : undefined,
+    setConfirmDialog({
+      isOpen: true,
+      title: "Xóa biến thể?",
+      description: (
+        <div className="space-y-1">
+          <p>
+            Biến thể <strong className="font-mono">{variant.sku}</strong> sẽ bị
+            gỡ bỏ khỏi sản phẩm khi bạn lưu thay đổi.
+          </p>
+          {Number(variant.stock) > 0 && (
+            <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+              Lưu ý: Biến thể đang có {variant.stock} sản phẩm tồn kho. Backend
+              có thể từ chối nếu biến thể còn tồn kho hoặc đã có đơn hàng.
+            </p>
+          )}
+        </div>
+      ),
+      variant: "danger",
+      confirmText: "Xóa biến thể",
+      cancelText: "Hủy",
+      onConfirm: () => {
+        const next = currentVariants.filter((_, i) => i !== index);
+        setValue("variants", next, { shouldDirty: true, shouldValidate: true });
+        closeConfirmDialog();
+        toast.success(`Đã gỡ biến thể ${variant.sku}`);
+      },
+    });
+  };
+
+  // Submit Handler
+  const isSubmitting = createProduct.isPending || updateProduct.isPending;
+
+  const onSubmit = (values: ProductFormValues) => {
+    const formattedVariants = values.variants.map((v) => ({
+      sku: v.sku.trim(),
+      barcode: v.barcode ? v.barcode.trim() : undefined,
+      size: v.size ? v.size.trim() : undefined,
+      color: v.color ? v.color.trim() : undefined,
+      colorHex: v.colorHex ? v.colorHex.trim() : undefined,
+      imageUrl: v.imageUrl ? v.imageUrl.trim() : undefined,
       listPrice: Number(v.listPrice),
       sellingPrice: Number(v.sellingPrice),
       stock: Number(v.stock),
-      weight: v.weight ? Number(v.weight) : undefined,
+      weight: v.weight !== undefined ? Number(v.weight) : undefined,
     }));
 
-    const validImages = imageUrls
+    const validImages = values.images
       .filter((url) => url.trim().length > 0)
       .map((url, idx) => ({
         url: url.trim(),
-        altText: `${formData.get("name")} - Ảnh ${idx + 1}`,
+        altText: `${values.name} - Ảnh ${idx + 1}`,
         sortOrder: idx,
       }));
 
-    const data: any = {
-      name: (formData.get("name") as string).trim(),
-      description: formData.get("description") as string,
-      brandId: formData.get("brandId") ? Number(formData.get("brandId")) : undefined,
-      categoryId: formData.get("categoryId") ? Number(formData.get("categoryId")) : undefined,
-      material: formData.get("material") ? (formData.get("material") as string).trim() : undefined,
-      careInstructions: formData.get("careInstructions") ? (formData.get("careInstructions") as string).trim() : undefined,
-      season: formData.get("season") ? (formData.get("season") as string).trim() : undefined,
-      provider: formData.get("provider") ? (formData.get("provider") as string).trim() : "Fashion Shop Official",
+    const payload: any = {
+      name: values.name.trim(),
+      description: values.description ? values.description.trim() : undefined,
+      brandId: values.brandId ? Number(values.brandId) : undefined,
+      categoryId: values.categoryId ? Number(values.categoryId) : undefined,
+      material: values.material ? values.material.trim() : undefined,
+      careInstructions: values.careInstructions
+        ? values.careInstructions.trim()
+        : undefined,
+      season: values.season ? values.season.trim() : undefined,
+      provider: values.provider
+        ? values.provider.trim()
+        : "Fashion Shop Official",
       variants: formattedVariants,
       images: validImages,
     };
 
     if (isEdit) {
       updateProduct.mutate(
-        { id: product.id, data },
+        { id: product.id, data: payload },
         {
           onSuccess: () => {
-            toast.success("Cập nhật sản phẩm thành công");
+            toast.success("Đã lưu sản phẩm");
             onClose();
           },
-          onError: () => toast.error("Có lỗi xảy ra khi cập nhật"),
+          onError: (err: any) => {
+            const msg =
+              err?.response?.data?.message ||
+              "Không lưu được sản phẩm. Kiểm tra kết nối rồi thử lại.";
+            toast.error(msg);
+          },
         },
       );
     } else {
-      createProduct.mutate(data, {
+      createProduct.mutate(payload, {
         onSuccess: () => {
-          toast.success("Thêm sản phẩm thành công");
+          toast.success("Đã tạo sản phẩm");
           onClose();
         },
-        onError: () => toast.error("Có lỗi xảy ra khi tạo sản phẩm"),
+        onError: (err: any) => {
+          const msg =
+            err?.response?.data?.message ||
+            "Không tạo được sản phẩm. Kiểm tra kết nối rồi thử lại.";
+          toast.error(msg);
+        },
       });
     }
   };
 
+  const onError = (formErrors: any) => {
+    // Tự động focus vào ô lỗi đầu tiên
+    const firstErrorKey = Object.keys(formErrors)[0];
+    if (firstErrorKey) {
+      const el = document.querySelector(
+        `[name="${firstErrorKey}"], [aria-invalid="true"]`,
+      ) as HTMLElement | null;
+      el?.focus();
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  };
+
   return (
-    <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 max-w-5xl mx-auto">
-      <div className="flex items-center justify-between pb-4 border-b mb-6">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={onClose}>
-            <ArrowLeft className="w-5 h-5 text-gray-500" />
-          </Button>
-          <h2 className="text-xl font-bold text-gray-800">
-            {isEdit ? "Chỉnh sửa sản phẩm thời trang" : "Thêm mới sản phẩm thời trang"}
-          </h2>
-        </div>
-      </div>
+    <div className="space-y-6 max-w-7xl mx-auto">
+      {/* 1. Header: Breadcrumb & Title (Outside Card) */}
+      <AdminPageHeader
+        breadcrumbs={[
+          { label: "Sản phẩm", onClick: handleRequestClose },
+          { label: isEdit ? product?.name || "Sửa sản phẩm" : "Thêm sản phẩm" },
+        ]}
+        title={isEdit ? "Sửa sản phẩm" : "Thêm sản phẩm"}
+      />
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Basic Info */}
-        <div className="border rounded-lg p-5 bg-gray-50/50 space-y-4">
-          <h3 className="text-base font-semibold text-gray-800 border-b pb-2">
-            1. Thông tin chung
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-1.5 md:col-span-2">
-              <Label htmlFor="name">
-                Tên sản phẩm thời trang <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="name"
-                name="name"
-                required
-                defaultValue={product?.name || product?.title || ""}
-                placeholder="VD: Áo Polo Cotton Pique Cao Cấp..."
-                className="bg-white"
-              />
+      {/* Main Form Form Body */}
+      <form onSubmit={handleSubmit(onSubmit, onError)} noValidate>
+        {/* Desktop 2-column Grid, Single column on Mobile */}
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-6 items-start">
+          {/* Section 1: Thông tin chung (DOM 1, Desktop Row 1 Col 1) */}
+          <div className="border border-border rounded-lg p-6 bg-card space-y-4 lg:col-start-1 lg:row-start-1">
+            <div>
+              <h2 className="text-base font-semibold">Thông tin chung</h2>
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="brandId">Thương hiệu</Label>
-              <select
-                id="brandId"
-                name="brandId"
-                defaultValue={product?.brandId || ""}
-                className="w-full border border-gray-300 rounded-md p-2 bg-white text-sm outline-none focus:border-rose-500"
-              >
-                <option value="">-- Chọn thương hiệu --</option>
-                {brands?.map((b: any) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name}
-                  </option>
-                ))}
-              </select>
+            <div className="space-y-4">
+              {/* Tên sản phẩm */}
+              <div className="space-y-1.5">
+                <Label htmlFor="name" className="text-sm font-medium">
+                  Tên sản phẩm <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="name"
+                  {...register("name")}
+                  placeholder="Áo polo cotton piqué"
+                  aria-invalid={!!errors.name}
+                  aria-describedby={errors.name ? "name-error" : undefined}
+                  className={`h-9 text-sm ${
+                    errors.name
+                      ? "border-destructive focus-visible:ring-destructive"
+                      : ""
+                  }`}
+                />
+                {errors.name && (
+                  <p id="name-error" className="text-xs text-destructive">
+                    {errors.name.message}
+                  </p>
+                )}
+              </div>
+
+              {/* Mô tả */}
+              <div className="space-y-1.5">
+                <Label htmlFor="description" className="text-sm font-medium">
+                  Mô tả
+                </Label>
+                <Textarea
+                  id="description"
+                  rows={4}
+                  {...register("description")}
+                  placeholder="Form dáng, chất vải, cách phối đồ"
+                  className="text-sm resize-y"
+                />
+              </div>
+
+              {/* Chất liệu & Hướng dẫn bảo quản (2 cột) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="material" className="text-sm font-medium">
+                    Chất liệu
+                  </Label>
+                  <Input
+                    id="material"
+                    {...register("material")}
+                    placeholder="100% cotton"
+                    className="h-9 text-sm"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label
+                    htmlFor="careInstructions"
+                    className="text-sm font-medium"
+                  >
+                    Hướng dẫn bảo quản
+                  </Label>
+                  <Input
+                    id="careInstructions"
+                    {...register("careInstructions")}
+                    placeholder="Giặt máy ở nước mát"
+                    className="h-9 text-sm"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 2: Phân loại (DOM 2, Desktop Row 1 Col 2) */}
+          <div className="border border-border rounded-lg p-6 bg-card space-y-4 lg:col-start-2 lg:row-start-1 lg:row-span-2">
+            <div>
+              <h2 className="text-base font-semibold">Phân loại</h2>
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="categoryId">Nhóm danh mục</Label>
-              <select
-                id="categoryId"
-                name="categoryId"
-                defaultValue={product?.categoryId || ""}
-                className="w-full border border-gray-300 rounded-md p-2 bg-white text-sm outline-none focus:border-rose-500"
-              >
-                <option value="">-- Chọn danh mục --</option>
-                {categories?.map((c: any) => (
-                  <option key={c.id} value={c.id}>
-                    {c.parent ? `${c.parent.name} → ` : ""}{c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <div className="space-y-4">
+              {/* Thương hiệu */}
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium">Thương hiệu</Label>
+                <Controller
+                  name="brandId"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      value={field.value ? String(field.value) : ""}
+                      onValueChange={(val) =>
+                        field.onChange(val ? Number(val) : undefined)
+                      }
+                    >
+                      <SelectTrigger className="h-9 text-sm">
+                        <SelectValue placeholder="Chọn thương hiệu" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {brands.map((b: any) => (
+                          <SelectItem key={b.id} value={String(b.id)}>
+                            {b.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="material">Chất liệu vải</Label>
-              <Input
-                id="material"
-                name="material"
-                defaultValue={product?.material || ""}
-                placeholder="VD: 100% Cotton, Denim, Linen..."
-                className="bg-white"
-              />
-            </div>
+              {/* Danh mục */}
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium">Danh mục</Label>
+                <Controller
+                  name="categoryId"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      value={field.value ? String(field.value) : ""}
+                      onValueChange={(val) =>
+                        field.onChange(val ? Number(val) : undefined)
+                      }
+                    >
+                      <SelectTrigger className="h-9 text-sm">
+                        <SelectValue placeholder="Chọn danh mục" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categories.map((c: any) => (
+                          <SelectItem key={c.id} value={String(c.id)}>
+                            {c.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="season">Mùa / Bộ sưu tập</Label>
-              <Input
-                id="season"
-                name="season"
-                defaultValue={product?.season || ""}
-                placeholder="VD: Xuân Hè 2026, Thu Đông..."
-                className="bg-white"
-              />
-            </div>
+              {/* Mùa / bộ sưu tập */}
+              <div className="space-y-1.5">
+                <Label htmlFor="season" className="text-sm font-medium">
+                  Mùa / bộ sưu tập
+                </Label>
+                <Input
+                  id="season"
+                  {...register("season")}
+                  placeholder="Xuân hè 2026"
+                  className="h-9 text-sm"
+                />
+              </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="careInstructions">Hướng dẫn bảo quản</Label>
-              <Input
-                id="careInstructions"
-                name="careInstructions"
-                defaultValue={product?.careInstructions || ""}
-                placeholder="VD: Giặt máy nước mát, không ủi nhiệt cao..."
-                className="bg-white"
-              />
+              {/* Nhà cung cấp */}
+              <div className="space-y-1.5">
+                <Label htmlFor="provider" className="text-sm font-medium">
+                  Nhà cung cấp
+                </Label>
+                <Input
+                  id="provider"
+                  {...register("provider")}
+                  placeholder="Fashion Shop Official"
+                  className="h-9 text-sm"
+                />
+              </div>
             </div>
+          </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="provider">Nhà cung cấp / Đối tác</Label>
-              <Input
-                id="provider"
-                name="provider"
-                defaultValue={product?.provider || "Fashion Shop Official"}
-                placeholder="Tên nhà cung cấp..."
-                className="bg-white"
-              />
-            </div>
+          {/* Section 3: Ảnh sản phẩm (DOM 3, Desktop Row 2 Col 1) */}
+          <div className="border border-border rounded-lg p-6 bg-card space-y-4 lg:col-start-1 lg:row-start-2">
+            <ProductImageGrid
+              images={watchedImages}
+              onChange={(nextImages) =>
+                setValue("images", nextImages, { shouldDirty: true })
+              }
+              disabled={isSubmitting}
+            />
+          </div>
 
-            <div className="space-y-1.5 md:col-span-2">
-              <Label htmlFor="description">Mô tả chi tiết sản phẩm</Label>
-              <Textarea
-                id="description"
-                name="description"
-                rows={3}
-                defaultValue={product?.description || ""}
-                placeholder="Mô tả form dáng, tính năng, phong cách phối đồ..."
-                className="bg-white"
-              />
-            </div>
+          {/* Section 4: Biến thể (DOM 4, Desktop Full Width lg:col-span-2) */}
+          <div className="border border-border rounded-lg p-6 bg-card space-y-4 lg:col-span-2">
+            <ProductVariantTable
+              control={control}
+              register={register}
+              setValue={setValue}
+              watch={watch}
+              errors={errors}
+              availableImages={watchedImages}
+              onRequestDelete={handleRequestDeleteExistingVariant}
+              disabled={isSubmitting}
+            />
           </div>
         </div>
 
-        {/* Product Images */}
-        <div className="border rounded-lg p-5 bg-gray-50/50 space-y-4">
-          <div className="flex justify-between items-center border-b pb-2">
-            <h3 className="text-base font-semibold text-gray-800 flex items-center gap-2">
-              <ImageIcon className="w-5 h-5 text-rose-600" /> 2. Ảnh sản phẩm
-            </h3>
+        {/* 5. Sticky Bottom Action Bar */}
+        <div className="sticky bottom-4 z-10 bg-card/95 backdrop-blur-xs border border-border rounded-xl px-5 py-3 shadow-md mt-6 flex items-center justify-between gap-4">
+          <div>
+            {isDirty ? (
+              <span className="text-xs text-amber-600 dark:text-amber-400 font-medium flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                Có thay đổi chưa lưu
+              </span>
+            ) : (
+              <span className="text-xs text-muted-foreground hidden sm:inline">
+                {isEdit ? "Chế độ chỉnh sửa sản phẩm" : "Tạo sản phẩm mới"}
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2.5">
             <Button
               type="button"
               variant="outline"
               size="sm"
-              onClick={handleAddImageUrl}
-              className="text-xs"
+              onClick={handleRequestClose}
+              disabled={isSubmitting}
+              className="h-9 text-xs font-medium"
             >
-              <Plus className="w-3.5 h-3.5 mr-1" /> Thêm link ảnh
+              Hủy
             </Button>
-          </div>
 
-          <div className="space-y-2">
-            {imageUrls.map((url, idx) => (
-              <div key={idx} className="flex gap-2 items-center">
-                <Input
-                  value={url}
-                  onChange={(e) => handleImageUrlChange(idx, e.target.value)}
-                  placeholder={`Link ảnh ${idx + 1} (https://...)`}
-                  className="bg-white text-sm"
-                />
-                {imageUrls.length > 1 && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleRemoveImageUrl(idx)}
-                    className="text-gray-400 hover:text-red-600 shrink-0"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Variants Section */}
-        <div className="border rounded-lg p-5 bg-gray-50/50 space-y-4">
-          <div className="flex justify-between items-center border-b pb-2">
-            <div>
-              <h3 className="text-base font-semibold text-gray-800">
-                3. Danh sách biến thể (Size & Màu) <span className="text-red-500">*</span>
-              </h3>
-              <p className="text-xs text-gray-500">
-                Mỗi sản phẩm phải có ít nhất 1 biến thể với Size, Màu, SKU và Giá bán.
-              </p>
-            </div>
             <Button
-              type="button"
-              onClick={handleOpenAddVariant}
+              type="submit"
               size="sm"
-              className="bg-rose-600 hover:bg-rose-700 text-white flex items-center gap-1"
+              disabled={isSubmitting}
+              className="h-9 text-xs font-medium min-w-[110px]"
             >
-              <Plus size={16} /> Thêm biến thể
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                  <span>{isEdit ? "Lưu thay đổi" : "Tạo sản phẩm"}</span>
+                </>
+              ) : (
+                <span>{isEdit ? "Lưu thay đổi" : "Tạo sản phẩm"}</span>
+              )}
             </Button>
           </div>
-
-          {variants.length === 0 ? (
-            <div className="text-center py-6 text-gray-400 text-sm border-2 border-dashed rounded-lg">
-              Chưa có biến thể nào. Hãy bấm "Thêm biến thể" ở trên.
-            </div>
-          ) : (
-            <div className="overflow-x-auto border rounded-lg bg-white">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-gray-100 text-gray-600 uppercase text-xs">
-                  <tr>
-                    <th className="py-2.5 px-3">SKU</th>
-                    <th className="py-2.5 px-3">Kích cỡ (Size)</th>
-                    <th className="py-2.5 px-3">Màu sắc</th>
-                    <th className="py-2.5 px-3 text-right">Giá niêm yết</th>
-                    <th className="py-2.5 px-3 text-right">Giá bán</th>
-                    <th className="py-2.5 px-3 text-right">Tồn kho</th>
-                    <th className="py-2.5 px-3 text-center">Thao tác</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {variants.map((v, i) => (
-                    <tr key={i} className="hover:bg-gray-50">
-                      <td className="py-2.5 px-3 font-mono text-xs font-semibold">
-                        {v.sku}
-                      </td>
-                      <td className="py-2.5 px-3 font-medium">
-                        {v.size || "-"}
-                      </td>
-                      <td className="py-2.5 px-3">
-                        <div className="flex items-center gap-1.5">
-                          {v.colorHex && (
-                            <span
-                              className="w-3.5 h-3.5 rounded-full border shadow-xs inline-block"
-                              style={{ backgroundColor: v.colorHex }}
-                            />
-                          )}
-                          <span>{v.color || "-"}</span>
-                        </div>
-                      </td>
-                      <td className="py-2.5 px-3 text-right text-gray-500">
-                        {Number(v.listPrice).toLocaleString("vi-VN")} đ
-                      </td>
-                      <td className="py-2.5 px-3 text-right font-medium text-rose-600">
-                        {Number(v.sellingPrice).toLocaleString("vi-VN")} đ
-                      </td>
-                      <td className="py-2.5 px-3 text-right font-semibold">
-                        {v.stock}
-                      </td>
-                      <td className="py-2.5 px-3 text-center">
-                        <div className="flex items-center justify-center gap-1">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-blue-600"
-                            onClick={() => handleOpenEditVariant(i)}
-                          >
-                            <Edit size={16} />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-red-600"
-                            onClick={() => handleRemoveVariant(i)}
-                          >
-                            <Trash2 size={16} />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-
-        {/* Footer Actions */}
-        <div className="flex justify-end gap-3 pt-4 border-t">
-          <Button type="button" variant="outline" onClick={onClose}>
-            Hủy
-          </Button>
-          <Button
-            type="submit"
-            className="bg-rose-600 hover:bg-rose-700 text-white"
-            disabled={createProduct.isPending || updateProduct.isPending}
-          >
-            {createProduct.isPending || updateProduct.isPending
-              ? "Đang lưu..."
-              : isEdit
-                ? "Lưu cập nhật"
-                : "Tạo sản phẩm"}
-          </Button>
         </div>
       </form>
 
-      <VariantFormModal
-        isOpen={isVariantModalOpen}
-        onClose={() => setIsVariantModalOpen(false)}
-        onSave={handleSaveVariant}
-        initialData={
-          editingVariantIndex !== null ? variants[editingVariantIndex] : undefined
-        }
+      {/* Confirmation Dialog */}
+      <AdminConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={closeConfirmDialog}
+        onConfirm={confirmDialog.onConfirm || closeConfirmDialog}
+        title={confirmDialog.title}
+        description={confirmDialog.description}
+        variant={confirmDialog.variant}
+        confirmText={confirmDialog.confirmText}
+        cancelText={confirmDialog.cancelText}
+        alertOnly={confirmDialog.alertOnly}
       />
     </div>
   );

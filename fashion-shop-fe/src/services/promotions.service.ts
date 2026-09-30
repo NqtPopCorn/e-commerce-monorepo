@@ -1,6 +1,7 @@
 import { api } from "@/lib/api";
 import {
   CreatePromotionDto,
+  PaginatedPromotionsResponse,
   Promotion,
   PromotionQuery,
   PromotionQuote,
@@ -19,8 +20,21 @@ export const promotionsService = {
     return res.data;
   },
 
-  getAll: async (params?: PromotionQuery): Promise<Promotion[]> => {
+  getAll: async (
+    params?: PromotionQuery,
+  ): Promise<PaginatedPromotionsResponse> => {
     const res = await api.get("/promotions", { params });
+    if (Array.isArray(res.data)) {
+      return {
+        data: res.data,
+        meta: {
+          total: res.data.length,
+          page: 1,
+          limit: res.data.length || 10,
+          totalPages: 1,
+        },
+      };
+    }
     return res.data;
   },
 

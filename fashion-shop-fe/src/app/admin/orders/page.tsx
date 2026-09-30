@@ -1,6 +1,6 @@
 "use client";
 
-import { toast } from "sonner";
+import React, { useState, useMemo, useEffect, Suspense } from "react";
 import {
   Table,
   TableBody,
@@ -12,34 +12,26 @@ import {
 import { Button } from "@/components/ui/button";
 import { useGetAdminOrders, useUpdateOrderStatus } from "@/hooks/useOrders";
 import { OrderDetailModal } from "@/components/admin/orders/OrderDetailModal";
-import { useState, useMemo } from "react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import {
   Search,
   ShoppingCart,
   DollarSign,
   Clock,
-  CheckCircle,
-  Package,
-  Truck,
-  XCircle,
-  MoreHorizontal,
-  ChevronLeft,
-  ChevronRight,
+  RotateCcw,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import {
+  AdminPageHeader,
+  AdminStatCard,
+  AdminStatusBadge,
+  AdminDataTable,
+  AdminPageSkeleton,
+  AdminSortHeader,
+} from "@/components/admin";
+import { useTableParams } from "@/hooks/useTableParams";
+import { useSortableTable } from "@/hooks/useSortableTable";
+import { formatCurrency, formatDateTime } from "@/lib/format";
 
 const ORDER_STATUSES = [
   { value: "ALL", label: "Tất cả" },
@@ -50,26 +42,36 @@ const ORDER_STATUSES = [
   { value: "CANCELLED", label: "Đã hủy" },
 ];
 
-const STATUS_MAP: Record<string, { label: string; color: string; icon: any }> = {
-  PENDING: { label: "Chờ xử lý", color: "bg-amber-100 text-amber-800 border-amber-200", icon: Clock },
-  CONFIRMED: { label: "Đã xác nhận", color: "bg-blue-100 text-blue-800 border-blue-200", icon: Package },
-  SHIPPING: { label: "Đang giao", color: "bg-indigo-100 text-indigo-800 border-indigo-200", icon: Truck },
-  COMPLETED: { label: "Hoàn thành", color: "bg-emerald-100 text-emerald-800 border-emerald-200", icon: CheckCircle },
-  CANCELLED: { label: "Đã hủy", color: "bg-rose-100 text-rose-800 border-rose-200", icon: XCircle },
-};
-
-const ITEMS_PER_PAGE = 10;
-
-export default function AdminOrdersPage() {
-  const { data: allOrders = [], isLoading } = useGetAdminOrders();
+function AdminOrdersContent() {
+  const {
+    data: allOrders = [],
+    isLoading,
+    isError,
+    refetch,
+  } = useGetAdminOrders();
   const updateStatus = useUpdateOrderStatus();
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // States for filtering and pagination
-  const [activeTab, setActiveTab] = useState("ALL");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
+  // URL-driven table parameters
+  const { params, setParams } = useTableParams({ page: 1, pageSize: 10 });
+  const activeTab = params.status || "ALL";
+
+  // Debounced search
+  const [searchInput, setSearchInput] = useState(params.q);
+
+  useEffect(() => {
+    setSearchInput(params.q);
+  }, [params.q]);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      if (searchInput !== params.q) {
+        setParams({ q: searchInput.trim() || undefined, page: 1 });
+      }
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchInput, params.q, setParams]);
 
   // Computed metrics
   const metrics = useMemo(() => {
@@ -77,7 +79,9 @@ export default function AdminOrdersPage() {
     const totalRevenue = allOrders
       .filter((o: any) => o.status === "COMPLETED")
       .reduce((sum: number, o: any) => sum + Number(o.total), 0);
-    const pendingOrders = allOrders.filter((o: any) => o.status === "PENDING").length;
+    const pendingOrders = allOrders.filter(
+      (o: any) => o.status === "PENDING",
+    ).length;
 
     return { totalOrders, totalRevenue, pendingOrders };
   }, [allOrders]);
@@ -86,18 +90,57 @@ export default function AdminOrdersPage() {
   const filteredOrders = useMemo(() => {
     return allOrders.filter((order: any) => {
       const matchesStatus = activeTab === "ALL" || order.status === activeTab;
+      const q = params.q.toLowerCase();
       const matchesSearch =
-        order.id.toString().includes(searchQuery) ||
-        (order.user?.email || "").toLowerCase().includes(searchQuery.toLowerCase());
+        !q ||
+        order.id.toString().includes(q) ||
+        (order.user?.email || "").toLowerCase().includes(q) ||
+        (
+          [order.user?.firstName, order.user?.lastName]
+            .filter(Boolean)
+            .join(" ") || ""
+        )
+          .toLowerCase()
+          .includes(q);
       return matchesStatus && matchesSearch;
     });
-  }, [allOrders, activeTab, searchQuery]);
+  }, [allOrders, activeTab, params.q]);
 
-  // Pagination
-  const totalPages = Math.ceil(filteredOrders.length / ITEMS_PER_PAGE);
-  const paginatedOrders = filteredOrders.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
+  // In-memory instant sort across filtered orders
+  const {
+    sortedItems: sortedOrders,
+    sortField,
+    sortOrder,
+    handleSort,
+  } = useSortableTable(filteredOrders, {
+    defaultField: "createdAt",
+    defaultOrder: "desc",
+    customGetters: {
+      id: (o: any) => Number(o.id) || 0,
+      customer: (o: any) => {
+        const name =
+          o.recipientName ||
+          [o.user?.firstName, o.user?.lastName].filter(Boolean).join(" ") ||
+          o.user?.name ||
+          "";
+        return name.toLowerCase();
+      },
+      createdAt: (o: any) => new Date(o.createdAt).getTime(),
+      total: (o: any) => Number(o.total) || 0,
+      status: (o: any) => o.status || "",
+      payment: (o: any) =>
+        `${o.paymentMethod || ""} ${o.paymentStatus || ""}`.toLowerCase(),
+    },
+  });
+
+  // Pagination on sorted items
+  const total = sortedOrders.length;
+  const limit = params.pageSize;
+  const currentPage = params.page;
+  const totalPages = Math.ceil(total / limit) || 1;
+  const paginatedOrders = sortedOrders.slice(
+    (currentPage - 1) * limit,
+    currentPage * limit,
   );
 
   const handleViewOrder = (order: any) => {
@@ -105,256 +148,335 @@ export default function AdminOrdersPage() {
     setIsModalOpen(true);
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
+  const handleResetFilters = () => {
+    setSearchInput("");
+    setParams({ status: undefined, q: undefined, page: 1 });
+  };
 
   return (
-    <div className="space-y-8 pb-8">
-      {/* Header Section */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Quản lý Đơn hàng</h1>
-          <p className="text-muted-foreground mt-1">
-            Theo dõi, cập nhật trạng thái và quản lý tất cả đơn hàng.
-          </p>
+    <div className="space-y-6">
+      <AdminPageHeader
+        title="Quản Lý Đơn Hàng"
+        description="Theo dõi luồng xử lý đơn hàng từ lúc đặt đến khi hoàn thành hoặc hủy bỏ."
+      />
+
+      {/* KPI Cards */}
+      <div className="grid gap-5 grid-cols-1 sm:grid-cols-3">
+        <AdminStatCard
+          title="Tổng Đơn Hàng"
+          value={metrics.totalOrders}
+          subtitle="Tất cả đơn trong hệ thống"
+          icon={ShoppingCart}
+          color="slate"
+        />
+
+        <AdminStatCard
+          title="Tổng Doanh Thu"
+          value={formatCurrency(metrics.totalRevenue)}
+          subtitle="Từ các đơn hoàn thành"
+          icon={DollarSign}
+          color="emerald"
+        />
+
+        <AdminStatCard
+          title="Chờ Xử Lý"
+          value={metrics.pendingOrders}
+          subtitle="Đơn cần duyệt ngay"
+          icon={Clock}
+          color="amber"
+        />
+      </div>
+
+      {/* Tabs Filter & Search Bar */}
+      <div className="bg-card p-4 rounded-xl border border-border shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
+        <Tabs
+          value={activeTab}
+          onValueChange={(val) => {
+            setParams({ status: val === "ALL" ? undefined : val, page: 1 });
+          }}
+          className="w-full md:w-auto"
+        >
+          <TabsList className="bg-muted p-1 rounded-lg">
+            {ORDER_STATUSES.map((status) => (
+              <TabsTrigger
+                key={status.value}
+                value={status.value}
+                className="text-xs px-3"
+              >
+                {status.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+
+        <div className="relative w-full md:w-72">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Tìm theo mã đơn, email..."
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            className="pl-9 h-9 text-xs bg-background border-input"
+          />
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card className="shadow-sm border-slate-200">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium">Tổng Đơn Hàng</CardTitle>
-            <div className="p-2 bg-blue-50 rounded-full">
-              <ShoppingCart className="w-4 h-4 text-blue-600" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{metrics.totalOrders}</div>
-            <p className="text-xs text-muted-foreground mt-1">Đơn hàng trong hệ thống</p>
-          </CardContent>
-        </Card>
-        
-        <Card className="shadow-sm border-slate-200">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium">Tổng Doanh Thu</CardTitle>
-            <div className="p-2 bg-emerald-50 rounded-full">
-              <DollarSign className="w-4 h-4 text-emerald-600" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-emerald-600">
-              {metrics.totalRevenue.toLocaleString("vi-VN")} đ
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">Từ các đơn hoàn thành</p>
-          </CardContent>
-        </Card>
+      {/* Orders Data Table */}
+      <AdminDataTable
+        isLoading={isLoading}
+        isError={isError}
+        errorTitle="Không thể tải danh sách đơn hàng"
+        onRetry={() => refetch()}
+        isEmpty={paginatedOrders.length === 0}
+        emptyTitle="Không tìm thấy đơn hàng nào"
+        emptyDescription="Thử thay đổi bộ lọc trạng thái hoặc từ khóa tìm kiếm."
+        emptyAction={
+          activeTab !== "ALL" || params.q ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleResetFilters}
+              className="text-xs border-border"
+            >
+              <RotateCcw className="w-3.5 h-3.5 mr-1" />
+              Đặt lại bộ lọc
+            </Button>
+          ) : undefined
+        }
+        pagination={{
+          page: currentPage,
+          limit,
+          total,
+          totalPages,
+          onPageChange: (p) => setParams({ page: p }),
+          onLimitChange: (l) => setParams({ pageSize: l, page: 1 }),
+        }}
+      >
+        <Table>
+          <TableHeader className="bg-muted/50">
+            <TableRow className="border-b border-border">
+              <TableHead className="w-[110px]">
+                <AdminSortHeader
+                  title="Mã Đơn"
+                  field="id"
+                  currentField={sortField}
+                  currentOrder={sortOrder}
+                  onSort={handleSort}
+                  defaultOrder="desc"
+                />
+              </TableHead>
+              <TableHead>
+                <AdminSortHeader
+                  title="Khách Hàng"
+                  field="customer"
+                  currentField={sortField}
+                  currentOrder={sortOrder}
+                  onSort={handleSort}
+                  defaultOrder="asc"
+                />
+              </TableHead>
+              <TableHead>
+                <AdminSortHeader
+                  title="Ngày Đặt"
+                  field="createdAt"
+                  currentField={sortField}
+                  currentOrder={sortOrder}
+                  onSort={handleSort}
+                  defaultOrder="desc"
+                />
+              </TableHead>
+              <TableHead className="text-right">
+                <AdminSortHeader
+                  title="Tổng Tiền"
+                  field="total"
+                  currentField={sortField}
+                  currentOrder={sortOrder}
+                  onSort={handleSort}
+                  defaultOrder="desc"
+                  align="right"
+                />
+              </TableHead>
+              <TableHead className="text-center">
+                <AdminSortHeader
+                  title="Trạng Thái"
+                  field="status"
+                  currentField={sortField}
+                  currentOrder={sortOrder}
+                  onSort={handleSort}
+                  defaultOrder="asc"
+                  align="center"
+                />
+              </TableHead>
+              <TableHead className="text-center">
+                <AdminSortHeader
+                  title="Thanh Toán"
+                  field="payment"
+                  currentField={sortField}
+                  currentOrder={sortOrder}
+                  onSort={handleSort}
+                  defaultOrder="asc"
+                  align="center"
+                />
+              </TableHead>
+              <TableHead className="text-right font-semibold text-muted-foreground text-xs uppercase tracking-wider w-36">
+                Thao Tác
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {paginatedOrders.map((order: any) => {
+              const accountName =
+                [order.user?.firstName, order.user?.lastName]
+                  .filter(Boolean)
+                  .join(" ") ||
+                order.user?.name ||
+                "Khách vãng lai";
+              const displayName = order.recipientName || accountName;
+              const displayContact =
+                order.recipientPhone || order.user?.email || "N/A";
 
-        <Card className="shadow-sm border-slate-200">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium">Chờ Xử Lý</CardTitle>
-            <div className="p-2 bg-amber-50 rounded-full">
-              <Clock className="w-4 h-4 text-amber-600" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-amber-600">{metrics.pendingOrders}</div>
-            <p className="text-xs text-muted-foreground mt-1">Đơn hàng cần xác nhận ngay</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Main Content Area */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <Tabs defaultValue="ALL" value={activeTab} onValueChange={(val) => {
-          setActiveTab(val);
-          setCurrentPage(1); // Reset page on tab change
-        }}>
-          <div className="p-4 border-b border-slate-200 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <TabsList className="bg-slate-100/80 p-1">
-              {ORDER_STATUSES.map((status) => (
-                <TabsTrigger
-                  key={status.value}
-                  value={status.value}
-                  className="rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm px-4"
+              return (
+                <TableRow
+                  key={order.id}
+                  className="hover:bg-muted/50 cursor-pointer border-b border-border transition-colors group"
+                  onClick={() => handleViewOrder(order)}
                 >
-                  {status.label}
-                </TabsTrigger>
-              ))}
-            </TabsList>
+                  <TableCell className="font-mono text-xs font-semibold text-foreground group-hover:text-primary transition-colors tabular-nums">
+                    #{order.id}
+                  </TableCell>
 
-            <div className="relative w-full sm:w-72">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Tìm mã đơn, email..."
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="pl-9 bg-white"
-              />
-            </div>
-          </div>
+                  <TableCell>
+                    <div className="flex flex-col">
+                      <span className="text-xs font-medium text-foreground">
+                        {displayName}
+                      </span>
+                      <span className="text-[11px] text-muted-foreground font-mono">
+                        {displayContact}
+                      </span>
+                    </div>
+                  </TableCell>
 
-          <TabsContent value={activeTab} className="m-0 border-0 p-0">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader className="bg-slate-50/80">
-                  <TableRow className="hover:bg-transparent">
-                    <TableHead className="w-[120px] font-semibold text-slate-700">Mã Đơn</TableHead>
-                    <TableHead className="font-semibold text-slate-700">Khách Hàng</TableHead>
-                    <TableHead className="font-semibold text-slate-700">Ngày Đặt</TableHead>
-                    <TableHead className="font-semibold text-slate-700">Tổng Tiền</TableHead>
-                    <TableHead className="font-semibold text-slate-700">Trạng Thái</TableHead>
-                    <TableHead className="text-right font-semibold text-slate-700">Thao Tác</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {paginatedOrders.length === 0 ? (
-                    <TableRow>
-                      <TableCell
-                        colSpan={6}
-                        className="h-32 text-center text-muted-foreground"
+                  <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                    {formatDateTime(order.createdAt)}
+                  </TableCell>
+
+                  {/* Căn phải + tabular-nums */}
+                  <TableCell className="font-semibold text-xs text-foreground font-mono text-right tabular-nums">
+                    {formatCurrency(Number(order.total))}
+                  </TableCell>
+
+                  <TableCell className="text-center">
+                    <AdminStatusBadge status={order.status} size="sm" />
+                  </TableCell>
+
+                  <TableCell className="text-center">
+                    <div className="flex flex-col items-center gap-1">
+                      <span className="text-[11px] font-medium text-foreground">
+                        {order.paymentMethod === "COD" || !order.paymentMethod
+                          ? "COD"
+                          : order.paymentMethod}
+                      </span>
+                      <span
+                        className={`text-[10px] px-1.5 py-0.2 rounded-full font-semibold border ${
+                          order.paymentStatus === "PAID"
+                            ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30"
+                            : order.paymentStatus === "REFUNDED"
+                              ? "bg-purple-500/15 text-purple-700 dark:text-purple-400 border-purple-500/30"
+                              : "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30"
+                        }`}
                       >
-                        <div className="flex flex-col items-center justify-center space-y-2">
-                          <Package className="h-8 w-8 text-slate-300" />
-                          <p>Không tìm thấy đơn hàng nào phù hợp.</p>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    paginatedOrders.map((order: any) => {
-                      const statusInfo = STATUS_MAP[order.status] || {
-                        label: order.status,
-                        color: "bg-slate-100 text-slate-800 border-slate-200",
-                        icon: Package
-                      };
-                      const StatusIcon = statusInfo.icon;
+                        {order.paymentStatus === "PAID"
+                          ? "Đã TT"
+                          : order.paymentStatus === "REFUNDED"
+                            ? "Hoàn tiền"
+                            : "Chưa TT"}
+                      </span>
+                    </div>
+                  </TableCell>
 
-                      return (
-                        <TableRow
-                          key={order.id}
-                          className="hover:bg-slate-50/80 cursor-pointer transition-colors group"
+                  <TableCell
+                    className="text-right"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex justify-end gap-1.5">
+                      {order.status === "PENDING" && (
+                        <>
+                          <Button
+                            variant="default"
+                            size="sm"
+                            className="h-7 px-2.5 text-xs"
+                            onClick={() =>
+                              updateStatus.mutate({
+                                id: order.id,
+                                status: "CONFIRMED",
+                              })
+                            }
+                          >
+                            Xác nhận
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            className="h-7 px-2.5 text-xs"
+                            onClick={() =>
+                              updateStatus.mutate({
+                                id: order.id,
+                                status: "CANCELLED",
+                              })
+                            }
+                          >
+                            Hủy
+                          </Button>
+                        </>
+                      )}
+                      {order.status === "CONFIRMED" && (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          className="h-7 px-2.5 text-xs"
+                          onClick={() =>
+                            updateStatus.mutate({
+                              id: order.id,
+                              status: "SHIPPING",
+                            })
+                          }
+                        >
+                          Giao hàng
+                        </Button>
+                      )}
+                      {order.status === "SHIPPING" && (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          className="h-7 px-2.5 text-xs bg-success hover:bg-success/90 text-white"
+                          onClick={() =>
+                            updateStatus.mutate({
+                              id: order.id,
+                              status: "COMPLETED",
+                            })
+                          }
+                        >
+                          Hoàn thành
+                        </Button>
+                      )}
+                      {(order.status === "COMPLETED" ||
+                        order.status === "CANCELLED") && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2.5 text-xs text-muted-foreground hover:text-foreground"
                           onClick={() => handleViewOrder(order)}
                         >
-                          <TableCell className="font-medium">
-                            <span className="text-primary group-hover:underline">#{order.id}</span>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex flex-col">
-                              <span className="text-sm font-medium text-slate-900">{order.user?.email || "Khách vãng lai"}</span>
-                              <span className="text-xs text-muted-foreground">{order.user?.name || ""}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-slate-600">
-                            {new Date(order.createdAt).toLocaleString("vi-VN", {
-                              hour: '2-digit', minute:'2-digit', day: '2-digit', month: '2-digit', year: 'numeric'
-                            })}
-                          </TableCell>
-                          <TableCell className="font-semibold text-slate-900">
-                            {Number(order.total).toLocaleString("vi-VN")} đ
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className={`flex w-fit items-center gap-1.5 px-2.5 py-1 text-xs border ${statusInfo.color}`}>
-                              <StatusIcon className="w-3.5 h-3.5" />
-                              {statusInfo.label}
-                            </Badge>
-                          </TableCell>
-                          <TableCell
-                            className="text-right"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <div className="flex justify-end gap-2">
-                              {order.status === "PENDING" && (
-                                <>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-8 border-slate-200 text-slate-700 hover:bg-slate-100 hover:text-slate-900"
-                                    onClick={() => updateStatus.mutate({ id: order.id, status: "CONFIRMED" })}
-                                  >
-                                    Xác nhận
-                                  </Button>
-                                  <Button
-                                    variant="destructive"
-                                    size="sm"
-                                    className="h-8"
-                                    onClick={() => updateStatus.mutate({ id: order.id, status: "CANCELLED" })}
-                                  >
-                                    Hủy
-                                  </Button>
-                                </>
-                              )}
-                              {order.status === "CONFIRMED" && (
-                                <Button
-                                  variant="default"
-                                  size="sm"
-                                  className="h-8 bg-indigo-600 hover:bg-indigo-700"
-                                  onClick={() => updateStatus.mutate({ id: order.id, status: "SHIPPING" })}
-                                >
-                                  Giao hàng
-                                </Button>
-                              )}
-                              {order.status === "SHIPPING" && (
-                                <Button
-                                  variant="default"
-                                  size="sm"
-                                  className="h-8 bg-emerald-600 hover:bg-emerald-700"
-                                  onClick={() => updateStatus.mutate({ id: order.id, status: "COMPLETED" })}
-                                >
-                                  Hoàn thành
-                                </Button>
-                              )}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-            
-            {/* Pagination Controls */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 bg-slate-50/50">
-                <div className="text-sm text-muted-foreground">
-                  Hiển thị <span className="font-medium text-slate-900">{(currentPage - 1) * ITEMS_PER_PAGE + 1}</span> đến <span className="font-medium text-slate-900">{Math.min(currentPage * ITEMS_PER_PAGE, filteredOrders.length)}</span> trong <span className="font-medium text-slate-900">{filteredOrders.length}</span> đơn hàng
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-8 w-8 p-0"
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  <div className="text-sm font-medium w-12 text-center">
-                    {currentPage} / {totalPages}
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-8 w-8 p-0"
-                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                    disabled={currentPage === totalPages}
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
-      </div>
+                          Xem chi tiết
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </AdminDataTable>
 
       <OrderDetailModal
         isOpen={isModalOpen}
@@ -362,5 +484,13 @@ export default function AdminOrdersPage() {
         order={selectedOrder}
       />
     </div>
+  );
+}
+
+export default function AdminOrdersPage() {
+  return (
+    <Suspense fallback={<AdminPageSkeleton />}>
+      <AdminOrdersContent />
+    </Suspense>
   );
 }

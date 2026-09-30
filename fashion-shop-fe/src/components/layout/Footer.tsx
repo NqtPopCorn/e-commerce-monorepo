@@ -118,7 +118,8 @@ export default function Footer() {
         </div>
 
         <div className="text-center text-gray-500 text-xs mt-10 pt-4 border-t border-gray-100">
-          &copy; {new Date().getFullYear()} Fashion Shop V2. All rights reserved.
+          &copy; {new Date().getFullYear()} Fashion Shop V2. All rights
+          reserved.
         </div>
       </div>
     </footer>

@@ -17,13 +17,12 @@ export default function CartPage() {
     quantity: i.quantity,
   }));
 
-  const { data: quote, isLoading: isQuoteLoading } = usePromotionQuote(cartInputs);
+  const { data: quote, isLoading: isQuoteLoading } =
+    usePromotionQuote(cartInputs);
 
   const totalItems = items.reduce((acc, item) => acc + item.quantity, 0);
 
-  const quoteLineMap = new Map(
-    quote?.lines.map((l) => [l.variantId, l]) || [],
-  );
+  const quoteLineMap = new Map(quote?.lines.map((l) => [l.variantId, l]) || []);
 
   return (
     <div className="flex flex-col gap-6">
@@ -63,10 +62,13 @@ export default function CartPage() {
             {/* Cart Items List */}
             {items.map((item) => {
               const qLine = quoteLineMap.get(item.variantId);
-              const originalUnitPrice = qLine ? qLine.originalUnitPrice : item.price;
+              const originalUnitPrice = qLine
+                ? qLine.originalUnitPrice
+                : item.price;
               const hasDiscount = qLine && qLine.productDiscount > 0;
               const finalLineTotal = qLine
-                ? (qLine.originalUnitPrice * qLine.quantity) - qLine.productDiscount
+                ? qLine.originalUnitPrice * qLine.quantity -
+                  qLine.productDiscount
                 : item.price * item.quantity;
 
               return (
@@ -97,7 +99,8 @@ export default function CartPage() {
                       </Link>
                       {(item.size || item.color) && (
                         <span className="text-xs text-gray-500 mt-0.5">
-                          Phân loại: {[item.size, item.color].filter(Boolean).join(" - ")}
+                          Phân loại:{" "}
+                          {[item.size, item.color].filter(Boolean).join(" - ")}
                         </span>
                       )}
                       {qLine?.campaign && (
@@ -153,7 +156,10 @@ export default function CartPage() {
                     <div className="text-right">
                       {hasDiscount && (
                         <div className="text-xs text-gray-400 line-through">
-                          {(originalUnitPrice * item.quantity).toLocaleString("vi-VN")} đ
+                          {(originalUnitPrice * item.quantity).toLocaleString(
+                            "vi-VN",
+                          )}{" "}
+                          đ
                         </div>
                       )}
                       <div className="font-bold text-[#c92127]">

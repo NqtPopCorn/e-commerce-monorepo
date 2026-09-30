@@ -18,7 +18,8 @@ export const usePromotionQuote = (items: CartInput[], voucherCode?: string) => {
 
   return useQuery({
     queryKey: ["promotion-quote", normalizedItems, codeKey],
-    queryFn: () => promotionsService.quote({ items: normalizedItems, voucherCode }),
+    queryFn: () =>
+      promotionsService.quote({ items: normalizedItems, voucherCode }),
     enabled: !!token && normalizedItems.length > 0,
     staleTime: 0,
   });
@@ -65,7 +66,9 @@ export const useUpdatePromotion = () => {
       promotionsService.update(id, data),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["admin-promotions"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-promotion", String(data.id)] });
+      queryClient.invalidateQueries({
+        queryKey: ["admin-promotion", String(data.id)],
+      });
     },
   });
 };

@@ -37,12 +37,25 @@ export class ProductsController {
     @Query("search") search?: string,
     @Query("categoryId") categoryId?: string,
     @Query("brandId") brandId?: string,
+    @Query("minPrice") minPrice?: string,
+    @Query("maxPrice") maxPrice?: string,
+    @Query("page") page?: string,
+    @Query("limit") limit?: string,
   ) {
     return this.service.findAll({
       search,
       categoryId: categoryId ? parseInt(categoryId, 10) : undefined,
       brandId: brandId ? parseInt(brandId, 10) : undefined,
+      minPrice: minPrice ? parseFloat(minPrice) : undefined,
+      maxPrice: maxPrice ? parseFloat(maxPrice) : undefined,
+      page: page ? parseInt(page, 10) : undefined,
+      limit: limit ? parseInt(limit, 10) : undefined,
     });
+  }
+
+  @Get("stats")
+  getStats() {
+    return this.service.getStats();
   }
 
   @Get("slug/:slug")

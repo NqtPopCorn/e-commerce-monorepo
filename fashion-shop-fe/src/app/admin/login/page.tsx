@@ -73,9 +73,8 @@ export default function AdminLoginPage() {
         password: values.password,
       });
 
-      // Kiểm tra quyền hạn: chỉ cho phép tài khoản ADMIN đăng nhập
       if (result.user.role !== "ADMIN") {
-        setError("Tài khoản của bạn không có quyền truy cập trang quản trị!");
+        setError("Tài khoản không có quyền truy cập quản trị.");
         return;
       }
 
@@ -83,11 +82,11 @@ export default function AdminLoginPage() {
       router.push("/admin");
     } catch (err: any) {
       if (err.response?.status === 401) {
-        setError("Email hoặc mật khẩu quản trị không chính xác.");
+        setError("Email hoặc mật khẩu không đúng.");
       } else {
         setError(
           err.response?.data?.message ||
-            "Không thể kết nối đến máy chủ. Vui lòng thử lại sau.",
+            "Không thể kết nối đến máy chủ. Kiểm tra kết nối rồi thử lại.",
         );
       }
     } finally {
@@ -108,52 +107,36 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="min-h-screen w-full flex flex-col justify-center items-center p-4 sm:p-6 bg-gradient-to-br from-slate-900 via-slate-800 to-zinc-900 relative overflow-hidden select-none">
-      {/* Background Decorative Blurs */}
-      <div className="absolute -top-32 -left-32 w-96 h-96 bg-rose-600/15 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-blue-600/15 rounded-full blur-3xl pointer-events-none" />
-
+    <div className="min-h-screen w-full flex flex-col justify-center items-center p-4 sm:p-6 bg-muted/30 text-foreground">
       {/* Center Card */}
-      <div className="w-full max-w-[440px] z-10">
+      <div className="w-full max-w-[420px]">
         {/* Link back to public shop */}
-        <div className="mb-5 flex justify-between items-center">
+        <div className="mb-4 flex items-center justify-between">
           <Link
             href="/"
-            className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-medium text-slate-300 hover:text-white transition-colors group"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
           >
-            <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
+            <ArrowLeft className="w-4 h-4" />
             <span>Về trang bán hàng</span>
           </Link>
-
-          <span className="text-xs text-slate-400 bg-slate-800/80 border border-slate-700/60 px-2.5 py-1 rounded-full flex items-center gap-1">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-            Bảo mật SSL
-          </span>
         </div>
 
-        <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl shadow-black/40 border border-white/20 p-7 sm:p-9 text-slate-900">
+        <div className="bg-card rounded-xl border border-border p-6 sm:p-8 shadow-xs text-card-foreground">
           {/* Header */}
-          <div className="text-center mb-6">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-slate-900 text-white shadow-lg shadow-slate-900/25 mb-3.5">
-              <KeyRound className="w-7 h-7 text-rose-500" />
-            </div>
-            <h1 className="text-2xl font-black tracking-tight text-slate-950 flex items-center justify-center gap-1">
-              <span>FASHION</span>
-              <span className="text-rose-600">SHOP</span>
+          <div className="mb-6">
+            <h1 className="text-xl font-semibold tracking-tight text-foreground">
+              Đăng nhập quản trị
             </h1>
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mt-1">
-              Admin Portal
-            </p>
-            <p className="text-sm text-slate-600 mt-2">
-              Đăng nhập để quản lý đơn hàng, sản phẩm & kho
+            <p className="text-xs text-muted-foreground mt-1">
+              Nhập thông tin tài khoản quản trị viên để tiếp tục.
             </p>
           </div>
 
           {/* Error Banner */}
           {error && (
-            <div className="mb-5 flex items-start gap-2.5 p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">
-              <AlertCircle className="w-5 h-5 shrink-0 text-red-500 mt-0.5" />
-              <span className="leading-snug">{error}</span>
+            <div className="mb-5 flex items-start gap-2.5 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span className="leading-relaxed">{error}</span>
             </div>
           )}
 
@@ -164,18 +147,18 @@ export default function AdminLoginPage() {
                 control={form.control}
                 name="email"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-xs font-semibold uppercase tracking-wider text-slate-700">
-                      Email Quản trị
+                  <FormItem className="space-y-1.5">
+                    <FormLabel className="text-xs font-medium text-foreground">
+                      Email
                     </FormLabel>
                     <FormControl>
                       <div className="relative">
-                        <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                         <Input
                           placeholder="admin@fashionshop.com"
                           type="email"
                           autoComplete="email"
-                          className="pl-10 h-11 bg-slate-50 border-slate-200 rounded-xl focus-visible:ring-slate-900"
+                          className="pl-9 h-9 text-xs bg-background"
                           {...field}
                         />
                       </div>
@@ -189,26 +172,28 @@ export default function AdminLoginPage() {
                 control={form.control}
                 name="password"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-xs font-semibold uppercase tracking-wider text-slate-700">
+                  <FormItem className="space-y-1.5">
+                    <FormLabel className="text-xs font-medium text-foreground">
                       Mật khẩu
                     </FormLabel>
                     <FormControl>
                       <div className="relative">
-                        <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                         <Input
                           placeholder="••••••••"
                           type={showPassword ? "text" : "password"}
                           autoComplete="current-password"
-                          className="pl-10 pr-10 h-11 bg-slate-50 border-slate-200 rounded-xl focus-visible:ring-slate-900"
+                          className="pl-9 pr-9 h-9 text-xs bg-background"
                           {...field}
                         />
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 transition-colors"
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                           tabIndex={-1}
-                          aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+                          aria-label={
+                            showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"
+                          }
                         >
                           {showPassword ? (
                             <EyeOff className="w-4 h-4" />
@@ -227,15 +212,15 @@ export default function AdminLoginPage() {
                 <Button
                   type="submit"
                   disabled={loading}
-                  className="w-full h-11 bg-slate-950 hover:bg-slate-800 text-white font-semibold rounded-xl shadow-md transition-all duration-150 flex items-center justify-center gap-2 active:scale-[0.99] cursor-pointer"
+                  className="w-full h-9 text-xs font-semibold shadow-xs"
                 >
                   {loading ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Đang xác thực...</span>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                      <span>Đang đăng nhập...</span>
                     </>
                   ) : (
-                    <span>Đăng nhập Quản trị</span>
+                    <span>Đăng nhập</span>
                   )}
                 </Button>
               </div>
@@ -243,21 +228,21 @@ export default function AdminLoginPage() {
           </Form>
 
           {/* Quick Demo Fill Helper */}
-          <div className="mt-6 pt-5 border-t border-slate-100">
+          <div className="mt-5 pt-4 border-t border-border">
             <button
               type="button"
               onClick={fillAdminCredentials}
-              className="w-full py-2.5 px-3 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors flex items-center justify-center gap-1.5 border border-slate-200/80 cursor-pointer"
+              className="w-full py-2 px-3 text-xs font-medium text-muted-foreground hover:text-foreground bg-muted/50 hover:bg-muted rounded-lg transition-colors flex items-center justify-center gap-1.5 border border-border"
             >
-              <KeyRound className="w-3.5 h-3.5 text-rose-500" />
-              <span>Điền mẫu: admin@fashionshop.com (admin123 / admin123456)</span>
+              <KeyRound className="w-3.5 h-3.5 text-primary" />
+              <span>Điền mẫu tài khoản admin</span>
             </button>
           </div>
         </div>
 
         {/* Footer info */}
-        <p className="text-center text-xs text-slate-400 mt-5">
-          &copy; {new Date().getFullYear()} Fashion Shop — All rights reserved.
+        <p className="text-center text-xs text-muted-foreground mt-4">
+          &copy; {new Date().getFullYear()} Fashion Shop
         </p>
       </div>
     </div>

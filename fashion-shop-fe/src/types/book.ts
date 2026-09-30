@@ -1,5 +1,10 @@
 export * from "./product";
-import { Product, ProductVariant, CreateProductDto, UpdateProductDto } from "./product";
+import {
+  Product,
+  ProductVariant,
+  CreateProductDto,
+  UpdateProductDto,
+} from "./product";
 
 export type Book = Product;
 export type BookVariant = ProductVariant;

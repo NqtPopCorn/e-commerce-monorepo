@@ -2,31 +2,54 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useGetProducts } from "@/hooks/useProducts";
-import { Sparkles, ArrowRight, ShieldCheck, Truck, RotateCcw } from "lucide-react";
+import {
+  Sparkles,
+  ArrowRight,
+  ShieldCheck,
+  Truck,
+  RotateCcw,
+} from "lucide-react";
 
 const heroBanners = [
   {
     title: "BỘ SƯU TẬP XUÂN HÈ 2026",
     subtitle: "Khám phá phong cách thanh lịch & hiện đại với chất liệu cao cấp",
-    image: "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=1600&q=80",
+    image:
+      "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=1600&q=80",
     buttonText: "Khám phá ngay",
     link: "/products",
   },
   {
     title: "ƯU ĐÃI THỜI TRANG ĐẾN 50%",
     subtitle: "Hàng trăm mẫu áo polo, sơ mi & quần jeans chính hãng",
-    image: "https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?w=1600&q=80",
+    image:
+      "https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?w=1600&q=80",
     buttonText: "Mua ngay",
     link: "/products",
   },
 ];
 
 const categories = [
-  { name: "Áo thun", img: "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=300&q=80" },
-  { name: "Áo polo", img: "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=300&q=80" },
-  { name: "Áo sơ mi", img: "https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=300&q=80" },
-  { name: "Quần jeans", img: "https://images.unsplash.com/photo-1542272604-780c96856592?w=300&q=80" },
-  { name: "Váy liền", img: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=300&q=80" },
+  {
+    name: "Áo thun",
+    img: "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=300&q=80",
+  },
+  {
+    name: "Áo polo",
+    img: "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=300&q=80",
+  },
+  {
+    name: "Áo sơ mi",
+    img: "https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=300&q=80",
+  },
+  {
+    name: "Quần jeans",
+    img: "https://images.unsplash.com/photo-1542272604-780c96856592?w=300&q=80",
+  },
+  {
+    name: "Váy liền",
+    img: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=300&q=80",
+  },
 ];
 
 export default function HomePage() {
@@ -97,7 +120,9 @@ export default function HomePage() {
         <div className="flex items-center gap-3.5 px-4 py-2">
           <Truck className="w-8 h-8 text-rose-600 shrink-0" />
           <div>
-            <h4 className="font-bold text-gray-900 text-sm">Giao hàng miễn phí</h4>
+            <h4 className="font-bold text-gray-900 text-sm">
+              Giao hàng miễn phí
+            </h4>
             <p className="text-xs text-gray-500">Đơn hàng từ 400.000đ</p>
           </div>
         </div>
@@ -105,14 +130,18 @@ export default function HomePage() {
           <RotateCcw className="w-8 h-8 text-rose-600 shrink-0" />
           <div>
             <h4 className="font-bold text-gray-900 text-sm">Đổi trả dễ dàng</h4>
-            <p className="text-xs text-gray-500">Hỗ trợ đổi size trong 7 ngày</p>
+            <p className="text-xs text-gray-500">
+              Hỗ trợ đổi size trong 7 ngày
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-3.5 px-4 py-2">
           <ShieldCheck className="w-8 h-8 text-rose-600 shrink-0" />
           <div>
             <h4 className="font-bold text-gray-900 text-sm">Chính hãng 100%</h4>
-            <p className="text-xs text-gray-500">Cam kết chất lượng tuyệt đối</p>
+            <p className="text-xs text-gray-500">
+              Cam kết chất lượng tuyệt đối
+            </p>
           </div>
         </div>
       </div>
@@ -158,7 +187,8 @@ export default function HomePage() {
         <div className="flex justify-between items-center mb-6">
           <div>
             <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-rose-600" /> Xu hướng thời trang mới nhất
+              <Sparkles className="w-5 h-5 text-rose-600" /> Xu hướng thời trang
+              mới nhất
             </h3>
             <p className="text-xs text-gray-500 mt-1">
               Những thiết kế thịnh hành nhất được người dùng yêu thích tuần này
@@ -181,10 +211,14 @@ export default function HomePage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
             {products?.slice(0, 8).map((product: any) => {
               const minPrice = Math.min(
-                ...(product.variants?.map((v: any) => Number(v.sellingPrice)) || [0]),
+                ...(product.variants?.map((v: any) =>
+                  Number(v.sellingPrice),
+                ) || [0]),
               );
               const maxListPrice = Math.max(
-                ...(product.variants?.map((v: any) => Number(v.listPrice || 0)) || [0]),
+                ...(product.variants?.map((v: any) =>
+                  Number(v.listPrice || 0),
+                ) || [0]),
               );
               const discount =
                 maxListPrice > minPrice

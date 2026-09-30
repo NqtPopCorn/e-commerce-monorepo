@@ -89,7 +89,9 @@ export default function ProductDetailPage({
       });
     }
     if (list.length === 0) {
-      list.push("https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=800&q=80");
+      list.push(
+        "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=800&q=80",
+      );
     }
     return list;
   }, [product]);
@@ -278,7 +280,10 @@ export default function ProductDetailPage({
           {availableColors.length > 0 && (
             <div className="space-y-2">
               <span className="text-sm font-medium text-gray-700 block">
-                Chọn màu sắc: <span className="text-gray-900 font-semibold">{selectedColor}</span>
+                Chọn màu sắc:{" "}
+                <span className="text-gray-900 font-semibold">
+                  {selectedColor}
+                </span>
               </span>
               <div className="flex flex-wrap gap-2.5">
                 {availableColors.map((color) => (
@@ -306,7 +311,10 @@ export default function ProductDetailPage({
           <div className="flex items-center gap-4 text-xs text-gray-500 py-1 border-y border-gray-100">
             {currentVariant?.sku && (
               <span>
-                Mã SKU: <strong className="font-mono text-gray-700">{currentVariant.sku}</strong>
+                Mã SKU:{" "}
+                <strong className="font-mono text-gray-700">
+                  {currentVariant.sku}
+                </strong>
               </span>
             )}
             <span>
@@ -324,7 +332,9 @@ export default function ProductDetailPage({
           {/* Quantity Selector & Action Buttons */}
           <div className="space-y-4 pt-2">
             <div className="flex items-center gap-4">
-              <span className="text-sm font-medium text-gray-700">Số lượng:</span>
+              <span className="text-sm font-medium text-gray-700">
+                Số lượng:
+              </span>
               <div className="flex items-center border border-gray-200 rounded-lg bg-white overflow-hidden shadow-xs">
                 <button
                   onClick={() => setQuantity((q) => Math.max(1, q - 1))}
@@ -410,37 +420,49 @@ export default function ProductDetailPage({
           {product.brand && (
             <div className="flex justify-between py-2 border-b border-gray-100">
               <span className="text-gray-500">Thương hiệu</span>
-              <span className="font-medium text-gray-800">{product.brand.name}</span>
+              <span className="font-medium text-gray-800">
+                {product.brand.name}
+              </span>
             </div>
           )}
           {product.category && (
             <div className="flex justify-between py-2 border-b border-gray-100">
               <span className="text-gray-500">Danh mục</span>
-              <span className="font-medium text-gray-800">{product.category.name}</span>
+              <span className="font-medium text-gray-800">
+                {product.category.name}
+              </span>
             </div>
           )}
           {product.material && (
             <div className="flex justify-between py-2 border-b border-gray-100">
               <span className="text-gray-500">Chất liệu</span>
-              <span className="font-medium text-gray-800">{product.material}</span>
+              <span className="font-medium text-gray-800">
+                {product.material}
+              </span>
             </div>
           )}
           {product.season && (
             <div className="flex justify-between py-2 border-b border-gray-100">
               <span className="text-gray-500">Mùa / Bộ sưu tập</span>
-              <span className="font-medium text-gray-800">{product.season}</span>
+              <span className="font-medium text-gray-800">
+                {product.season}
+              </span>
             </div>
           )}
           {product.careInstructions && (
             <div className="flex justify-between py-2 border-b border-gray-100">
               <span className="text-gray-500">Bảo quản</span>
-              <span className="font-medium text-gray-800">{product.careInstructions}</span>
+              <span className="font-medium text-gray-800">
+                {product.careInstructions}
+              </span>
             </div>
           )}
           {product.provider && (
             <div className="flex justify-between py-2 border-b border-gray-100">
               <span className="text-gray-500">Xuất xứ / Nhà phân phối</span>
-              <span className="font-medium text-gray-800">{product.provider}</span>
+              <span className="font-medium text-gray-800">
+                {product.provider}
+              </span>
             </div>
           )}
         </div>

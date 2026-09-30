@@ -1,5 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { brandsService, CreateBrandDto, UpdateBrandDto } from "@/services/brands.service";
+import {
+  brandsService,
+  CreateBrandDto,
+  UpdateBrandDto,
+} from "@/services/brands.service";
 
 export const useGetBrands = () => {
   return useQuery({

@@ -10,12 +10,15 @@ import { PromotionsModule } from "./modules/promotions/promotions.module";
 import { AccountsModule } from "./modules/accounts/accounts.module";
 import { HealthController } from "./health.controller";
 import { CategoriesModule } from "./modules/categories/categories.module";
-import { BatchesModule } from "./modules/batches/batches.module";
+import { PurchasesModule } from "./modules/purchases/purchases.module";
+import { AuditLogsModule } from "./modules/audit-logs/audit-logs.module";
+import { UploadModule } from "./modules/upload/upload.module";
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
+    AuditLogsModule,
     AuthModule,
     ProductsModule,
     BrandsModule,
@@ -24,7 +27,8 @@ import { BatchesModule } from "./modules/batches/batches.module";
     PromotionsModule,
     AccountsModule,
     CategoriesModule,
-    BatchesModule,
+    PurchasesModule,
+    UploadModule,
   ],
   controllers: [HealthController],
 })
