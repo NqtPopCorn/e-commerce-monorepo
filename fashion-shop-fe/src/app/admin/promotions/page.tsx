@@ -218,11 +218,16 @@ function AdminPromotionsContent() {
       );
     }
 
-    if (!p.discountType || !p.discountValue) return "-";
-    if (p.discountType === "PERCENT") {
-      return `Giảm ${p.discountValue}% ${p.maxDiscountValue ? `(Tối đa ${formatCurrency(Number(p.maxDiscountValue))})` : ""}`;
+    const firstGroup = p.groups?.[0];
+    const dType = p.discountType || firstGroup?.discountType;
+    const dVal = p.discountValue || firstGroup?.discountValue;
+    const dMax = p.maxDiscountValue || firstGroup?.maxDiscountValue;
+
+    if (!dType || !dVal) return "-";
+    if (dType === "PERCENT") {
+      return `Giảm ${dVal}% ${dMax ? `(Tối đa ${formatCurrency(Number(dMax))})` : ""}`;
     }
-    return `Giảm ${formatCurrency(Number(p.discountValue))}`;
+    return `Giảm ${formatCurrency(Number(dVal))}`;
   };
 
   const handleResetFilters = () => {
@@ -389,12 +394,26 @@ function AdminPromotionsContent() {
                   {p.name}
                 </TableCell>
 
-                <TableCell>{getKindBadge(p.kind)}</TableCell>
+                <TableCell>
+                  {getKindBadge(
+                    p.kind ||
+                      (p.applicationType === "VOUCHER"
+                        ? "VOUCHER"
+                        : p.campaignId
+                          ? "CAMPAIGN"
+                          : "ORDER_AUTO"),
+                  )}
+                </TableCell>
 
                 <TableCell className="font-mono text-xs">
-                  {p.code ? (
-                    <span className="bg-muted text-foreground px-2 py-0.5 rounded font-bold border border-border">
-                      {p.code}
+                  {p.code || p.vouchers?.[0]?.code ? (
+                    <span className="bg-muted text-foreground px-2 py-0.5 rounded font-bold border border-border inline-flex items-center gap-1">
+                      <span>{p.code || p.vouchers?.[0]?.code}</span>
+                      {p.vouchers && p.vouchers.length > 1 && (
+                        <span className="text-[10px] text-muted-foreground font-normal">
+                          (+{p.vouchers.length - 1})
+                        </span>
+                      )}
                     </span>
                   ) : (
                     <span className="text-muted-foreground">-</span>
@@ -424,7 +443,17 @@ function AdminPromotionsContent() {
                 </TableCell>
 
                 <TableCell className="text-center text-xs font-mono tabular-nums">
-                  {p.kind === "VOUCHER" ? (
+                  {p.budgetLimit ? (
+                    <div className="flex flex-col items-center">
+                      <span className="text-[11px] font-semibold text-foreground">
+                        {formatCurrency(p.spentAmount || 0)}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">
+                        / {formatCurrency(p.budgetLimit)}
+                      </span>
+                    </div>
+                  ) : p.kind === "VOUCHER" ||
+                    p.applicationType === "VOUCHER" ? (
                     <span>
                       <strong className="text-foreground">{p.usedCount}</strong>
                       {p.maxUses ? ` / ${p.maxUses}` : ""}

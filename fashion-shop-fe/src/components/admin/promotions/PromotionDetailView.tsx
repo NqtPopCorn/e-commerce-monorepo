@@ -57,11 +57,32 @@ export function PromotionDetailView({
   const [copied, setCopied] = useState(false);
   const [activeGroupIndex, setActiveGroupIndex] = useState(0);
 
+  const voucherCode = promotion.vouchers?.[0]?.code || promotion.code;
+  const voucherUses =
+    promotion.vouchers?.[0]?.usedCount ?? promotion.usedCount ?? 0;
+  const voucherMaxUses = promotion.vouchers?.[0]?.maxUses ?? promotion.maxUses;
+
+  const firstGroup = promotion.groups?.[0];
+  const discountType = firstGroup?.discountType || promotion.discountType;
+  const discountValue = firstGroup?.discountValue || promotion.discountValue;
+  const maxDiscountValue =
+    firstGroup?.maxDiscountValue || promotion.maxDiscountValue;
+
+  const effectiveKind: PromotionKind =
+    promotion.kind ||
+    (promotion.applicationType === "VOUCHER"
+      ? "VOUCHER"
+      : promotion.campaignId ||
+          (promotion.groups &&
+            promotion.groups.some((g) => g.variants && g.variants.length > 0))
+        ? "CAMPAIGN"
+        : "ORDER_AUTO");
+
   const handleCopyCode = () => {
-    if (promotion.code) {
-      navigator.clipboard.writeText(promotion.code);
+    if (voucherCode) {
+      navigator.clipboard.writeText(voucherCode);
       setCopied(true);
-      toast.success(`Đã sao chép mã: ${promotion.code}`);
+      toast.success(`Đã sao chép mã: ${voucherCode}`);
       setTimeout(() => setCopied(false), 2000);
     }
   };
@@ -148,16 +169,16 @@ export function PromotionDetailView({
         <AdminStatCard
           title="Loại chương trình"
           value={
-            promotion.kind === "VOUCHER"
+            effectiveKind === "VOUCHER"
               ? "Voucher"
-              : promotion.kind === "ORDER_AUTO"
+              : effectiveKind === "ORDER_AUTO"
                 ? "Tự động đơn"
                 : "Campaign SP"
           }
           subtitle={
-            promotion.kind === "CAMPAIGN"
+            effectiveKind === "CAMPAIGN"
               ? "Áp dụng từng dòng (LINE)"
-              : promotion.kind === "ORDER_AUTO"
+              : effectiveKind === "ORDER_AUTO"
                 ? "Áp dụng cấp đơn (ORDER)"
                 : "Áp dụng mã giảm (VOUCHER)"
           }
@@ -168,14 +189,14 @@ export function PromotionDetailView({
         <AdminStatCard
           title="Mức ưu đãi chính"
           value={
-            promotion.kind === "CAMPAIGN"
+            effectiveKind === "CAMPAIGN"
               ? `${groups.length} nhóm SKU`
-              : promotion.discountType === "PERCENT"
-                ? `Giảm ${promotion.discountValue}% ${promotion.maxDiscountValue ? `(Max ${Number(promotion.maxDiscountValue).toLocaleString("vi-VN")}₫)` : ""}`
-                : `Giảm ${Number(promotion.discountValue || 0).toLocaleString("vi-VN")}₫`
+              : discountType === "PERCENT"
+                ? `Giảm ${discountValue}% ${maxDiscountValue ? `(Max ${Number(maxDiscountValue).toLocaleString("vi-VN")}₫)` : ""}`
+                : `Giảm ${Number(discountValue || 0).toLocaleString("vi-VN")}₫`
           }
           subtitle={
-            promotion.kind === "CAMPAIGN"
+            effectiveKind === "CAMPAIGN"
               ? `Tổng cộng ${totalCampaignSKUs} SKU tham gia`
               : promotion.minOrderAmount
                 ? `Đơn tối thiểu ${Number(promotion.minOrderAmount).toLocaleString("vi-VN")}₫`
@@ -186,28 +207,34 @@ export function PromotionDetailView({
         />
 
         <AdminStatCard
-          title="Độ ưu tiên & Lượt dùng"
+          title="Ngân sách & Đã chi"
           value={
-            promotion.kind === "CAMPAIGN"
-              ? `Ưu tiên: ${promotion.priority}`
-              : promotion.kind === "VOUCHER"
-                ? `${promotion.usedCount} / ${promotion.maxUses || "∞"}`
-                : "Tự động áp dụng"
+            promotion.budgetLimit
+              ? `${Number(promotion.spentAmount || 0).toLocaleString("vi-VN")}₫ / ${Number(promotion.budgetLimit).toLocaleString("vi-VN")}₫`
+              : `${Number(promotion.spentAmount || 0).toLocaleString("vi-VN")}₫`
           }
           subtitle={
-            promotion.kind === "CAMPAIGN"
-              ? "Càng cao càng ưu tiên áp dụng"
-              : promotion.kind === "VOUCHER"
-                ? "Lượt khách đã dùng mã"
-                : "Kích hoạt khi đạt điều kiện"
+            promotion.budgetLimit
+              ? `${Math.min(100, Math.round(((promotion.spentAmount || 0) / Number(promotion.budgetLimit)) * 100))}% ngân sách đã dùng`
+              : "Không giới hạn ngân sách"
           }
-          icon={TrendingDown}
+          icon={Coins}
           color="amber"
         />
 
         <AdminStatCard
-          title="Trạng thái hệ thống"
-          value={promotion.active ? "Đang chạy" : "Tạm dừng"}
+          title={
+            effectiveKind === "VOUCHER"
+              ? "Lượt dùng Voucher"
+              : "Trạng thái hệ thống"
+          }
+          value={
+            effectiveKind === "VOUCHER"
+              ? `${voucherUses} / ${voucherMaxUses || "∞"}`
+              : promotion.active
+                ? "Đang chạy"
+                : "Tạm dừng"
+          }
           subtitle={
             promotion.endsAt
               ? `Hết hạn: ${new Date(promotion.endsAt).toLocaleDateString("vi-VN")}`
@@ -236,7 +263,7 @@ export function PromotionDetailView({
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            {getKindBadge(promotion.kind)}
+            {getKindBadge(effectiveKind)}
             <AdminStatusBadge
               status={promotion.active ? "ACTIVE" : "INACTIVE"}
               customLabel={promotion.active ? "Đang bật" : "Đã tắt"}
@@ -250,14 +277,14 @@ export function PromotionDetailView({
           {/* Step 1: CAMPAIGN */}
           <div
             className={`p-3.5 rounded-lg border transition-all ${
-              promotion.kind === "CAMPAIGN"
+              effectiveKind === "CAMPAIGN"
                 ? "bg-indigo-950/80 border-indigo-400 ring-2 ring-indigo-400/30"
                 : "bg-slate-800/40 border-slate-700/60 opacity-60"
             }`}
           >
             <div className="flex items-center justify-between text-xs font-bold mb-1">
               <span className="text-indigo-300">TẦNG 1: CAMPAIGN SP</span>
-              {promotion.kind === "CAMPAIGN" && (
+              {effectiveKind === "CAMPAIGN" && (
                 <span className="text-[10px] bg-indigo-500 text-white px-1.5 py-0.2 rounded font-semibold">
                   Chương trình này
                 </span>
@@ -273,14 +300,14 @@ export function PromotionDetailView({
           {/* Step 2: ORDER_AUTO */}
           <div
             className={`p-3.5 rounded-lg border transition-all ${
-              promotion.kind === "ORDER_AUTO"
+              effectiveKind === "ORDER_AUTO"
                 ? "bg-sky-950/80 border-sky-400 ring-2 ring-sky-400/30"
                 : "bg-slate-800/40 border-slate-700/60 opacity-60"
             }`}
           >
             <div className="flex items-center justify-between text-xs font-bold mb-1">
               <span className="text-sky-300">TẦNG 2: TỰ ĐỘNG ĐƠN</span>
-              {promotion.kind === "ORDER_AUTO" && (
+              {effectiveKind === "ORDER_AUTO" && (
                 <span className="text-[10px] bg-sky-500 text-white px-1.5 py-0.2 rounded font-semibold">
                   Chương trình này
                 </span>
@@ -295,14 +322,14 @@ export function PromotionDetailView({
           {/* Step 3: VOUCHER */}
           <div
             className={`p-3.5 rounded-lg border transition-all ${
-              promotion.kind === "VOUCHER"
+              effectiveKind === "VOUCHER"
                 ? "bg-purple-950/80 border-purple-400 ring-2 ring-purple-400/30"
                 : "bg-slate-800/40 border-slate-700/60 opacity-60"
             }`}
           >
             <div className="flex items-center justify-between text-xs font-bold mb-1">
               <span className="text-purple-300">TẦNG 3: VOUCHER CODE</span>
-              {promotion.kind === "VOUCHER" && (
+              {effectiveKind === "VOUCHER" && (
                 <span className="text-[10px] bg-purple-500 text-white px-1.5 py-0.2 rounded font-semibold">
                   Chương trình này
                 </span>
@@ -317,7 +344,7 @@ export function PromotionDetailView({
       </div>
 
       {/* Main Details Configuration Content */}
-      {promotion.kind === "VOUCHER" && (
+      {effectiveKind === "VOUCHER" && (
         <div className="bg-white rounded-xl border border-slate-200/80 shadow-xs p-5 space-y-4">
           <h3 className="font-bold text-sm text-slate-900 border-b pb-2 flex items-center gap-2">
             <Ticket className="w-4 h-4 text-purple-600" />
@@ -331,21 +358,23 @@ export function PromotionDetailView({
               </span>
               <div className="mt-1 flex items-center gap-2">
                 <span className="text-base font-mono font-bold text-purple-900 bg-purple-50 px-3 py-1.5 rounded-lg border border-purple-200">
-                  {promotion.code}
+                  {voucherCode || "(Chưa cấu hình mã)"}
                 </span>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleCopyCode}
-                  className="h-8 px-2.5 text-xs text-slate-600 hover:text-purple-700"
-                >
-                  {copied ? (
-                    <Check className="w-3.5 h-3.5 text-emerald-600 mr-1" />
-                  ) : (
-                    <Copy className="w-3.5 h-3.5 mr-1" />
-                  )}
-                  {copied ? "Đã chép" : "Sao chép"}
-                </Button>
+                {voucherCode && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleCopyCode}
+                    className="h-8 px-2.5 text-xs text-slate-600 hover:text-purple-700"
+                  >
+                    {copied ? (
+                      <Check className="w-3.5 h-3.5 text-emerald-600 mr-1" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5 mr-1" />
+                    )}
+                    {copied ? "Đã chép" : "Sao chép"}
+                  </Button>
+                )}
               </div>
             </div>
 
@@ -354,9 +383,9 @@ export function PromotionDetailView({
                 Hình thức giảm giá:
               </span>
               <div className="mt-1 font-semibold text-slate-800 text-sm">
-                {promotion.discountType === "PERCENT"
-                  ? `Giảm ${promotion.discountValue}% trên tổng đơn ${promotion.maxDiscountValue ? `(Tối đa: ${Number(promotion.maxDiscountValue).toLocaleString("vi-VN")}₫)` : ""}`
-                  : `Giảm ${Number(promotion.discountValue || 0).toLocaleString("vi-VN")}₫`}
+                {discountType === "PERCENT"
+                  ? `Giảm ${discountValue}% trên tổng đơn ${maxDiscountValue ? `(Tối đa: ${Number(maxDiscountValue).toLocaleString("vi-VN")}₫)` : ""}`
+                  : `Giảm ${Number(discountValue || 0).toLocaleString("vi-VN")}₫`}
               </div>
             </div>
 
@@ -376,9 +405,9 @@ export function PromotionDetailView({
                 Giới hạn số lượt dùng:
               </span>
               <div className="mt-1 font-semibold text-slate-800 text-sm">
-                {promotion.maxUses
-                  ? `${promotion.usedCount} / ${promotion.maxUses} lượt`
-                  : `${promotion.usedCount} lượt (Không giới hạn)`}
+                {voucherMaxUses
+                  ? `${voucherUses} / ${voucherMaxUses} lượt`
+                  : `${voucherUses} lượt (Không giới hạn)`}
               </div>
             </div>
 
@@ -405,7 +434,7 @@ export function PromotionDetailView({
         </div>
       )}
 
-      {promotion.kind === "ORDER_AUTO" && (
+      {effectiveKind === "ORDER_AUTO" && (
         <div className="bg-white rounded-xl border border-slate-200/80 shadow-xs p-5 space-y-4">
           <h3 className="font-bold text-sm text-slate-900 border-b pb-2 flex items-center gap-2">
             <Zap className="w-4 h-4 text-sky-600" />
@@ -418,9 +447,9 @@ export function PromotionDetailView({
                 Hình thức giảm giá:
               </span>
               <div className="mt-1 font-semibold text-slate-800 text-sm">
-                {promotion.discountType === "PERCENT"
-                  ? `Giảm ${promotion.discountValue}% ${promotion.maxDiscountValue ? `(Tối đa: ${Number(promotion.maxDiscountValue).toLocaleString("vi-VN")}₫)` : ""}`
-                  : `Giảm ${Number(promotion.discountValue || 0).toLocaleString("vi-VN")}₫`}
+                {discountType === "PERCENT"
+                  ? `Giảm ${discountValue}% ${maxDiscountValue ? `(Tối đa: ${Number(maxDiscountValue).toLocaleString("vi-VN")}₫)` : ""}`
+                  : `Giảm ${Number(discountValue || 0).toLocaleString("vi-VN")}₫`}
               </div>
             </div>
 
@@ -450,7 +479,7 @@ export function PromotionDetailView({
         </div>
       )}
 
-      {promotion.kind === "CAMPAIGN" && (
+      {effectiveKind === "CAMPAIGN" && (
         <div className="bg-white rounded-xl border border-slate-200/80 shadow-xs p-5 space-y-5">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b pb-4">
             <div>

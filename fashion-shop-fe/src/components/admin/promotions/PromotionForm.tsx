@@ -26,28 +26,55 @@ export function PromotionForm({
 }: PromotionFormProps) {
   const isEditMode = !!initialData;
 
-  const [kind, setKind] = useState<PromotionKind>(
-    initialData?.kind || "VOUCHER",
-  );
+  const initialKind: PromotionKind =
+    initialData?.kind ||
+    (initialData?.applicationType === "VOUCHER"
+      ? "VOUCHER"
+      : initialData?.campaignId ||
+          (initialData?.groups &&
+            initialData.groups.length > 0 &&
+            initialData.groups[0]?.variants &&
+            initialData.groups[0].variants.length > 0)
+        ? "CAMPAIGN"
+        : "ORDER_AUTO");
+
+  const [kind, setKind] = useState<PromotionKind>(initialKind);
   const [name, setName] = useState(initialData?.name || "");
-  const [code, setCode] = useState(initialData?.code || "");
+  const [code, setCode] = useState(
+    initialData?.vouchers?.[0]?.code || initialData?.code || "",
+  );
   const [discountType, setDiscountType] = useState<DiscountType>(
-    initialData?.discountType || "FIXED",
+    initialData?.groups?.[0]?.discountType ||
+      initialData?.discountType ||
+      "FIXED",
   );
   const [discountValue, setDiscountValue] = useState<number>(
-    initialData?.discountValue ? Number(initialData.discountValue) : 0,
+    initialData?.groups?.[0]?.discountValue
+      ? Number(initialData.groups[0].discountValue)
+      : initialData?.discountValue
+        ? Number(initialData.discountValue)
+        : 0,
   );
   const [minOrderAmount, setMinOrderAmount] = useState<number>(
     initialData?.minOrderAmount ? Number(initialData.minOrderAmount) : 0,
   );
   const [maxDiscountValue, setMaxDiscountValue] = useState<number | undefined>(
-    initialData?.maxDiscountValue
-      ? Number(initialData.maxDiscountValue)
-      : undefined,
+    initialData?.groups?.[0]?.maxDiscountValue
+      ? Number(initialData.groups[0].maxDiscountValue)
+      : initialData?.maxDiscountValue
+        ? Number(initialData.maxDiscountValue)
+        : undefined,
   );
   const [priority, setPriority] = useState<number>(initialData?.priority || 0);
+  const [budgetLimit, setBudgetLimit] = useState<number | undefined>(
+    initialData?.budgetLimit ? Number(initialData.budgetLimit) : undefined,
+  );
   const [maxUses, setMaxUses] = useState<number | undefined>(
-    initialData?.maxUses ? Number(initialData.maxUses) : undefined,
+    initialData?.maxUses
+      ? Number(initialData.maxUses)
+      : initialData?.vouchers?.[0]?.maxUses
+        ? Number(initialData.vouchers[0].maxUses)
+        : undefined,
   );
   const [active, setActive] = useState<boolean>(
     initialData?.active !== undefined ? initialData.active : true,
@@ -88,6 +115,7 @@ export function PromotionForm({
     if (field === "name") setName(value);
     if (field === "active") setActive(value);
     if (field === "priority") setPriority(value);
+    if (field === "budgetLimit") setBudgetLimit(value);
     if (field === "startsAt") setStartsAt(value);
     if (field === "endsAt") setEndsAt(value);
   };
@@ -158,23 +186,58 @@ export function PromotionForm({
       }
     }
 
+    let finalGroups: PromotionGroupDto[] = [];
+    if (kind === "CAMPAIGN") {
+      finalGroups = groups;
+    } else if (kind === "ORDER_AUTO") {
+      finalGroups = [
+        {
+          name: "Chiết khấu hóa đơn",
+          sortOrder: 1,
+          discountType,
+          discountValue,
+          maxDiscountValue:
+            discountType === "PERCENT" ? maxDiscountValue : undefined,
+          variantIds: [],
+        },
+      ];
+    } else if (kind === "VOUCHER") {
+      finalGroups = [
+        {
+          name: "Chiết khấu Voucher",
+          sortOrder: 1,
+          discountType,
+          discountValue,
+          maxDiscountValue:
+            discountType === "PERCENT" ? maxDiscountValue : undefined,
+          variantIds: [],
+        },
+      ];
+    }
+
     const payload: CreatePromotionDto = {
       name,
+      applicationType: kind === "VOUCHER" ? "VOUCHER" : "AUTO",
       kind,
       active,
       priority: kind === "CAMPAIGN" ? priority : 0,
+      budgetLimit,
       startsAt: new Date(startsAt).toISOString(),
       endsAt: endsAt ? new Date(endsAt).toISOString() : undefined,
       code: kind === "VOUCHER" ? code.trim().toUpperCase() : undefined,
-      discountType: kind !== "CAMPAIGN" ? discountType : undefined,
-      discountValue: kind !== "CAMPAIGN" ? discountValue : undefined,
-      maxDiscountValue:
-        kind !== "CAMPAIGN" && discountType === "PERCENT"
-          ? maxDiscountValue
-          : undefined,
       minOrderAmount: kind !== "CAMPAIGN" ? minOrderAmount : undefined,
       maxUses: kind === "VOUCHER" ? maxUses : undefined,
-      groups: kind === "CAMPAIGN" ? groups : undefined,
+      groups: finalGroups,
+      vouchers:
+        kind === "VOUCHER"
+          ? [
+              {
+                code: code.trim().toUpperCase(),
+                maxUses,
+                active: true,
+              },
+            ]
+          : undefined,
     };
 
     onSubmit(payload);
@@ -187,6 +250,7 @@ export function PromotionForm({
         kind={kind}
         active={active}
         priority={priority}
+        budgetLimit={budgetLimit}
         startsAt={startsAt}
         endsAt={endsAt}
         onChange={handleBasicsChange}

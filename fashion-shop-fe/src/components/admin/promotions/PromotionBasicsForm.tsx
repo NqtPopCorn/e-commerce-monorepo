@@ -15,6 +15,7 @@ interface PromotionBasicsFormProps {
   kind: PromotionKind;
   active: boolean;
   priority: number;
+  budgetLimit?: number;
   startsAt: string;
   endsAt: string;
   onChange: (field: string, value: any) => void;
@@ -26,6 +27,7 @@ export function PromotionBasicsForm({
   kind,
   active,
   priority,
+  budgetLimit,
   startsAt,
   endsAt,
   onChange,
@@ -90,6 +92,29 @@ export function PromotionBasicsForm({
             </div>
           </div>
         )}
+
+        <div className="space-y-2">
+          <Label htmlFor="budgetLimit">Ngân sách tối đa (VND)</Label>
+          <Input
+            id="budgetLimit"
+            type="number"
+            min={0}
+            step={10000}
+            placeholder="Để trống nếu không giới hạn ngân sách"
+            value={budgetLimit || ""}
+            onChange={(e) =>
+              onChange(
+                "budgetLimit",
+                e.target.value ? Number(e.target.value) : undefined,
+              )
+            }
+            className="bg-white"
+          />
+          <p className="text-[11px] text-muted-foreground">
+            Hệ thống sẽ tự động dừng áp dụng chiết khấu khi số tiền giảm chạm
+            hạn mức ngân sách này.
+          </p>
+        </div>
 
         <div className="space-y-2">
           <Label htmlFor="active">Trạng thái kích hoạt</Label>
