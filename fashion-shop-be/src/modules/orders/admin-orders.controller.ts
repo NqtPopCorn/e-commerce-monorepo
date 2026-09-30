@@ -28,6 +28,6 @@ export class AdminOrdersController {
     @Param("id", ParseIntPipe) id: number,
     @Body() dto: UpdateOrderStatusDto,
   ) {
-    return this.service.updateStatus(id, dto.status);
+    return this.service.updateStatus(id, dto.status, dto.paymentStatus);
   }
 }

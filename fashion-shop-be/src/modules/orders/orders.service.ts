@@ -76,6 +76,8 @@ export class OrdersService {
       const order = await tx.order.create({
         data: {
           userId,
+          paymentMethod: (dto.paymentMethod as any) || "COD",
+          paymentStatus: "UNPAID",
           recipientName: dto.recipientName,
           recipientPhone: dto.recipientPhone,
           shippingAddress: dto.shippingAddress,
