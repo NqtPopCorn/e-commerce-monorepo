@@ -196,18 +196,27 @@ function ProductsContent() {
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
               {filteredProducts.map((prod: Product) => {
-                const minPrice = Math.min(
-                  ...(prod.variants?.map((v) => Number(v.sellingPrice)) || [0]),
+                const minFinalPrice = Math.min(
+                  ...(prod.variants?.map((v) =>
+                    v.discountedPrice !== undefined
+                      ? Number(v.discountedPrice)
+                      : Number(v.sellingPrice),
+                  ) || [0]),
                 );
-                const maxListPrice = Math.max(
-                  ...(prod.variants?.map((v) => Number(v.listPrice || 0)) || [
-                    0,
-                  ]),
+                const maxOriginalPrice = Math.max(
+                  ...(prod.variants?.map((v) =>
+                    Math.max(
+                      Number(v.listPrice || 0),
+                      Number(v.sellingPrice || 0),
+                    ),
+                  ) || [0]),
                 );
                 const discount =
-                  maxListPrice > minPrice
+                  maxOriginalPrice > minFinalPrice
                     ? Math.round(
-                        ((maxListPrice - minPrice) / maxListPrice) * 100,
+                        ((maxOriginalPrice - minFinalPrice) /
+                          maxOriginalPrice) *
+                          100,
                       )
                     : 0;
                 const imageUrl =
@@ -223,19 +232,20 @@ function ProductsContent() {
                 return (
                   <Link key={prod.id} href={`/products/${prod.id}`}>
                     <div className="bg-white rounded-xl shadow-xs border border-gray-100 hover:shadow-lg transition-all h-full flex flex-col overflow-hidden group">
-                      <div className="aspect-3/4 bg-gray-50 overflow-hidden relative">
+                      <div className="relative aspect-[3/4] w-full overflow-hidden bg-gray-100">
                         <img
                           src={imageUrl}
                           alt={prod.name}
-                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                          className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
+                          loading="lazy"
                         />
                         {discount > 0 && (
-                          <span className="absolute top-2.5 left-2.5 bg-rose-600 text-white font-bold text-[11px] px-2 py-0.5 rounded-full shadow">
+                          <span className="absolute top-2.5 left-2.5 z-10 bg-rose-600 text-white font-bold text-[11px] px-2 py-0.5 rounded-full shadow">
                             -{discount}%
                           </span>
                         )}
                         {prod.brand && (
-                          <span className="absolute bottom-2.5 left-2.5 bg-white/90 backdrop-blur-xs text-gray-800 text-[10px] font-bold px-2 py-0.5 rounded shadow-xs">
+                          <span className="absolute bottom-2.5 left-2.5 z-10 bg-white/90 backdrop-blur-xs text-gray-800 text-[10px] font-bold px-2 py-0.5 rounded shadow-xs">
                             {prod.brand.name}
                           </span>
                         )}
@@ -270,14 +280,14 @@ function ProductsContent() {
                             {new Intl.NumberFormat("vi-VN", {
                               style: "currency",
                               currency: "VND",
-                            }).format(minPrice || 0)}
+                            }).format(minFinalPrice || 0)}
                           </span>
-                          {maxListPrice > minPrice && (
+                          {maxOriginalPrice > minFinalPrice && (
                             <span className="text-gray-400 text-xs line-through">
                               {new Intl.NumberFormat("vi-VN", {
                                 style: "currency",
                                 currency: "VND",
-                              }).format(maxListPrice)}
+                              }).format(maxOriginalPrice)}
                             </span>
                           )}
                         </div>
