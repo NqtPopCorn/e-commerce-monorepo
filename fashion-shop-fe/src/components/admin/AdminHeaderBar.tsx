@@ -18,18 +18,11 @@ import {
   Moon,
 } from "lucide-react";
 import { useAuthStore } from "@/stores/auth.store";
+import { useNotifications, formatRelativeTime } from "@/hooks/useNotifications";
+import { NotificationItem } from "@/types/notification";
 
 interface AdminHeaderBarProps {
   onOpenMobileMenu?: () => void;
-}
-
-interface NotificationItem {
-  id: string;
-  title: string;
-  message: string;
-  time: string;
-  read: boolean;
-  type: "order" | "stock" | "promo";
 }
 
 export function AdminHeaderBar({ onOpenMobileMenu }: AdminHeaderBarProps) {
@@ -43,34 +36,13 @@ export function AdminHeaderBar({ onOpenMobileMenu }: AdminHeaderBarProps) {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement | null>(null);
 
-  const [notifications, setNotifications] = useState<NotificationItem[]>([
-    {
-      id: "1",
-      title: "Đơn hàng mới",
-      message: "Khách hàng vừa đặt đơn #ORD-1049 trị giá 590.000₫",
-      time: "5 phút trước",
-      read: false,
-      type: "order",
-    },
-    {
-      id: "2",
-      title: "Cảnh báo tồn kho",
-      message: "Áo polo phối viền (Size M - Đen) chỉ còn 2 chiếc",
-      time: "25 phút trước",
-      read: false,
-      type: "stock",
-    },
-    {
-      id: "3",
-      title: "Khuyến mãi kích hoạt",
-      message: "Mã giảm giá SUMMER2026 đã bắt đầu có hiệu lực",
-      time: "2 giờ trước",
-      read: true,
-      type: "promo",
-    },
-  ]);
-
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const {
+    notifications,
+    unreadCount,
+    markAsRead,
+    markAllAsRead,
+    isLoading: isLoadingNotifs,
+  } = useNotifications({ limit: 15 });
 
   useEffect(() => {
     setMounted(true);
@@ -123,8 +95,14 @@ export function AdminHeaderBar({ onOpenMobileMenu }: AdminHeaderBarProps) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  const markAllAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  const handleNotificationClick = (item: NotificationItem) => {
+    if (!item.isRead) {
+      markAsRead(item.id);
+    }
+    setNotificationsOpen(false);
+    if (item.link) {
+      router.push(item.link);
+    }
   };
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -253,44 +231,61 @@ export function AdminHeaderBar({ onOpenMobileMenu }: AdminHeaderBarProps) {
                 </div>
 
                 <div className="max-h-80 overflow-y-auto divide-y divide-border admin-scrollbar">
-                  {notifications.map((item) => (
-                    <div
-                      key={item.id}
-                      className={`p-3.5 hover:bg-muted/50 transition-colors flex gap-3 ${
-                        !item.read ? "bg-primary/5" : ""
-                      }`}
-                    >
-                      <div className="shrink-0 mt-0.5">
-                        {item.type === "order" ? (
-                          <div className="w-8 h-8 rounded-lg bg-info/10 text-info flex items-center justify-center">
-                            <Package className="w-4 h-4" />
-                          </div>
-                        ) : item.type === "stock" ? (
-                          <div className="w-8 h-8 rounded-lg bg-warning/10 text-warning flex items-center justify-center">
-                            <AlertCircle className="w-4 h-4" />
-                          </div>
-                        ) : (
-                          <div className="w-8 h-8 rounded-lg bg-success/10 text-success flex items-center justify-center">
-                            <CheckCircle2 className="w-4 h-4" />
-                          </div>
+                  {isLoadingNotifs && notifications.length === 0 ? (
+                    <div className="p-6 text-center text-xs text-muted-foreground">
+                      Đang tải thông báo...
+                    </div>
+                  ) : notifications.length === 0 ? (
+                    <div className="p-6 text-center text-xs text-muted-foreground">
+                      Chưa có thông báo nào
+                    </div>
+                  ) : (
+                    notifications.map((item) => (
+                      <div
+                        key={item.id}
+                        onClick={() => handleNotificationClick(item)}
+                        className={`p-3.5 hover:bg-muted/50 transition-colors flex gap-3 cursor-pointer ${
+                          !item.isRead ? "bg-primary/5" : ""
+                        }`}
+                      >
+                        <div className="shrink-0 mt-0.5">
+                          {item.type === "ORDER" ? (
+                            <div className="w-8 h-8 rounded-lg bg-info/10 text-info flex items-center justify-center">
+                              <Package className="w-4 h-4" />
+                            </div>
+                          ) : item.type === "INVENTORY" ? (
+                            <div className="w-8 h-8 rounded-lg bg-warning/10 text-warning flex items-center justify-center">
+                              <AlertCircle className="w-4 h-4" />
+                            </div>
+                          ) : (
+                            <div className="w-8 h-8 rounded-lg bg-success/10 text-success flex items-center justify-center">
+                              <CheckCircle2 className="w-4 h-4" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p
+                            className={`text-xs ${
+                              !item.isRead
+                                ? "font-semibold text-foreground"
+                                : "font-medium text-foreground/80"
+                            }`}
+                          >
+                            {item.title}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                            {item.message}
+                          </p>
+                          <span className="text-[10px] text-muted-foreground mt-1 block">
+                            {formatRelativeTime(item.createdAt)}
+                          </span>
+                        </div>
+                        {!item.isRead && (
+                          <div className="w-2 h-2 rounded-full bg-primary shrink-0 self-center" />
                         )}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-foreground">
-                          {item.title}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-                          {item.message}
-                        </p>
-                        <span className="text-[10px] text-muted-foreground mt-1 block">
-                          {item.time}
-                        </span>
-                      </div>
-                      {!item.read && (
-                        <div className="w-2 h-2 rounded-full bg-primary shrink-0 self-center" />
-                      )}
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
 
                 <div className="p-2 border-t border-border text-center">

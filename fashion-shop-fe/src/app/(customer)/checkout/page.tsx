@@ -133,7 +133,6 @@ export default function CheckoutPage() {
       });
 
       clear();
-      toast.success("Đặt hàng thành công!");
       router.push("/orders");
     } catch (error: any) {
       console.error(error);

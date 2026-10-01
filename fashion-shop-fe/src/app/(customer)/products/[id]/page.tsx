@@ -113,7 +113,6 @@ export default function ProductDetailPage({
       quantity: quantity,
       imageUrl: currentVariant.imageUrl || allImages[0],
     });
-    toast.success("Đã thêm vào giỏ hàng!");
   };
 
   const handleBuyNow = () => {
