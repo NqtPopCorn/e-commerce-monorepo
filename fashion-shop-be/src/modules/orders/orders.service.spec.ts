@@ -3,6 +3,7 @@ import { PromotionPricingService } from "../promotions/promotion-pricing.service
 import { PrismaService } from "../../prisma/prisma.service";
 import { mockDeep, DeepMockProxy } from "jest-mock-extended";
 import { OrdersService } from "./orders.service";
+import { NotificationsService } from "../notifications/notifications.service";
 import { BadRequestException, NotFoundException } from "@nestjs/common";
 
 describe("OrdersService", () => {
@@ -24,6 +25,13 @@ describe("OrdersService", () => {
         OrdersService,
         { provide: PrismaService, useValue: prismaMock },
         { provide: PromotionPricingService, useValue: pricingMock },
+        {
+          provide: NotificationsService,
+          useValue: {
+            notifyUser: jest.fn().mockResolvedValue(undefined),
+            notifyRoles: jest.fn().mockResolvedValue([]),
+          },
+        },
       ],
     }).compile();
 

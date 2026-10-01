@@ -6,16 +6,18 @@ import {
 import { PrismaService } from "../../prisma/prisma.service";
 import { CreateOrderDto } from "./dto/create-order.dto";
 import { PromotionPricingService } from "../promotions/promotion-pricing.service";
+import { NotificationsService } from "../notifications/notifications.service";
 
 @Injectable()
 export class OrdersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly pricingService: PromotionPricingService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async create(userId: number, dto: CreateOrderDto) {
-    return this.prisma.$transaction(async (tx) => {
+    const createdOrder = await this.prisma.$transaction(async (tx) => {
       const variantIds = Array.from(new Set(dto.items.map((i) => i.variantId)));
       const variants = await tx.productVariant.findMany({
         where: { id: { in: variantIds } },
@@ -197,6 +199,63 @@ export class OrdersService {
         },
       });
     });
+
+    // 1. Gửi thông báo cho khách hàng
+    if (createdOrder) {
+      await this.notificationsService.notifyUser(userId, {
+        title: "Đặt hàng thành công",
+        message: `Đơn hàng #${createdOrder.id} đã được tạo thành công và đang chờ xác nhận.`,
+        type: "ORDER",
+        level: "SUCCESS",
+        link: "/orders",
+        data: { orderId: createdOrder.id },
+      });
+
+      // 2. Gửi thông báo cho quản trị viên và nhân viên
+      const customerName =
+        [createdOrder.user?.firstName, createdOrder.user?.lastName]
+          .filter(Boolean)
+          .join(" ") ||
+        createdOrder.recipientName ||
+        "Khách hàng";
+      const totalAmount =
+        Number(createdOrder.total).toLocaleString("vi-VN") + "₫";
+
+      await this.notificationsService.notifyRoles(["ADMIN", "STAFF"], {
+        title: "Đơn hàng mới",
+        message: `Đơn hàng #${createdOrder.id} vừa được đặt bởi ${customerName} (${totalAmount}).`,
+        type: "ORDER",
+        level: "INFO",
+        link: "/admin/orders",
+        data: { orderId: createdOrder.id },
+      });
+
+      // 3. Kiểm tra cảnh báo tồn kho thấp (nếu tồn kho <= 5)
+      for (const item of dto.items) {
+        const variant = await this.prisma.productVariant.findUnique({
+          where: { id: item.variantId },
+          include: { product: true },
+        });
+        if (!variant) continue;
+        if (variant.stock <= 5) {
+          const prodName = variant.product?.name || variant.sku;
+          const spec = [variant.size, variant.color]
+            .filter(Boolean)
+            .join(" - ");
+          const specStr = spec ? ` (${spec})` : "";
+          await this.notificationsService.notifyRoles(["ADMIN", "STAFF"], {
+            title: "Cảnh báo tồn kho thấp",
+            message: `Sản phẩm "${prodName}"${specStr} chỉ còn ${variant.stock} chiếc.`,
+            type: "INVENTORY",
+            level: "WARNING",
+            link: "/admin/products",
+            data: { variantId: variant.id, stock: variant.stock },
+          });
+        }
+      }
+    }
+
+    return createdOrder;
   }
 
   async findMine(userId: number) {
@@ -228,7 +287,7 @@ export class OrdersService {
     if (order.status !== "PENDING")
       throw new BadRequestException("Không thể hủy đơn hàng này");
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       for (const item of order.items) {
         await tx.productVariant.update({
           where: { id: item.variantId },
@@ -278,5 +337,17 @@ export class OrdersService {
         },
       });
     });
+
+    // Thông báo cho Admin/Staff khi khách tự hủy đơn
+    await this.notificationsService.notifyRoles(["ADMIN", "STAFF"], {
+      title: "Đơn hàng đã bị hủy",
+      message: `Khách hàng đã hủy đơn hàng #${orderId}.`,
+      type: "ORDER",
+      level: "WARNING",
+      link: "/admin/orders",
+      data: { orderId },
+    });
+
+    return result;
   }
 }

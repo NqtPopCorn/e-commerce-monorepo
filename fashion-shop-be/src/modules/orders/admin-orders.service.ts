@@ -5,12 +5,14 @@ import {
 } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { AuditLogsService } from "../audit-logs/audit-logs.service";
+import { NotificationsService } from "../notifications/notifications.service";
 
 @Injectable()
 export class AdminOrdersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditLogsService: AuditLogsService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   findAll(status?: string) {
@@ -126,6 +128,40 @@ export class AdminOrdersService {
       userAgent,
       status: "SUCCESS",
     });
+
+    // Thông báo cho khách hàng khi trạng thái đơn hàng thay đổi
+    if (oldValue.status !== newValue.status) {
+      let title = "Cập nhật đơn hàng";
+      let message = `Đơn hàng #${id} đã chuyển sang trạng thái: ${newValue.status}.`;
+      let level: "INFO" | "SUCCESS" | "WARNING" | "ERROR" = "INFO";
+
+      if (newValue.status === "CONFIRMED") {
+        title = "Đơn hàng đã được xác nhận";
+        message = `Đơn hàng #${id} đã được xác nhận và đang đóng gói sản phẩm.`;
+        level = "INFO";
+      } else if (newValue.status === "SHIPPING") {
+        title = "Đơn hàng đang được giao";
+        message = `Đơn hàng #${id} đang trên đường vận chuyển đến bạn.`;
+        level = "INFO";
+      } else if (newValue.status === "COMPLETED") {
+        title = "Đơn hàng đã hoàn tất";
+        message = `Đơn hàng #${id} đã giao thành công. Cảm ơn bạn đã tin tưởng mua sắm!`;
+        level = "SUCCESS";
+      } else if (newValue.status === "CANCELLED") {
+        title = "Đơn hàng đã bị hủy";
+        message = `Đơn hàng #${id} đã bị hủy bởi hệ thống/quản trị viên.`;
+        level = "WARNING";
+      }
+
+      await this.notificationsService.notifyUser(order.userId, {
+        title,
+        message,
+        type: "ORDER",
+        level,
+        link: "/orders",
+        data: { orderId: id, status: newValue.status },
+      });
+    }
 
     return updated;
   }

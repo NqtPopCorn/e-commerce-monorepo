@@ -4,9 +4,10 @@ import { OrdersService } from "./orders.service";
 import { AdminOrdersController } from "./admin-orders.controller";
 import { AdminOrdersService } from "./admin-orders.service";
 import { PromotionsModule } from "../promotions/promotions.module";
+import { NotificationsModule } from "../notifications/notifications.module";
 
 @Module({
-  imports: [PromotionsModule],
+  imports: [PromotionsModule, NotificationsModule],
   controllers: [OrdersController, AdminOrdersController],
   providers: [OrdersService, AdminOrdersService],
 })

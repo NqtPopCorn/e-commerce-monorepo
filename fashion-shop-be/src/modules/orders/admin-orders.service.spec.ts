@@ -3,6 +3,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { mockDeep, DeepMockProxy } from "jest-mock-extended";
 import { AdminOrdersService } from "./admin-orders.service";
 import { AuditLogsService } from "../audit-logs/audit-logs.service";
+import { NotificationsService } from "../notifications/notifications.service";
 import { NotFoundException } from "@nestjs/common";
 
 describe("AdminOrdersService", () => {
@@ -19,6 +20,13 @@ describe("AdminOrdersService", () => {
         {
           provide: AuditLogsService,
           useValue: { log: jest.fn().mockResolvedValue(undefined) },
+        },
+        {
+          provide: NotificationsService,
+          useValue: {
+            notifyUser: jest.fn().mockResolvedValue(undefined),
+            notifyRoles: jest.fn().mockResolvedValue([]),
+          },
         },
       ],
     }).compile();
