@@ -337,6 +337,7 @@ model Order {
   user                  User                   @relation(fields: [userId], references: [id])
   items                 OrderItem[]
   promotionApplications PromotionApplication[]
+  transactions          PaymentTransaction[]
   createdAt             DateTime               @default(now()) @map("created_at")
   updatedAt             DateTime               @updatedAt @map("updated_at")
 
@@ -354,13 +355,61 @@ enum OrderStatus {
 
 enum PaymentMethod {
   COD
+  VIETQR
   BANK_TRANSFER
 }
 
 enum PaymentStatus {
   UNPAID
+  PENDING
   PAID
+  FAILED
   REFUNDED
+}
+
+enum PaymentProvider {
+  COD
+  VIETQR
+  BANK_TRANSFER
+}
+
+enum PaymentTransactionStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  CANCELLED
+}
+
+model PaymentTransaction {
+  id              Int                      @id @default(autoincrement())
+  orderId         Int                      @map("order_id")
+  provider        PaymentProvider
+  amount          Decimal                  @db.Decimal(12, 2)
+  currency        String                   @default("VND")
+  status          PaymentTransactionStatus @default(PENDING)
+  transactionCode String?                  @map("transaction_code")
+  providerTxnId   String?                  @map("provider_txn_id")
+  metadata        Json?
+  paidAt          DateTime?                @map("paid_at")
+  createdAt       DateTime                 @default(now()) @map("created_at")
+  updatedAt       DateTime                 @updatedAt @map("updated_at")
+
+  order           Order                    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([transactionCode])
+  @@index([providerTxnId])
+  @@map("payment_transactions")
+}
+
+model PaymentEvent {
+  id        Int      @id @default(autoincrement())
+  source    String
+  eventId   String   @map("event_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([source, eventId])
+  @@map("payment_events")
 }
 
 model OrderItem {
