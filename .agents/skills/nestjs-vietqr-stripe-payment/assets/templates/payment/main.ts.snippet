@@ -1,0 +1,13 @@
+// src/main.ts  (the only change needed outside src/payment)
+import { ValidationPipe } from '@nestjs/common';
+import { NestFactory } from '@nestjs/core';
+import { AppModule } from './app.module';
+
+async function bootstrap() {
+  // rawBody: true keeps the untouched bytes on req.rawBody for Stripe signature verification
+  // (Nest >= 10, Express adapter; with Fastify also pass rawBody: true to FastifyAdapter-based create()).
+  const app = await NestFactory.create(AppModule, { rawBody: true });
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+  await app.listen(process.env.PORT ?? 3000);
+}
+bootstrap();
