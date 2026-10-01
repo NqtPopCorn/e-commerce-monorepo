@@ -24,7 +24,8 @@ export class AdminOrdersService {
           select: { id: true, email: true, firstName: true, lastName: true },
         },
         items: { include: { variant: { include: { product: true } } } },
-        promotionApplications: true,
+        discountApplications: true,
+        voucherApplications: true,
       },
       orderBy: { createdAt: "desc" },
     });
@@ -101,7 +102,8 @@ export class AdminOrdersService {
           select: { id: true, email: true, firstName: true, lastName: true },
         },
         items: { include: { variant: { include: { product: true } } } },
-        promotionApplications: true,
+        discountApplications: true,
+        voucherApplications: true,
       },
     });
 

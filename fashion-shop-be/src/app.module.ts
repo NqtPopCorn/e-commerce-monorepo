@@ -7,7 +7,9 @@ import { ProductsModule } from "./modules/products/products.module";
 import { BrandsModule } from "./modules/brands/brands.module";
 import { OrdersModule } from "./modules/orders/orders.module";
 import { StatisticsModule } from "./modules/statistics/statistics.module";
-import { PromotionsModule } from "./modules/promotions/promotions.module";
+import { DiscountsModule } from "./modules/discounts/discounts.module";
+import { VouchersModule } from "./modules/vouchers/vouchers.module";
+import { PricingModule } from "./modules/pricing/pricing.module";
 import { AccountsModule } from "./modules/accounts/accounts.module";
 import { HealthController } from "./health.controller";
 import { CategoriesModule } from "./modules/categories/categories.module";
@@ -31,7 +33,9 @@ import { PaymentsModule } from "./modules/payments/payments.module";
     OrdersModule,
     PaymentsModule,
     StatisticsModule,
-    PromotionsModule,
+    DiscountsModule,
+    VouchersModule,
+    PricingModule,
     AccountsModule,
     CategoriesModule,
     PurchasesModule,

@@ -160,7 +160,6 @@ export class MailService {
     const discountFormatted =
       Number(
         (order.productDiscount || 0) +
-          (order.orderDiscount || 0) +
           (order.voucherDiscount || 0),
       ).toLocaleString("vi-VN") + "₫";
 

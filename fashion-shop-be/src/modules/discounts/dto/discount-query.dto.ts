@@ -1,20 +1,14 @@
-import { PromotionApplicationType } from "@prisma/client";
 import { Transform, Type } from "class-transformer";
 import {
   IsBoolean,
   IsDateString,
-  IsEnum,
   IsInt,
   IsOptional,
   IsString,
   Min,
 } from "class-validator";
 
-export class PromotionQueryDto {
-  @IsOptional()
-  @IsEnum(PromotionApplicationType)
-  applicationType?: PromotionApplicationType;
-
+export class DiscountQueryDto {
   @IsOptional()
   @Type(() => Number)
   @IsInt()
@@ -45,11 +39,11 @@ export class PromotionQueryDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  page?: number;
+  page: number = 1;
 
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  limit?: number;
+  limit: number = 10;
 }
