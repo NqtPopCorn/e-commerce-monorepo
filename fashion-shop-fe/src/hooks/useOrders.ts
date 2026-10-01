@@ -23,6 +23,15 @@ export const useGetMyOrders = () => {
   });
 };
 
+export const useGetOrder = (id?: number | null) => {
+  const token = useAuthStore((state) => state.token);
+  return useQuery({
+    queryKey: ["order", id],
+    queryFn: () => ordersService.getOrderById(id!),
+    enabled: !!token && !!id,
+  });
+};
+
 export const useGetAdminOrders = (status?: string) => {
   const token = useAuthStore((state) => state.token);
   const user = useAuthStore((state) => state.user);

@@ -21,8 +21,10 @@ export function VoucherInput({
 }: VoucherInputProps) {
   const [inputCode, setInputCode] = useState(appliedCode);
 
-  const handleApply = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleApply = (
+    e?: React.FormEvent | React.KeyboardEvent | React.MouseEvent,
+  ) => {
+    if (e) e.preventDefault();
     if (inputCode.trim()) {
       onApply(inputCode.trim());
     }
@@ -68,23 +70,30 @@ export function VoucherInput({
           </Button>
         </div>
       ) : (
-        <form onSubmit={handleApply} className="flex gap-2">
+        <div className="flex gap-2">
           <Input
             id="voucherCode"
             placeholder="Nhập mã voucher..."
             value={inputCode}
             onChange={(e) => setInputCode(e.target.value.toUpperCase())}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                handleApply(e);
+              }
+            }}
             className="font-mono uppercase bg-white"
           />
           <Button
-            type="submit"
+            type="button"
             variant="outline"
             disabled={!inputCode.trim()}
+            onClick={handleApply}
             className="shrink-0 border-purple-600 text-purple-700 hover:bg-purple-50"
           >
             Áp dụng
           </Button>
-        </form>
+        </div>
       )}
 
       {voucherError && (

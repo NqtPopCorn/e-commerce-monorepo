@@ -1,4 +1,6 @@
 import { api } from "@/lib/api";
+import { pricingService } from "./pricing.service";
+import { vouchersService } from "./vouchers.service";
 import {
   CreatePromotionDto,
   PaginatedPromotionsResponse,
@@ -11,13 +13,12 @@ import {
 
 export const promotionsService = {
   quote: async (payload: QuoteRequest): Promise<PromotionQuote> => {
-    const res = await api.post("/promotions/quote", payload);
-    return res.data;
+    return (await pricingService.quote(payload)) as unknown as PromotionQuote;
   },
 
   checkCode: async (code: string): Promise<Promotion> => {
-    const res = await api.get(`/promotions/check/${code}`);
-    return res.data;
+    const res = await vouchersService.checkCode(code);
+    return res.voucher as unknown as Promotion;
   },
 
   getAll: async (

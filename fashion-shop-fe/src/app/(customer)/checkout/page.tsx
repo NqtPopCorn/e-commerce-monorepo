@@ -19,9 +19,11 @@ import {
   User,
   CheckCircle2,
   Banknote,
+  QrCode,
 } from "lucide-react";
 import { VoucherInput } from "@/components/promotions/VoucherInput";
 import { PriceBreakdown } from "@/components/promotions/PriceBreakdown";
+import { PaymentMethod } from "@/types/order";
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -42,6 +44,7 @@ export default function CheckoutPage() {
   );
   const [submitting, setSubmitting] = useState(false);
   const [voucherCode, setVoucherCode] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("COD");
 
   // Pre-fill from default address or user profile
   useEffect(() => {
@@ -122,10 +125,10 @@ export default function CheckoutPage() {
 
     setSubmitting(true);
     try {
-      await createOrderMutation.mutateAsync({
+      const createdOrder = await createOrderMutation.mutateAsync({
         items: cartInputs,
         voucherCode: voucherCode || undefined,
-        paymentMethod: "COD",
+        paymentMethod: paymentMethod,
         recipientName: recipientName.trim(),
         recipientPhone: recipientPhone.trim(),
         shippingAddress: address.trim(),
@@ -133,8 +136,13 @@ export default function CheckoutPage() {
       });
 
       clear();
-      toast.success("Đặt hàng thành công!");
-      router.push("/orders");
+
+      if (paymentMethod === "VIETQR") {
+        router.push(`/orders/${createdOrder.id}/payment`);
+      } else {
+        toast.success("Đặt hàng thành công!");
+        router.push("/orders");
+      }
     } catch (error: any) {
       console.error(error);
       const msg =
@@ -335,27 +343,87 @@ export default function CheckoutPage() {
             </div>
           </div>
 
-          <div className="bg-card p-6 rounded-2xl shadow-xs border border-border">
-            <h2 className="text-base font-bold text-foreground mb-4 flex items-center gap-2">
+          <div className="bg-card p-6 rounded-2xl shadow-xs border border-border space-y-4">
+            <h2 className="text-base font-bold text-foreground flex items-center gap-2">
               <Banknote className="w-5 h-5 text-primary" />
               <span>PHƯƠNG THỨC THANH TOÁN</span>
             </h2>
-            <div className="border border-primary bg-primary/5 rounded-xl p-4 relative flex items-start sm:items-center gap-3.5 shadow-xs">
-              <div className="w-5 h-5 rounded-full border-4 border-primary bg-background flex shrink-0 mt-0.5 sm:mt-0" />
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-xs text-foreground">
-                    Thanh toán khi nhận hàng (COD)
-                  </span>
-                  <span className="text-[10px] font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-                    Mặc định
-                  </span>
+
+            <div className="grid grid-cols-1 gap-3">
+              {/* COD Option */}
+              <div
+                onClick={() => setPaymentMethod("COD")}
+                className={`rounded-xl p-4 cursor-pointer transition-all flex items-start gap-3.5 border ${
+                  paymentMethod === "COD"
+                    ? "border-primary bg-primary/5 ring-1 ring-primary shadow-xs"
+                    : "border-border hover:border-muted-foreground/30 bg-muted/10"
+                }`}
+              >
+                <div
+                  className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 ${
+                    paymentMethod === "COD"
+                      ? "border-primary"
+                      : "border-muted-foreground/40"
+                  }`}
+                >
+                  {paymentMethod === "COD" && (
+                    <div className="w-2.5 h-2.5 rounded-full bg-primary" />
+                  )}
                 </div>
-                <span className="text-[11px] text-muted-foreground block mt-1 leading-relaxed">
-                  Thanh toán bằng tiền mặt trực tiếp cho nhân viên giao hàng khi
-                  nhận hàng. Quý khách được quyền kiểm tra tình trạng hàng trước
-                  khi thanh toán.
-                </span>
+                <div className="flex-1 space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-xs text-foreground flex items-center gap-1.5">
+                      <Banknote className="w-3.5 h-3.5 text-primary" />
+                      Thanh toán khi nhận hàng (COD)
+                    </span>
+                    <span className="text-[10px] font-semibold bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
+                      Tiền mặt
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    Thanh toán bằng tiền mặt trực tiếp cho nhân viên giao hàng
+                    khi nhận hàng. Quý khách được quyền kiểm tra tình trạng hàng
+                    trước khi thanh toán.
+                  </p>
+                </div>
+              </div>
+
+              {/* VietQR Option */}
+              <div
+                onClick={() => setPaymentMethod("VIETQR")}
+                className={`rounded-xl p-4 cursor-pointer transition-all flex items-start gap-3.5 border ${
+                  paymentMethod === "VIETQR"
+                    ? "border-primary bg-primary/5 ring-1 ring-primary shadow-xs"
+                    : "border-border hover:border-muted-foreground/30 bg-muted/10"
+                }`}
+              >
+                <div
+                  className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 ${
+                    paymentMethod === "VIETQR"
+                      ? "border-primary"
+                      : "border-muted-foreground/40"
+                  }`}
+                >
+                  {paymentMethod === "VIETQR" && (
+                    <div className="w-2.5 h-2.5 rounded-full bg-primary" />
+                  )}
+                </div>
+                <div className="flex-1 space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-xs text-foreground flex items-center gap-1.5">
+                      <QrCode className="w-3.5 h-3.5 text-primary" />
+                      Chuyển khoản VietQR (Ngân hàng 24/7)
+                    </span>
+                    <span className="text-[10px] font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                      Khuyên dùng - Nhanh chóng
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    Quét mã QR bằng ứng dụng ngân hàng hoặc ví điện tử bất kỳ.
+                    Hệ thống tự động xác nhận đơn hàng ngay khi tiền về tài
+                    khoản.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -375,20 +443,20 @@ export default function CheckoutPage() {
                   key={item.variantId}
                   className="flex gap-3 pb-3 border-b border-border last:border-0 last:pb-0"
                 >
-                  <div className="w-14 h-18 bg-muted border border-border rounded-lg flex shrink-0 items-center justify-center relative overflow-hidden">
+                  <div className="w-14 aspect-[3/4] bg-muted border border-border rounded-lg flex shrink-0 items-center justify-center relative overflow-hidden">
                     {item.imageUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={item.imageUrl}
                         alt={item.title}
-                        className="w-full h-full object-cover"
+                        className="absolute inset-0 w-full h-full object-cover object-center"
                       />
                     ) : (
                       <span className="text-[10px] text-muted-foreground">
                         No Image
                       </span>
                     )}
-                    <span className="absolute -top-1 -right-1 bg-foreground text-background text-[10px] w-5 h-5 rounded-full flex items-center justify-center font-bold">
+                    <span className="absolute -top-1 -right-1 z-10 bg-foreground text-background text-[10px] w-5 h-5 rounded-full flex items-center justify-center font-bold">
                       {item.quantity}
                     </span>
                   </div>

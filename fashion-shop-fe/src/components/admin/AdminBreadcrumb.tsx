@@ -23,8 +23,11 @@ const defaultLabels: Record<string, string> = {
   purchase: "Nhập kho",
   analytics: "Phân tích",
   accounts: "Tài khoản",
+  discounts: "Giảm giá sản phẩm",
+  vouchers: "Mã giảm giá",
   promotions: "Khuyến mãi",
   "audit-logs": "Nhật ký hoạt động",
+  create: "Tạo mới",
 };
 
 export function AdminBreadcrumb({
@@ -58,7 +61,7 @@ export function AdminBreadcrumb({
                   onClick={item.onClick}
                   className="hover:text-foreground transition-colors text-left"
                 >
-                  {item.label}
+                  {item.label.charAt(0).toUpperCase() + item.label.slice(1)}
                 </button>
               ) : !isLast && item.href ? (
                 <Link

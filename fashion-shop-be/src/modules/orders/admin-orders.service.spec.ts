@@ -3,14 +3,19 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { mockDeep, DeepMockProxy } from "jest-mock-extended";
 import { AdminOrdersService } from "./admin-orders.service";
 import { AuditLogsService } from "../audit-logs/audit-logs.service";
+import { NotificationsService } from "../notifications/notifications.service";
 import { NotFoundException } from "@nestjs/common";
+
+import { EventEmitter2 } from "@nestjs/event-emitter";
 
 describe("AdminOrdersService", () => {
   let service: AdminOrdersService;
   let prismaMock: DeepMockProxy<PrismaService>;
+  let eventEmitterMock: any;
 
   beforeEach(async () => {
     prismaMock = mockDeep<PrismaService>();
+    eventEmitterMock = { emit: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -20,6 +25,7 @@ describe("AdminOrdersService", () => {
           provide: AuditLogsService,
           useValue: { log: jest.fn().mockResolvedValue(undefined) },
         },
+        { provide: EventEmitter2, useValue: eventEmitterMock },
       ],
     }).compile();
 

@@ -9,6 +9,15 @@ export interface ProductVariant {
   imageUrl?: string;
   listPrice: number;
   sellingPrice: number;
+  discountedPrice?: number;
+  discountAmount?: number;
+  discountPercent?: number;
+  appliedDiscount?: {
+    id: number;
+    name: string;
+    discountType: string;
+    discountValue: any;
+  };
   stock: number;
   weight?: number;
 }

@@ -3,22 +3,22 @@ import {
   Inject,
   Injectable,
   Logger,
-} from '@nestjs/common';
+} from "@nestjs/common";
 import {
   IStorageDriver,
   StorageFile,
   StorageResult,
   UploadOptions,
-} from './interfaces/storage-driver.interface';
+} from "./interfaces/storage-driver.interface";
 import {
   DEFAULT_ALLOWED_IMAGE_TYPES,
   DEFAULT_UPLOAD_FOLDER,
   MAX_FILE_SIZE,
   STORAGE_DRIVER,
-} from './constants/upload.constants';
-import { MemoryStorageAdapter } from './adapters/memory-storage.adapter';
-import { LocalStorageAdapter } from './adapters/local-storage.adapter';
-import { CloudinaryStorageAdapter } from './adapters/cloudinary-storage.adapter';
+} from "./constants/upload.constants";
+import { MemoryStorageAdapter } from "./adapters/memory-storage.adapter";
+import { LocalStorageAdapter } from "./adapters/local-storage.adapter";
+import { CloudinaryStorageAdapter } from "./adapters/cloudinary-storage.adapter";
 
 @Injectable()
 export class UploadService {
@@ -39,7 +39,7 @@ export class UploadService {
     options?: UploadOptions,
   ): Promise<StorageResult> {
     if (!file || !file.buffer) {
-      throw new BadRequestException('Không tìm thấy file để tải lên');
+      throw new BadRequestException("Không tìm thấy file để tải lên");
     }
 
     this.validateFile(file, options);
@@ -64,7 +64,7 @@ export class UploadService {
     options?: UploadOptions,
   ): Promise<StorageResult[]> {
     if (!files || files.length === 0) {
-      throw new BadRequestException('Không tìm thấy danh sách file để tải lên');
+      throw new BadRequestException("Không tìm thấy danh sách file để tải lên");
     }
 
     return Promise.all(files.map((file) => this.uploadSingle(file, options)));
@@ -77,11 +77,15 @@ export class UploadService {
    */
   async deleteFile(key: string, driverName?: string): Promise<boolean> {
     if (!key) {
-      throw new BadRequestException('Storage key không được để trống');
+      throw new BadRequestException("Storage key không được để trống");
     }
 
-    const driver = driverName ? this.getDriverByName(driverName) : this.activeDriver;
-    this.logger.log(`Deleting file with key "${key}" using [${driver.name}] driver`);
+    const driver = driverName
+      ? this.getDriverByName(driverName)
+      : this.activeDriver;
+    this.logger.log(
+      `Deleting file with key "${key}" using [${driver.name}] driver`,
+    );
     return driver.delete(key);
   }
 
@@ -106,11 +110,11 @@ export class UploadService {
    */
   getDriverByName(name: string): IStorageDriver {
     switch (name.toLowerCase()) {
-      case 'memory':
+      case "memory":
         return this.memoryAdapter;
-      case 'local':
+      case "local":
         return this.localAdapter;
-      case 'cloudinary':
+      case "cloudinary":
         return this.cloudinaryAdapter;
       default:
         throw new BadRequestException(`Driver "${name}" không được hỗ trợ`);
@@ -121,12 +125,13 @@ export class UploadService {
    * Kiểm tra tính hợp lệ của file (định dạng, kích thước)
    */
   private validateFile(file: StorageFile, options?: UploadOptions): void {
-    const allowedTypes = options?.allowedMimeTypes || DEFAULT_ALLOWED_IMAGE_TYPES;
+    const allowedTypes =
+      options?.allowedMimeTypes || DEFAULT_ALLOWED_IMAGE_TYPES;
     const maxSize = options?.maxSizeBytes || MAX_FILE_SIZE;
 
     if (!allowedTypes.includes(file.mimetype)) {
       throw new BadRequestException(
-        `Định dạng file "${file.mimetype}" không được hỗ trợ. Các định dạng cho phép: ${allowedTypes.join(', ')}`,
+        `Định dạng file "${file.mimetype}" không được hỗ trợ. Các định dạng cho phép: ${allowedTypes.join(", ")}`,
       );
     }
 

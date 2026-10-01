@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { PricingService } from "../pricing/pricing.service";
 import { CreateProductDto } from "./dto/create-product.dto";
 import { UpdateProductDto } from "./dto/update-product.dto";
 
@@ -20,7 +21,10 @@ function slugify(text: string): string {
 
 @Injectable()
 export class ProductsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly pricingService: PricingService,
+  ) {}
 
   async create(dto: CreateProductDto) {
     const { variants, images, slug, ...productData } = dto;
@@ -99,8 +103,10 @@ export class ProductsService {
         }),
       ]);
 
+      const enrichedData = await this.enrichProductsWithDiscountPrices(data);
+
       return {
-        data,
+        data: enrichedData,
         meta: {
           total,
           page: pageNum,
@@ -110,7 +116,7 @@ export class ProductsService {
       };
     }
 
-    return this.prisma.product.findMany({
+    const data = await this.prisma.product.findMany({
       where,
       include: {
         brand: true,
@@ -120,6 +126,8 @@ export class ProductsService {
       },
       orderBy: { createdAt: "desc" },
     });
+
+    return this.enrichProductsWithDiscountPrices(data);
   }
 
   async getStats() {
@@ -162,6 +170,35 @@ export class ProductsService {
     };
   }
 
+  private async enrichProductsWithDiscountPrices(products: any[]) {
+    if (!products || products.length === 0) return products;
+    const allVariants = products.flatMap((p) => p.variants || []);
+    if (allVariants.length === 0) return products;
+
+    const pricedVariants =
+      await this.pricingService.calculateVariantsPrice(allVariants);
+    const pricedVariantMap = new Map(pricedVariants.map((v) => [v.id, v]));
+
+    return products.map((product) => ({
+      ...product,
+      variants: product.variants?.map(
+        (v: any) => pricedVariantMap.get(v.id) || v,
+      ),
+    }));
+  }
+
+  private async enrichProductWithDiscountPrices(product: any) {
+    if (!product || !product.variants || product.variants.length === 0) {
+      return product;
+    }
+    const pricedVariants =
+      await this.pricingService.calculateVariantsPrice(product.variants);
+    return {
+      ...product,
+      variants: pricedVariants,
+    };
+  }
+
   async findOne(id: number) {
     const product = await this.prisma.product.findUnique({
       where: { id },
@@ -173,7 +210,7 @@ export class ProductsService {
       },
     });
     if (!product) throw new NotFoundException("Product not found");
-    return product;
+    return this.enrichProductWithDiscountPrices(product);
   }
 
   async findBySlug(slug: string) {
@@ -187,7 +224,7 @@ export class ProductsService {
       },
     });
     if (!product) throw new NotFoundException("Product not found");
-    return product;
+    return this.enrichProductWithDiscountPrices(product);
   }
 
   async update(id: number, dto: UpdateProductDto) {

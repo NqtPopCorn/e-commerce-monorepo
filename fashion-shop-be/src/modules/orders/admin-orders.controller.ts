@@ -30,6 +30,12 @@ export class AdminOrdersController {
     @Body() dto: UpdateOrderStatusDto,
     @Req() req: any,
   ) {
-    return this.service.updateStatus(id, dto.status, dto.paymentStatus, req?.user, req);
+    return this.service.updateStatus(
+      id,
+      dto.status,
+      dto.paymentStatus,
+      req?.user,
+      req,
+    );
   }
 }

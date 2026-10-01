@@ -12,6 +12,7 @@ import {
   BarChart3,
   Users,
   Percent,
+  Ticket,
   X,
   LogOut,
   Home,
@@ -51,7 +52,8 @@ const navGroups: NavGroup[] = [
     items: [
       { name: "Phân tích", link: "/admin/analytics", icon: BarChart3 },
       { name: "Tài khoản", link: "/admin/accounts", icon: Users },
-      { name: "Khuyến mãi", link: "/admin/promotions", icon: Percent },
+      { name: "Giảm giá SP", link: "/admin/discounts", icon: Percent },
+      { name: "Voucher", link: "/admin/vouchers", icon: Ticket },
       { name: "Nhật ký hoạt động", link: "/admin/audit-logs", icon: History },
     ],
   },

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
@@ -9,13 +9,18 @@ import { Category } from "@/types/product";
 import {
   Search,
   ShoppingCart,
-  Truck,
   UserCircle,
   Grid,
   ChevronDown,
+  Bell,
+  Package,
+  AlertCircle,
+  CheckCircle2,
 } from "lucide-react";
 import { useCartStore } from "@/stores/cart.store";
 import { useAuthStore } from "@/stores/auth.store";
+import { useNotifications, formatRelativeTime } from "@/hooks/useNotifications";
+import { NotificationItem } from "@/types/notification";
 
 export default function Header() {
   const router = useRouter();
@@ -27,6 +32,42 @@ export default function Header() {
   const { items } = useCartStore();
   const user = useAuthStore((state) => state.user);
   const hasHydrated = useAuthStore((state) => state.hasHydrated);
+
+  const [notifOpen, setNotifOpen] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
+
+  const {
+    notifications,
+    unreadCount,
+    markAsRead,
+    markAllAsRead,
+    isLoading: isLoadingNotifs,
+  } = useNotifications({ limit: 10 });
+
+  // Đóng dropdown thông báo khi click bên ngoài
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setNotifOpen(false);
+      }
+    };
+    if (notifOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [notifOpen]);
+
+  const handleNotificationClick = (item: NotificationItem) => {
+    if (!item.isRead) {
+      markAsRead(item.id);
+    }
+    setNotifOpen(false);
+    if (item.link) {
+      router.push(item.link);
+    } else {
+      router.push("/profile?tab=orders");
+    }
+  };
 
   const cartItemsCount = items.reduce((acc, item) => acc + item.quantity, 0);
 
@@ -192,15 +233,125 @@ export default function Header() {
                 </span>
               </Link>
 
-              <Link
-                href="/orders"
-                className="flex flex-col items-center hover:text-rose-600 transition-colors"
-              >
-                <Truck className="w-6 h-6" />
-                <span className="text-[11px] mt-1 hidden lg:block font-medium">
-                  Đơn hàng
-                </span>
-              </Link>
+              {/* Notification Bell (khi đã đăng nhập) */}
+              {hasHydrated && user && (
+                <div ref={notifRef} className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setNotifOpen(!notifOpen)}
+                    className="flex flex-col items-center hover:text-rose-600 transition-colors relative"
+                    title="Thông báo"
+                    aria-label="Thông báo"
+                  >
+                    <div className="relative">
+                      <Bell className="w-6 h-6" />
+                      {unreadCount > 0 && (
+                        <span className="absolute -top-2 -right-2 bg-rose-600 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center shadow animate-pulse">
+                          {unreadCount > 99 ? "99+" : unreadCount}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-[11px] mt-1 hidden lg:block font-medium">
+                      Thông báo
+                    </span>
+                  </button>
+
+                  {/* Notification Popover Dropdown */}
+                  {notifOpen && (
+                    <div className="absolute top-full right-0 mt-3 w-80 sm:w-96 bg-white border border-gray-200 shadow-2xl rounded-2xl z-50 overflow-hidden text-left animate-in fade-in slide-in-from-top-2 duration-150">
+                      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50/70">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-sm text-gray-900">
+                            Thông báo
+                          </span>
+                          {unreadCount > 0 && (
+                            <span className="text-[11px] font-semibold bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full">
+                              {unreadCount} mới
+                            </span>
+                          )}
+                        </div>
+                        {unreadCount > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => markAllAsRead()}
+                            className="text-xs text-rose-600 hover:text-rose-700 font-semibold transition-colors"
+                          >
+                            Đánh dấu đã đọc
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="max-h-80 overflow-y-auto divide-y divide-gray-100">
+                        {isLoadingNotifs && notifications.length === 0 ? (
+                          <div className="p-8 text-center text-xs text-gray-400">
+                            Đang tải thông báo...
+                          </div>
+                        ) : notifications.length === 0 ? (
+                          <div className="p-8 text-center text-xs text-gray-400">
+                            Chưa có thông báo nào
+                          </div>
+                        ) : (
+                          notifications.map((item) => (
+                            <div
+                              key={item.id}
+                              onClick={() => handleNotificationClick(item)}
+                              className={`p-3.5 hover:bg-gray-50/80 transition-colors flex gap-3 cursor-pointer ${
+                                !item.isRead ? "bg-rose-50/30" : ""
+                              }`}
+                            >
+                              <div className="shrink-0 mt-0.5">
+                                {item.type === "ORDER" ? (
+                                  <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
+                                    <Package className="w-4 h-4" />
+                                  </div>
+                                ) : item.type === "INVENTORY" ? (
+                                  <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center">
+                                    <AlertCircle className="w-4 h-4" />
+                                  </div>
+                                ) : (
+                                  <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center">
+                                    <CheckCircle2 className="w-4 h-4" />
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p
+                                  className={`text-xs ${
+                                    !item.isRead
+                                      ? "font-bold text-gray-900"
+                                      : "font-medium text-gray-700"
+                                  }`}
+                                >
+                                  {item.title}
+                                </p>
+                                <p className="text-xs text-gray-600 mt-0.5 line-clamp-2">
+                                  {item.message}
+                                </p>
+                                <span className="text-[10px] text-gray-400 mt-1 block">
+                                  {formatRelativeTime(item.createdAt)}
+                                </span>
+                              </div>
+                              {!item.isRead && (
+                                <div className="w-2 h-2 rounded-full bg-rose-600 shrink-0 self-center" />
+                              )}
+                            </div>
+                          ))
+                        )}
+                      </div>
+
+                      <div className="p-2.5 border-t border-gray-100 bg-gray-50/50 text-center">
+                        <Link
+                          href="/profile?tab=orders"
+                          onClick={() => setNotifOpen(false)}
+                          className="text-xs font-semibold text-rose-600 hover:text-rose-700 transition-colors block py-0.5"
+                        >
+                          Xem tất cả đơn hàng
+                        </Link>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <Link
                 href={hasHydrated && user ? "/profile" : "/login"}

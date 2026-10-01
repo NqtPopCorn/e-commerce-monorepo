@@ -168,14 +168,22 @@ export interface AppliedPromotion {
   discountAmount: number;
 }
 
+import { AppliedDiscount, AppliedVoucher } from "./pricing";
+
+export * from "./discount";
+export * from "./voucher";
+export * from "./pricing";
+
 export interface PromotionQuote {
   lines: QuoteLine[];
   subtotal: number;
   productDiscount: number;
-  orderDiscount: number;
+  orderDiscount?: number;
   voucherDiscount: number;
   total: number;
-  applied: AppliedPromotion[];
+  applied?: AppliedPromotion[];
+  appliedDiscounts?: AppliedDiscount[];
+  appliedVoucher?: AppliedVoucher;
   voucherError?: string;
 }
 

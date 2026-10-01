@@ -131,7 +131,8 @@ export class AuthService {
         entityId: String(user.id),
         description: `Đăng nhập bị từ chối: Tài khoản đang bị khóa (${user.email})`,
         status: "FAILED",
-        errorMessage: "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ ban quản trị.",
+        errorMessage:
+          "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ ban quản trị.",
         ipAddress,
         userAgent,
       });

@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { pricingService } from "@/services/pricing.service";
 import { promotionsService } from "@/services/promotions.service";
 import { useAuthStore } from "@/stores/auth.store";
 import {
@@ -19,7 +20,7 @@ export const usePromotionQuote = (items: CartInput[], voucherCode?: string) => {
   return useQuery({
     queryKey: ["promotion-quote", normalizedItems, codeKey],
     queryFn: () =>
-      promotionsService.quote({ items: normalizedItems, voucherCode }),
+      pricingService.quote({ items: normalizedItems, voucherCode }),
     enabled: !!token && normalizedItems.length > 0,
     staleTime: 0,
   });

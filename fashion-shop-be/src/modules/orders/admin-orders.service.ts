@@ -3,14 +3,17 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
+import { EventEmitter2 } from "@nestjs/event-emitter";
 import { PrismaService } from "../../prisma/prisma.service";
 import { AuditLogsService } from "../audit-logs/audit-logs.service";
+import { OrderStatusUpdatedEvent } from "../notifications/events/order.events";
 
 @Injectable()
 export class AdminOrdersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditLogsService: AuditLogsService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   findAll(status?: string) {
@@ -21,7 +24,8 @@ export class AdminOrdersService {
           select: { id: true, email: true, firstName: true, lastName: true },
         },
         items: { include: { variant: { include: { product: true } } } },
-        promotionApplications: true,
+        discountApplications: true,
+        voucherApplications: true,
       },
       orderBy: { createdAt: "desc" },
     });
@@ -34,7 +38,21 @@ export class AdminOrdersService {
     currentUser?: { id: number; email: string; role: string },
     req?: any,
   ) {
-    const order = await this.prisma.order.findUnique({ where: { id } });
+    const order = await this.prisma.order.findUnique({
+      where: { id },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            phone: true,
+          },
+        },
+        items: { include: { variant: { include: { product: true } } } },
+      },
+    });
     if (!order) throw new NotFoundException("Order not found");
 
     const data: any = {};
@@ -84,7 +102,8 @@ export class AdminOrdersService {
           select: { id: true, email: true, firstName: true, lastName: true },
         },
         items: { include: { variant: { include: { product: true } } } },
-        promotionApplications: true,
+        discountApplications: true,
+        voucherApplications: true,
       },
     });
 
@@ -126,6 +145,14 @@ export class AdminOrdersService {
       userAgent,
       status: "SUCCESS",
     });
+
+    // Phát sinh sự kiện thay đổi trạng thái bất đồng bộ - không block phản hồi của admin
+    if (oldValue.status !== newValue.status) {
+      this.eventEmitter.emit(
+        "order.status_updated",
+        new OrderStatusUpdatedEvent(order, oldValue.status, newValue.status),
+      );
+    }
 
     return updated;
   }

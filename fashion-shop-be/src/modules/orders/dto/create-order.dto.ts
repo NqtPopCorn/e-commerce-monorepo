@@ -48,6 +48,6 @@ export class CreateOrderDto {
   shippingNote?: string;
 
   @IsOptional()
-  @IsIn(["COD", "BANK_TRANSFER"])
-  paymentMethod?: "COD" | "BANK_TRANSFER";
+  @IsIn(["COD", "VIETQR", "BANK_TRANSFER"])
+  paymentMethod?: "COD" | "VIETQR" | "BANK_TRANSFER";
 }

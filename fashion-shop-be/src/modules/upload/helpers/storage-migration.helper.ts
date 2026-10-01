@@ -1,8 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { UploadService } from '../upload.service';
-import { StorageResult } from '../interfaces/storage-driver.interface';
-import * as fs from 'fs';
-import * as path from 'path';
+import { Injectable, Logger } from "@nestjs/common";
+import { UploadService } from "../upload.service";
+import { StorageResult } from "../interfaces/storage-driver.interface";
+import * as fs from "fs";
+import * as path from "path";
 
 export interface MigrationSummary {
   total: number;
@@ -27,7 +27,7 @@ export class StorageMigrationHelper {
   async migrateLocalFileToDriver(
     localFilePath: string,
     targetDriverName: string,
-    targetFolder = 'migrated',
+    targetFolder = "migrated",
   ): Promise<StorageResult> {
     const targetDriver = this.uploadService.getDriverByName(targetDriverName);
 
@@ -41,14 +41,14 @@ export class StorageMigrationHelper {
 
     // Map common extensions to MIME types
     const mimeMap: Record<string, string> = {
-      '.jpg': 'image/jpeg',
-      '.jpeg': 'image/jpeg',
-      '.png': 'image/png',
-      '.webp': 'image/webp',
-      '.gif': 'image/gif',
-      '.svg': 'image/svg+xml',
+      ".jpg": "image/jpeg",
+      ".jpeg": "image/jpeg",
+      ".png": "image/png",
+      ".webp": "image/webp",
+      ".gif": "image/gif",
+      ".svg": "image/svg+xml",
     };
-    const mimetype = mimeMap[ext] || 'application/octet-stream';
+    const mimetype = mimeMap[ext] || "application/octet-stream";
 
     this.logger.log(
       `Migrating local file "${filename}" to [${targetDriver.name}] under folder "${targetFolder}"`,
@@ -71,7 +71,7 @@ export class StorageMigrationHelper {
   async migrateDirectory(
     sourceDir: string,
     targetDriverName: string,
-    targetFolder = 'migrated',
+    targetFolder = "migrated",
   ): Promise<MigrationSummary> {
     const summary: MigrationSummary = {
       total: 0,

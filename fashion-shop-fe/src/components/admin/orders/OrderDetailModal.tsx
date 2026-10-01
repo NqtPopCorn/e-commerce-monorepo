@@ -25,11 +25,13 @@ import {
   FileText,
   Check,
   RefreshCw,
+  QrCode,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import { Order, OrderStatus, PaymentStatus } from "@/types/order";
 import { useUpdateOrderStatus } from "@/hooks/useOrders";
+import { useConfirmVietQRAdmin } from "@/hooks/usePayments";
 import { toast } from "sonner";
 import { OrderProgressPipeline } from "@/components/orders/OrderProgressPipeline";
 
@@ -97,6 +99,7 @@ export function OrderDetailModal({
   order,
 }: OrderDetailModalProps) {
   const updateStatusMutation = useUpdateOrderStatus();
+  const confirmVietQRMutation = useConfirmVietQRAdmin();
   const [isUpdatingPayment, setIsUpdatingPayment] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
@@ -125,6 +128,24 @@ export function OrderDetailModal({
     order.recipientPhone || order.user?.phone || "Chưa cập nhật";
   const shippingAddress =
     order.shippingAddress || "Chưa cập nhật địa chỉ chi tiết";
+
+  const handleConfirmVietQR = async () => {
+    setIsUpdatingPayment(true);
+    try {
+      await confirmVietQRMutation.mutateAsync(order.id);
+      order.paymentStatus = "PAID";
+      order.status = "CONFIRMED";
+      toast.success(
+        "Đã xác nhận thanh toán VietQR thành công! Đơn hàng đã được chuyển sang Đã xác nhận.",
+      );
+    } catch (err: any) {
+      toast.error(
+        err.response?.data?.message || "Không thể xác nhận thanh toán VietQR",
+      );
+    } finally {
+      setIsUpdatingPayment(false);
+    }
+  };
 
   const handleTogglePaymentStatus = async (newStatus: PaymentStatus) => {
     setIsUpdatingPayment(true);
@@ -269,10 +290,18 @@ export function OrderDetailModal({
                     <span className="font-medium text-foreground">
                       Hình thức:
                     </span>
-                    <span className="font-semibold text-foreground">
-                      {order.paymentMethod === "COD" || !order.paymentMethod
-                        ? "COD (Tiền mặt)"
-                        : order.paymentMethod}
+                    <span className="font-semibold text-foreground flex items-center gap-1.5">
+                      {order.paymentMethod === "VIETQR" ? (
+                        <>
+                          <QrCode className="w-3.5 h-3.5 text-primary" />
+                          <span>Chuyển khoản VietQR</span>
+                        </>
+                      ) : order.paymentMethod === "COD" ||
+                        !order.paymentMethod ? (
+                        "COD (Tiền mặt)"
+                      ) : (
+                        order.paymentMethod
+                      )}
                     </span>
                   </p>
                   <div className="flex justify-between items-center">
@@ -289,7 +318,37 @@ export function OrderDetailModal({
                 </div>
               </div>
 
-              {/* Nút thao tác nhanh thanh toán dành cho Admin */}
+              {/* Nút thao tác nhanh VietQR dành riêng cho đơn chuyển khoản */}
+              {order.paymentMethod === "VIETQR" && paymentStatus !== "PAID" && (
+                <div className="pt-2 border-t border-border/60 space-y-2">
+                  <div className="p-2 rounded-lg bg-primary/5 border border-primary/20 space-y-1 text-[11px]">
+                    <span className="text-muted-foreground block font-medium">
+                      Cú pháp đối soát ngân hàng:
+                    </span>
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono font-bold text-xs text-foreground">
+                        DH{order.id}
+                      </span>
+                      <span className="font-bold text-xs text-primary">
+                        {formatCurrency(Number(order.total))}
+                      </span>
+                    </div>
+                  </div>
+
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={isUpdatingPayment}
+                    onClick={handleConfirmVietQR}
+                    className="w-full h-8 text-xs font-semibold gap-1.5 rounded-lg shadow-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    Xác nhận nhận tiền VietQR
+                  </Button>
+                </div>
+              )}
+
+              {/* Nút thao tác chuyển trạng thái thanh toán thủ công khác */}
               <div className="pt-2 border-t border-border/60 space-y-1.5">
                 <span className="text-[10px] text-muted-foreground block">
                   Thao tác trạng thái thanh toán:
@@ -436,36 +495,71 @@ export function OrderDetailModal({
               </table>
             </div>
 
-            {/* Promotion Applications Snapshot */}
-            {order.promotionApplications &&
-              order.promotionApplications.length > 0 && (
-                <div className="bg-emerald-500/10 border border-emerald-500/20 p-4 rounded-xl space-y-2">
-                  <h4 className="font-semibold text-emerald-700 dark:text-emerald-400 text-xs flex items-center gap-1.5 uppercase tracking-wider">
-                    <Tag className="w-3.5 h-3.5" /> Lịch sử áp dụng khuyến mãi
-                    (Audit Log)
-                  </h4>
-                  <div className="space-y-1.5 text-xs text-emerald-800 dark:text-emerald-300">
-                    {order.promotionApplications.map((app: any) => (
-                      <div
-                        key={app.id}
-                        className="flex justify-between items-center bg-card/60 px-3 py-2 rounded-md border border-emerald-500/15"
-                      >
-                        <span>
-                          •{" "}
-                          <strong className="font-semibold text-foreground">
-                            {app.promotionName}
-                          </strong>
-                          {app.promotionCode ? ` (${app.promotionCode})` : ""}{" "}
-                          <span className="opacity-75">[{app.scope}]</span>
-                        </span>
-                        <span className="font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
-                          -{formatCurrency(Number(app.discountAmount))}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
+            {/* Discount & Voucher Applications Snapshot */}
+            {((order.discountApplications && order.discountApplications.length > 0) ||
+              (order.voucherApplications && order.voucherApplications.length > 0) ||
+              (order.promotionApplications && order.promotionApplications.length > 0)) && (
+              <div className="bg-emerald-500/10 border border-emerald-500/20 p-4 rounded-xl space-y-2">
+                <h4 className="font-semibold text-emerald-700 dark:text-emerald-400 text-xs flex items-center gap-1.5 uppercase tracking-wider">
+                  <Tag className="w-3.5 h-3.5" /> Lịch sử ưu đãi & Voucher áp dụng
+                </h4>
+                <div className="space-y-1.5 text-xs text-emerald-800 dark:text-emerald-300">
+                  {order.discountApplications?.map((app: any) => (
+                    <div
+                      key={`discount-${app.id}`}
+                      className="flex justify-between items-center bg-card/60 px-3 py-2 rounded-md border border-emerald-500/15"
+                    >
+                      <span>
+                        •{" "}
+                        <strong className="font-semibold text-foreground">
+                          {app.discountName}
+                        </strong>{" "}
+                        <span className="opacity-75">[GIẢM GIÁ SP]</span>
+                      </span>
+                      <span className="font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                        -{formatCurrency(Number(app.discountAmount))}
+                      </span>
+                    </div>
+                  ))}
+                  {order.voucherApplications?.map((app: any) => (
+                    <div
+                      key={`voucher-${app.id}`}
+                      className="flex justify-between items-center bg-card/60 px-3 py-2 rounded-md border border-emerald-500/15"
+                    >
+                      <span>
+                        •{" "}
+                        <strong className="font-semibold text-foreground">
+                          {app.voucherName}
+                        </strong>{" "}
+                        ({app.voucherCode}){" "}
+                        <span className="opacity-75">[VOUCHER]</span>
+                      </span>
+                      <span className="font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                        -{formatCurrency(Number(app.discountAmount))}
+                      </span>
+                    </div>
+                  ))}
+                  {order.promotionApplications?.map((app: any) => (
+                    <div
+                      key={`promo-${app.id}`}
+                      className="flex justify-between items-center bg-card/60 px-3 py-2 rounded-md border border-emerald-500/15"
+                    >
+                      <span>
+                        •{" "}
+                        <strong className="font-semibold text-foreground">
+                          {app.promotionName}
+                        </strong>
+                        {app.promotionCode ? ` (${app.promotionCode})` : ""}{" "}
+                        <span className="opacity-75">[{app.scope}]</span>
+                      </span>
+                      <span className="font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                        -{formatCurrency(Number(app.discountAmount))}
+                      </span>
+                    </div>
+                  ))}
                 </div>
-              )}
+              </div>
+            )}
 
             {/* Order Summary Snapshot */}
             <div className="bg-muted/40 p-4 rounded-xl border border-border space-y-2.5 text-xs text-muted-foreground max-w-sm ml-auto">
@@ -480,14 +574,6 @@ export function OrderDetailModal({
                   <span>Ưu đãi sản phẩm:</span>
                   <span className="font-medium tabular-nums">
                     -{formatCurrency(Number(order.productDiscount))}
-                  </span>
-                </div>
-              )}
-              {Number(order.orderDiscount) > 0 && (
-                <div className="flex justify-between items-center text-emerald-600 dark:text-emerald-400">
-                  <span>Khuyến mãi hóa đơn:</span>
-                  <span className="font-medium tabular-nums">
-                    -{formatCurrency(Number(order.orderDiscount))}
                   </span>
                 </div>
               )}

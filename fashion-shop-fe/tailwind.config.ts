@@ -73,6 +73,15 @@ module.exports = {
         "fade-in": "fade-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards",
         "slide-down": "slide-down 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards",
       },
+      aspectRatio: {
+        "3/4": "3 / 4",
+        "4/3": "4 / 3",
+        "4/5": "4 / 5",
+        "1/1": "1 / 1",
+      },
+      spacing: {
+        "18": "4.5rem",
+      },
     },
   },
   plugins: [],

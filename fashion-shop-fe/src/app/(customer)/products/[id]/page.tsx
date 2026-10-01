@@ -108,12 +108,14 @@ export default function ProductDetailPage({
       productName: product.name,
       size: currentVariant.size,
       color: currentVariant.color,
-      price: Number(currentVariant.sellingPrice),
+      price:
+        currentVariant.discountedPrice !== undefined
+          ? Number(currentVariant.discountedPrice)
+          : Number(currentVariant.sellingPrice),
       stock: currentVariant.stock,
       quantity: quantity,
       imageUrl: currentVariant.imageUrl || allImages[0],
     });
-    toast.success("Đã thêm vào giỏ hàng!");
   };
 
   const handleBuyNow = () => {
@@ -138,10 +140,17 @@ export default function ProductDetailPage({
   }
 
   const sellingPrice = Number(currentVariant?.sellingPrice || 0);
-  const listPrice = Number(currentVariant?.listPrice || sellingPrice);
+  const finalPrice =
+    currentVariant?.discountedPrice !== undefined
+      ? Number(currentVariant.discountedPrice)
+      : sellingPrice;
+  const originalPrice = Math.max(
+    Number(currentVariant?.listPrice || 0),
+    sellingPrice,
+  );
   const discountPercent =
-    listPrice > sellingPrice
-      ? Math.round(((listPrice - sellingPrice) / listPrice) * 100)
+    originalPrice > finalPrice
+      ? Math.round(((originalPrice - finalPrice) / originalPrice) * 100)
       : 0;
 
   return (
@@ -176,14 +185,14 @@ export default function ProductDetailPage({
       <div className="bg-white p-6 rounded-xl shadow-xs border border-gray-100 grid grid-cols-1 md:grid-cols-12 gap-8">
         {/* Left: Image Gallery */}
         <div className="md:col-span-5 flex flex-col gap-4">
-          <div className="aspect-3/4 w-full bg-gray-50 rounded-lg overflow-hidden border border-gray-200 relative group">
+          <div className="relative aspect-[3/4] w-full bg-gray-100 rounded-xl overflow-hidden border border-gray-200 group shadow-xs">
             <img
               src={allImages[activeImageIndex] || allImages[0]}
               alt={product.name}
-              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+              className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
             />
             {discountPercent > 0 && (
-              <span className="absolute top-3 left-3 bg-rose-600 text-white font-bold text-xs px-2.5 py-1 rounded-full shadow">
+              <span className="absolute top-3 left-3 z-10 bg-rose-600 text-white font-bold text-xs px-2.5 py-1 rounded-full shadow">
                 -{discountPercent}%
               </span>
             )}
@@ -191,21 +200,23 @@ export default function ProductDetailPage({
 
           {/* Thumbnails */}
           {allImages.length > 1 && (
-            <div className="flex gap-3 overflow-x-auto pb-2">
+            <div className="flex gap-2.5 overflow-x-auto pb-1 no-scrollbar pt-1">
               {allImages.map((img, idx) => (
                 <button
                   key={idx}
+                  type="button"
                   onClick={() => setActiveImageIndex(idx)}
-                  className={`w-16 h-20 rounded-md overflow-hidden border-2 shrink-0 transition-all ${
+                  className={`relative w-16 aspect-[3/4] rounded-lg overflow-hidden border-2 shrink-0 transition-all bg-gray-100 ${
                     activeImageIndex === idx
-                      ? "border-rose-600 scale-105 shadow-sm"
+                      ? "border-rose-600 ring-2 ring-rose-600/20 scale-105 shadow-sm z-10"
                       : "border-gray-200 hover:border-gray-400 opacity-70 hover:opacity-100"
                   }`}
                 >
                   <img
                     src={img}
                     alt={`Thumb ${idx + 1}`}
-                    className="w-full h-full object-cover"
+                    className="absolute inset-0 w-full h-full object-cover object-center"
+                    loading="lazy"
                   />
                 </button>
               ))}
@@ -227,24 +238,29 @@ export default function ProductDetailPage({
           </div>
 
           {/* Price Box */}
-          <div className="bg-slate-50 p-4 rounded-xl flex items-baseline gap-4 border border-slate-100">
+          <div className="bg-slate-50 p-4 rounded-xl flex items-baseline gap-4 border border-slate-100 flex-wrap">
             <span className="text-3xl font-black text-rose-600">
               {new Intl.NumberFormat("vi-VN", {
                 style: "currency",
                 currency: "VND",
-              }).format(sellingPrice)}
+              }).format(finalPrice)}
             </span>
-            {listPrice > sellingPrice && (
+            {originalPrice > finalPrice && (
               <span className="text-base text-gray-400 line-through">
                 {new Intl.NumberFormat("vi-VN", {
                   style: "currency",
                   currency: "VND",
-                }).format(listPrice)}
+                }).format(originalPrice)}
               </span>
             )}
             {discountPercent > 0 && (
               <span className="text-xs font-semibold text-rose-700 bg-rose-100 px-2 py-0.5 rounded">
                 Tiết kiệm {discountPercent}%
+              </span>
+            )}
+            {currentVariant?.appliedDiscount && (
+              <span className="text-xs font-medium text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">
+                {currentVariant.appliedDiscount.name}
               </span>
             )}
           </div>

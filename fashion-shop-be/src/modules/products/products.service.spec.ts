@@ -1,5 +1,6 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { PrismaService } from "../../prisma/prisma.service";
+import { PricingService } from "../pricing/pricing.service";
 import { mockDeep, DeepMockProxy } from "jest-mock-extended";
 import { ProductsService } from "./products.service";
 import { BadRequestException, NotFoundException } from "@nestjs/common";
@@ -7,14 +8,21 @@ import { BadRequestException, NotFoundException } from "@nestjs/common";
 describe("ProductsService", () => {
   let service: ProductsService;
   let prismaMock: DeepMockProxy<PrismaService>;
+  let pricingMock: any;
 
   beforeEach(async () => {
     prismaMock = mockDeep<PrismaService>();
+    pricingMock = {
+      calculateVariantsPrice: jest
+        .fn()
+        .mockImplementation((variants) => variants),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ProductsService,
         { provide: PrismaService, useValue: prismaMock },
+        { provide: PricingService, useValue: pricingMock },
       ],
     }).compile();
 

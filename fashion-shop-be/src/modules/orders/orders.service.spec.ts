@@ -1,18 +1,21 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import { PromotionPricingService } from "../promotions/promotion-pricing.service";
+import { PricingService } from "../pricing/pricing.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { mockDeep, DeepMockProxy } from "jest-mock-extended";
 import { OrdersService } from "./orders.service";
 import { BadRequestException, NotFoundException } from "@nestjs/common";
+import { EventEmitter2 } from "@nestjs/event-emitter";
 
 describe("OrdersService", () => {
   let service: OrdersService;
   let prismaMock: DeepMockProxy<PrismaService>;
   let pricingMock: any;
+  let eventEmitterMock: any;
 
   beforeEach(async () => {
     prismaMock = mockDeep<PrismaService>();
     pricingMock = { quote: jest.fn() };
+    eventEmitterMock = { emit: jest.fn() };
 
     // Giả lập Prisma $transaction callback ngay lập tức với prismaMock
     prismaMock.$transaction.mockImplementation(async (cb: any) =>
@@ -23,7 +26,8 @@ describe("OrdersService", () => {
       providers: [
         OrdersService,
         { provide: PrismaService, useValue: prismaMock },
-        { provide: PromotionPricingService, useValue: pricingMock },
+        { provide: PricingService, useValue: pricingMock },
+        { provide: EventEmitter2, useValue: eventEmitterMock },
       ],
     }).compile();
 
@@ -41,7 +45,6 @@ describe("OrdersService", () => {
       pricingMock.quote.mockResolvedValue({
         subtotal: 200000,
         productDiscount: 0,
-        orderDiscount: 0,
         voucherDiscount: 0,
         total: 200000,
         lines: [
@@ -53,8 +56,9 @@ describe("OrdersService", () => {
             finalUnitPrice: 100000,
           },
         ],
-        applied: [],
-        voucherError: null,
+        appliedDiscounts: [],
+        appliedVoucher: undefined,
+        voucherError: undefined,
       });
 
       prismaMock.order.create.mockResolvedValue({
@@ -99,11 +103,17 @@ describe("OrdersService", () => {
       pricingMock.quote.mockResolvedValue({
         subtotal: 200000,
         lines: [],
-        applied: [{ scope: "VOUCHER", id: 99 }],
+        appliedDiscounts: [],
+        appliedVoucher: {
+          voucherId: 99,
+          voucherCode: "CODE99",
+          voucherName: "Voucher 99",
+          discountAmount: 20000,
+        },
       });
 
       // Mock maxUses exceeded
-      prismaMock.promotion.findUnique.mockResolvedValue({
+      prismaMock.voucher.findUnique.mockResolvedValue({
         id: 99,
         active: true,
         maxUses: 1,
@@ -148,6 +158,8 @@ describe("OrdersService", () => {
         userId: 1,
         status: "PENDING",
         items: [{ variantId: 1, quantity: 2 }],
+        discountApplications: [],
+        voucherApplications: [],
       };
 
       prismaMock.order.findUnique.mockResolvedValue(orderData as any);

@@ -44,7 +44,7 @@ const categories = [
   },
   {
     name: "Quần jeans",
-    img: "https://images.unsplash.com/photo-1542272604-780c96856592?w=300&q=80",
+    img: "https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=300&q=80",
   },
   {
     name: "Váy liền",
@@ -210,19 +210,24 @@ export default function HomePage() {
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
             {products?.slice(0, 8).map((product: any) => {
-              const minPrice = Math.min(
+              const minFinalPrice = Math.min(
                 ...(product.variants?.map((v: any) =>
-                  Number(v.sellingPrice),
+                  v.discountedPrice !== undefined
+                    ? Number(v.discountedPrice)
+                    : Number(v.sellingPrice),
                 ) || [0]),
               );
-              const maxListPrice = Math.max(
+              const maxOriginalPrice = Math.max(
                 ...(product.variants?.map((v: any) =>
-                  Number(v.listPrice || 0),
+                  Math.max(Number(v.listPrice || 0), Number(v.sellingPrice || 0)),
                 ) || [0]),
               );
               const discount =
-                maxListPrice > minPrice
-                  ? Math.round(((maxListPrice - minPrice) / maxListPrice) * 100)
+                maxOriginalPrice > minFinalPrice
+                  ? Math.round(
+                      ((maxOriginalPrice - minFinalPrice) / maxOriginalPrice) *
+                        100,
+                    )
                   : 0;
               const imgUrl =
                 product.images?.[0]?.url ||
@@ -233,21 +238,22 @@ export default function HomePage() {
                 <Link
                   key={product.id}
                   href={`/products/${product.id}`}
-                  className="group flex flex-col rounded-xl overflow-hidden border border-gray-100 hover:border-gray-200 hover:shadow-lg transition-all bg-white"
+                  className="group flex flex-col rounded-xl overflow-hidden border border-gray-100 hover:border-gray-200 hover:shadow-lg transition-all bg-white h-full"
                 >
-                  <div className="aspect-3/4 w-full bg-gray-50 overflow-hidden relative">
+                  <div className="relative aspect-[3/4] w-full overflow-hidden bg-gray-100">
                     <img
                       src={imgUrl}
                       alt={product.name || product.title}
-                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
+                      loading="lazy"
                     />
                     {discount > 0 && (
-                      <span className="absolute top-2.5 left-2.5 bg-rose-600 text-white font-bold text-[10px] px-2 py-0.5 rounded-full shadow">
+                      <span className="absolute top-2.5 left-2.5 z-10 bg-rose-600 text-white font-bold text-[10px] px-2 py-0.5 rounded-full shadow">
                         -{discount}%
                       </span>
                     )}
                     {product.brand && (
-                      <span className="absolute bottom-2.5 left-2.5 bg-white/90 backdrop-blur-xs text-gray-800 text-[10px] font-bold px-2 py-0.5 rounded">
+                      <span className="absolute bottom-2.5 left-2.5 z-10 bg-white/90 backdrop-blur-xs text-gray-800 text-[10px] font-bold px-2 py-0.5 rounded shadow-xs">
                         {product.brand.name}
                       </span>
                     )}
@@ -261,14 +267,14 @@ export default function HomePage() {
                         {new Intl.NumberFormat("vi-VN", {
                           style: "currency",
                           currency: "VND",
-                        }).format(minPrice || 0)}
+                        }).format(minFinalPrice || 0)}
                       </span>
-                      {maxListPrice > minPrice && (
+                      {maxOriginalPrice > minFinalPrice && (
                         <span className="text-gray-400 text-xs line-through">
                           {new Intl.NumberFormat("vi-VN", {
                             style: "currency",
                             currency: "VND",
-                          }).format(maxListPrice)}
+                          }).format(maxOriginalPrice)}
                         </span>
                       )}
                     </div>

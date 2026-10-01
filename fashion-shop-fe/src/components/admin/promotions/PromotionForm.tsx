@@ -397,7 +397,6 @@ export function PromotionForm({
               : "Thiết lập cấu hình ưu đãi, thời gian hiệu lực và ngân sách cho chương trình khuyến mãi."}
           </p>
         </div>
-
       </div>
 
       {/* 2. Main Content 2-Column Layout */}
@@ -1258,7 +1257,6 @@ export function PromotionForm({
           />
         </div>
       </div>
-
     </div>
   );
 }

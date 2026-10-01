@@ -78,13 +78,13 @@ export default function CartPage() {
                 >
                   {/* Product Info */}
                   <div className="w-full md:w-1/2 flex items-center gap-4">
-                    <div className="w-20 h-28 bg-gray-100 rounded border flex shrink-0 items-center justify-center overflow-hidden">
+                    <div className="relative w-20 aspect-[3/4] bg-gray-100 rounded border flex shrink-0 items-center justify-center overflow-hidden">
                       {item.imageUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={item.imageUrl}
                           alt={item.title}
-                          className="w-full h-full object-cover"
+                          className="absolute inset-0 w-full h-full object-cover object-center"
                         />
                       ) : (
                         <span className="text-xs text-gray-400">No Image</span>
@@ -103,9 +103,9 @@ export default function CartPage() {
                           {[item.size, item.color].filter(Boolean).join(" - ")}
                         </span>
                       )}
-                      {qLine?.campaign && (
+                      {qLine?.discount && (
                         <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded w-fit mt-1">
-                          {qLine.campaign.name}
+                          {qLine.discount.name}
                         </span>
                       )}
                     </div>
