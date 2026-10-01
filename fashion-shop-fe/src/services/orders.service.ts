@@ -16,6 +16,10 @@ export const ordersService = {
     const res = await api.get("/orders/mine");
     return res.data;
   },
+  getOrderById: async (id: number): Promise<Order> => {
+    const res = await api.get(`/orders/${id}`);
+    return res.data;
+  },
   getAdminOrders: async (status?: string): Promise<Order[]> => {
     const res = await api.get("/admin/orders", { params: { status } });
     return res.data;

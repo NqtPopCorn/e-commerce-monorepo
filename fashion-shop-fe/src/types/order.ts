@@ -1,9 +1,10 @@
 export type OrderStatus =
   "PENDING" | "CONFIRMED" | "SHIPPING" | "COMPLETED" | "CANCELLED";
 
-export type PaymentMethod = "COD" | "BANK_TRANSFER";
+export type PaymentMethod = "COD" | "VIETQR" | "BANK_TRANSFER";
 
-export type PaymentStatus = "UNPAID" | "PAID" | "REFUNDED";
+export type PaymentStatus =
+  "UNPAID" | "PENDING" | "PAID" | "FAILED" | "REFUNDED";
 
 export interface OrderPromotionApplication {
   id: number;

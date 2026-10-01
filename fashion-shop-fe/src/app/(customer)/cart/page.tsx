@@ -25,7 +25,7 @@ export default function CartPage() {
   const quoteLineMap = new Map(quote?.lines.map((l) => [l.variantId, l]) || []);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 max-w-6xl mx-auto py-4 px-4 sm:px-6">
       <h1 className="text-2xl font-bold text-gray-800 uppercase">
         Giỏ hàng ({totalItems} sản phẩm)
       </h1>
@@ -191,8 +191,8 @@ export default function CartPage() {
               <PriceBreakdown quote={quote} isLoading={isQuoteLoading} />
 
               <Link href="/checkout" className="block pt-2">
-                <Button className="w-full bg-[#c92127] hover:bg-red-700 text-white h-14 text-xl font-bold shadow-md flex items-center justify-center gap-2">
-                  THANH TOÁN <ArrowRight className="w-5 h-5" />
+                <Button className="w-full bg-[#c92127] hover:bg-red-700 text-white h-14 text-base font-bold shadow-md flex items-center justify-center gap-2 rounded-xl">
+                  TIẾN HÀNH ĐẶT HÀNG <ArrowRight className="w-5 h-5" />
                 </Button>
               </Link>
             </div>

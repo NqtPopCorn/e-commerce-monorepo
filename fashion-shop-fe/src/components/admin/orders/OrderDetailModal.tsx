@@ -25,11 +25,13 @@ import {
   FileText,
   Check,
   RefreshCw,
+  QrCode,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import { Order, OrderStatus, PaymentStatus } from "@/types/order";
 import { useUpdateOrderStatus } from "@/hooks/useOrders";
+import { useConfirmVietQRAdmin } from "@/hooks/usePayments";
 import { toast } from "sonner";
 import { OrderProgressPipeline } from "@/components/orders/OrderProgressPipeline";
 
@@ -97,6 +99,7 @@ export function OrderDetailModal({
   order,
 }: OrderDetailModalProps) {
   const updateStatusMutation = useUpdateOrderStatus();
+  const confirmVietQRMutation = useConfirmVietQRAdmin();
   const [isUpdatingPayment, setIsUpdatingPayment] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
@@ -125,6 +128,24 @@ export function OrderDetailModal({
     order.recipientPhone || order.user?.phone || "Chưa cập nhật";
   const shippingAddress =
     order.shippingAddress || "Chưa cập nhật địa chỉ chi tiết";
+
+  const handleConfirmVietQR = async () => {
+    setIsUpdatingPayment(true);
+    try {
+      await confirmVietQRMutation.mutateAsync(order.id);
+      order.paymentStatus = "PAID";
+      order.status = "CONFIRMED";
+      toast.success(
+        "Đã xác nhận thanh toán VietQR thành công! Đơn hàng đã được chuyển sang Đã xác nhận.",
+      );
+    } catch (err: any) {
+      toast.error(
+        err.response?.data?.message || "Không thể xác nhận thanh toán VietQR",
+      );
+    } finally {
+      setIsUpdatingPayment(false);
+    }
+  };
 
   const handleTogglePaymentStatus = async (newStatus: PaymentStatus) => {
     setIsUpdatingPayment(true);
@@ -269,10 +290,18 @@ export function OrderDetailModal({
                     <span className="font-medium text-foreground">
                       Hình thức:
                     </span>
-                    <span className="font-semibold text-foreground">
-                      {order.paymentMethod === "COD" || !order.paymentMethod
-                        ? "COD (Tiền mặt)"
-                        : order.paymentMethod}
+                    <span className="font-semibold text-foreground flex items-center gap-1.5">
+                      {order.paymentMethod === "VIETQR" ? (
+                        <>
+                          <QrCode className="w-3.5 h-3.5 text-primary" />
+                          <span>Chuyển khoản VietQR</span>
+                        </>
+                      ) : order.paymentMethod === "COD" ||
+                        !order.paymentMethod ? (
+                        "COD (Tiền mặt)"
+                      ) : (
+                        order.paymentMethod
+                      )}
                     </span>
                   </p>
                   <div className="flex justify-between items-center">
@@ -289,7 +318,37 @@ export function OrderDetailModal({
                 </div>
               </div>
 
-              {/* Nút thao tác nhanh thanh toán dành cho Admin */}
+              {/* Nút thao tác nhanh VietQR dành riêng cho đơn chuyển khoản */}
+              {order.paymentMethod === "VIETQR" && paymentStatus !== "PAID" && (
+                <div className="pt-2 border-t border-border/60 space-y-2">
+                  <div className="p-2 rounded-lg bg-primary/5 border border-primary/20 space-y-1 text-[11px]">
+                    <span className="text-muted-foreground block font-medium">
+                      Cú pháp đối soát ngân hàng:
+                    </span>
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono font-bold text-xs text-foreground">
+                        DH{order.id}
+                      </span>
+                      <span className="font-bold text-xs text-primary">
+                        {formatCurrency(Number(order.total))}
+                      </span>
+                    </div>
+                  </div>
+
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={isUpdatingPayment}
+                    onClick={handleConfirmVietQR}
+                    className="w-full h-8 text-xs font-semibold gap-1.5 rounded-lg shadow-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    Xác nhận nhận tiền VietQR
+                  </Button>
+                </div>
+              )}
+
+              {/* Nút thao tác chuyển trạng thái thanh toán thủ công khác */}
               <div className="pt-2 border-t border-border/60 space-y-1.5">
                 <span className="text-[10px] text-muted-foreground block">
                   Thao tác trạng thái thanh toán:

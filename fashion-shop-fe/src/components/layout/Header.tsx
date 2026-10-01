@@ -9,7 +9,6 @@ import { Category } from "@/types/product";
 import {
   Search,
   ShoppingCart,
-  Truck,
   UserCircle,
   Grid,
   ChevronDown,
@@ -66,7 +65,7 @@ export default function Header() {
     if (item.link) {
       router.push(item.link);
     } else {
-      router.push("/orders");
+      router.push("/profile?tab=orders");
     }
   };
 
@@ -234,16 +233,6 @@ export default function Header() {
                 </span>
               </Link>
 
-              <Link
-                href="/orders"
-                className="flex flex-col items-center hover:text-rose-600 transition-colors"
-              >
-                <Truck className="w-6 h-6" />
-                <span className="text-[11px] mt-1 hidden lg:block font-medium">
-                  Đơn hàng
-                </span>
-              </Link>
-
               {/* Notification Bell (khi đã đăng nhập) */}
               {hasHydrated && user && (
                 <div ref={notifRef} className="relative">
@@ -352,7 +341,7 @@ export default function Header() {
 
                       <div className="p-2.5 border-t border-gray-100 bg-gray-50/50 text-center">
                         <Link
-                          href="/orders"
+                          href="/profile?tab=orders"
                           onClick={() => setNotifOpen(false)}
                           className="text-xs font-semibold text-rose-600 hover:text-rose-700 transition-colors block py-0.5"
                         >

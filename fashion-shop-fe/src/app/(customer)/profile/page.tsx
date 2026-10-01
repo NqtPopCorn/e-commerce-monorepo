@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useAuthStore } from "@/stores/auth.store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,7 +22,8 @@ import {
   Sparkles,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { CustomerOrdersList } from "@/components/orders/CustomerOrdersList";
 import {
   useGetMe,
   useUpdateMe,
@@ -44,14 +45,27 @@ import {
 import { toast } from "sonner";
 import { GenderType } from "@/types/account";
 
-export default function ProfilePage() {
+function ProfileContent() {
   const { user: authUser, logout } = useAuthStore();
   const hasHydrated = useAuthStore((state) => state.hasHydrated);
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [activeTab, setActiveTab] = useState<
-    "profile" | "addresses" | "password"
+    "profile" | "addresses" | "password" | "orders"
   >("profile");
+
+  useEffect(() => {
+    const tabParam = searchParams.get("tab");
+    if (
+      tabParam === "orders" ||
+      tabParam === "addresses" ||
+      tabParam === "password" ||
+      tabParam === "profile"
+    ) {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams]);
 
   // Profile data
   const { data: me, isLoading: isMeLoading } = useGetMe();
@@ -238,9 +252,9 @@ export default function ProfilePage() {
     "Khách hàng";
 
   return (
-    <div className="flex flex-col md:flex-row gap-6 max-w-6xl mx-auto py-4 px-4 sm:px-6">
+    <div className="flex flex-col md:flex-row gap-6 max-w-6xl mx-auto py-4 px-4 sm:px-6 items-start">
       {/* Sidebar Navigation */}
-      <div className="w-full md:w-1/4">
+      <div className="w-full md:w-1/4 md:sticky md:top-24">
         <div className="bg-card rounded-2xl shadow-xs border border-border overflow-hidden">
           <div className="p-6 bg-muted/40 border-b border-border flex flex-col items-center text-center">
             <div className="w-16 h-16 bg-primary/10 text-primary font-bold text-xl rounded-full flex items-center justify-center mb-3 border border-primary/20">
@@ -263,8 +277,11 @@ export default function ProfilePage() {
           <div className="flex flex-col p-2 space-y-1">
             <button
               type="button"
-              onClick={() => setActiveTab("profile")}
-              className={`w-full text-left px-4 py-2.5 rounded-xl font-medium text-xs transition-colors flex items-center gap-2.5 ${
+              onClick={() => {
+                setActiveTab("profile");
+                router.push("/profile?tab=profile", { scroll: false });
+              }}
+              className={`w-full text-left px-4 py-2.5 rounded-xl font-medium text-xs transition-colors flex items-center gap-2.5 cursor-pointer ${
                 activeTab === "profile"
                   ? "bg-primary text-primary-foreground font-semibold shadow-xs"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -276,8 +293,11 @@ export default function ProfilePage() {
 
             <button
               type="button"
-              onClick={() => setActiveTab("addresses")}
-              className={`w-full text-left px-4 py-2.5 rounded-xl font-medium text-xs transition-colors flex items-center gap-2.5 ${
+              onClick={() => {
+                setActiveTab("addresses");
+                router.push("/profile?tab=addresses", { scroll: false });
+              }}
+              className={`w-full text-left px-4 py-2.5 rounded-xl font-medium text-xs transition-colors flex items-center gap-2.5 cursor-pointer ${
                 activeTab === "addresses"
                   ? "bg-primary text-primary-foreground font-semibold shadow-xs"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -289,8 +309,11 @@ export default function ProfilePage() {
 
             <button
               type="button"
-              onClick={() => setActiveTab("password")}
-              className={`w-full text-left px-4 py-2.5 rounded-xl font-medium text-xs transition-colors flex items-center gap-2.5 ${
+              onClick={() => {
+                setActiveTab("password");
+                router.push("/profile?tab=password", { scroll: false });
+              }}
+              className={`w-full text-left px-4 py-2.5 rounded-xl font-medium text-xs transition-colors flex items-center gap-2.5 cursor-pointer ${
                 activeTab === "password"
                   ? "bg-primary text-primary-foreground font-semibold shadow-xs"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -300,13 +323,21 @@ export default function ProfilePage() {
               <span>Đổi mật khẩu</span>
             </button>
 
-            <Link
-              href="/orders"
-              className="w-full text-left px-4 py-2.5 rounded-xl font-medium text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors flex items-center gap-2.5"
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab("orders");
+                router.push("/profile?tab=orders", { scroll: false });
+              }}
+              className={`w-full text-left px-4 py-2.5 rounded-xl font-medium text-xs transition-colors flex items-center gap-2.5 cursor-pointer ${
+                activeTab === "orders"
+                  ? "bg-primary text-primary-foreground font-semibold shadow-xs"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              }`}
             >
               <ShoppingBag className="w-4 h-4" />
               <span>Đơn hàng của tôi</span>
-            </Link>
+            </button>
 
             <button
               type="button"
@@ -609,6 +640,23 @@ export default function ProfilePage() {
             </form>
           </div>
         )}
+
+        {/* Tab 4: Orders History */}
+        {activeTab === "orders" && (
+          <div className="space-y-5 w-full">
+            <div className="bg-card rounded-2xl shadow-xs border border-border p-5 sm:p-6">
+              <h2 className="text-lg font-bold text-foreground">
+                Lịch Sử Đơn Hàng Của Tôi
+              </h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Theo dõi tiến trình xử lý, giao nhận và thông tin thanh toán của
+                các đơn hàng.
+              </p>
+            </div>
+
+            <CustomerOrdersList />
+          </div>
+        )}
       </div>
 
       {/* Add Address Modal Dialog */}
@@ -757,5 +805,19 @@ export default function ProfilePage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+export default function ProfilePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="py-24 text-center text-muted-foreground text-sm">
+          Đang tải thông tin tài khoản...
+        </div>
+      }
+    >
+      <ProfileContent />
+    </Suspense>
   );
 }

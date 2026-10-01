@@ -371,9 +371,12 @@ function AdminOrdersContent() {
                   <TableCell className="text-center">
                     <div className="flex flex-col items-center gap-1">
                       <span className="text-[11px] font-medium text-foreground">
-                        {order.paymentMethod === "COD" || !order.paymentMethod
-                          ? "COD"
-                          : order.paymentMethod}
+                        {order.paymentMethod === "VIETQR"
+                          ? "VietQR"
+                          : order.paymentMethod === "COD" ||
+                              !order.paymentMethod
+                            ? "COD"
+                            : order.paymentMethod}
                       </span>
                       <span
                         className={`text-[10px] px-1.5 py-0.2 rounded-full font-semibold border ${

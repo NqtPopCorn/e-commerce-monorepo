@@ -17,11 +17,14 @@ import {
   MapPin,
   Phone,
   User,
-  CheckCircle2,
   Banknote,
+  QrCode,
+  ArrowRight,
+  ShieldCheck,
 } from "lucide-react";
 import { VoucherInput } from "@/components/promotions/VoucherInput";
 import { PriceBreakdown } from "@/components/promotions/PriceBreakdown";
+import { PaymentMethod } from "@/types/order";
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -42,6 +45,7 @@ export default function CheckoutPage() {
   );
   const [submitting, setSubmitting] = useState(false);
   const [voucherCode, setVoucherCode] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("COD");
 
   // Pre-fill from default address or user profile
   useEffect(() => {
@@ -99,7 +103,8 @@ export default function CheckoutPage() {
     setVoucherCode("");
   };
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  // Direct 1-step checkout submission
+  async function handlePlaceOrder(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!items.length) return toast.error("Giỏ hàng đang trống.");
     if (!hasHydrated) return;
@@ -122,10 +127,10 @@ export default function CheckoutPage() {
 
     setSubmitting(true);
     try {
-      await createOrderMutation.mutateAsync({
+      const createdOrder = await createOrderMutation.mutateAsync({
         items: cartInputs,
         voucherCode: voucherCode || undefined,
-        paymentMethod: "COD",
+        paymentMethod: paymentMethod,
         recipientName: recipientName.trim(),
         recipientPhone: recipientPhone.trim(),
         shippingAddress: address.trim(),
@@ -133,7 +138,16 @@ export default function CheckoutPage() {
       });
 
       clear();
-      router.push("/orders");
+
+      if (paymentMethod === "VIETQR") {
+        toast.success(
+          "Đơn hàng đã được tạo! Đang chuyển đến trang thanh toán VietQR...",
+        );
+        router.push(`/orders/${createdOrder.id}/payment`);
+      } else {
+        toast.success("Đặt hàng thành công! Đơn hàng COD đã được ghi nhận.");
+        router.push(`/orders/${createdOrder.id}`);
+      }
     } catch (error: any) {
       console.error(error);
       const msg =
@@ -161,7 +175,8 @@ export default function CheckoutPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6 max-w-6xl mx-auto py-4 px-4 sm:px-6">
+    <div className="flex flex-col gap-6 max-w-6xl mx-auto py-6 px-4 sm:px-6">
+      {/* Navigation Breadcrumb */}
       <div className="flex items-center gap-2 text-muted-foreground text-xs">
         <Link
           href="/cart"
@@ -171,12 +186,21 @@ export default function CheckoutPage() {
         </Link>
       </div>
 
-      <h1 className="text-2xl font-bold text-foreground uppercase border-b border-border pb-4">
-        Thanh toán đơn hàng
-      </h1>
+      <div className="border-b border-border pb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <h1 className="text-2xl font-bold text-foreground uppercase tracking-tight">
+          Thông tin đặt hàng
+        </h1>
+        <span className="text-xs text-muted-foreground">
+          Điền địa chỉ giao hàng và lựa chọn phương thức thanh toán
+        </span>
+      </div>
 
-      <form onSubmit={handleSubmit} className="flex flex-col lg:flex-row gap-6">
-        {/* Left Column: Form & Address */}
+      {/* Direct Checkout Form */}
+      <form
+        onSubmit={handlePlaceOrder}
+        className="flex flex-col lg:flex-row gap-6"
+      >
+        {/* Left Column: Form & Address & Payment */}
         <div className="w-full lg:w-2/3 space-y-6">
           <div className="bg-card p-6 rounded-2xl shadow-xs border border-border space-y-5">
             <div className="flex items-center justify-between border-b border-border pb-3">
@@ -233,12 +257,6 @@ export default function CheckoutPage() {
                               .join(", ")}
                           </p>
                         </div>
-                        {isSelected && (
-                          <div className="mt-2 flex items-center gap-1 text-[11px] font-semibold text-primary">
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            <span>Đang chọn địa chỉ này</span>
-                          </div>
-                        )}
                       </div>
                     );
                   })}
@@ -246,115 +264,166 @@ export default function CheckoutPage() {
               </div>
             )}
 
-            {/* Delivery Inputs */}
-            <div className="space-y-4 pt-2">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                <div className="space-y-1.5">
-                  <Label
-                    htmlFor="recipientName"
-                    className="text-xs font-medium"
-                  >
-                    Họ tên người nhận{" "}
-                    <span className="text-destructive">*</span>
-                  </Label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-                    <Input
-                      id="recipientName"
-                      required
-                      placeholder="Nguyễn Văn A"
-                      value={recipientName}
-                      onChange={(e) => {
-                        setRecipientName(e.target.value);
-                        setSelectedAddressId(null);
-                      }}
-                      className="pl-8 text-xs h-10 rounded-xl"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label
-                    htmlFor="recipientPhone"
-                    className="text-xs font-medium"
-                  >
-                    Số điện thoại nhận hàng{" "}
-                    <span className="text-destructive">*</span>
-                  </Label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-                    <Input
-                      id="recipientPhone"
-                      type="tel"
-                      required
-                      placeholder="0901 234 567"
-                      value={recipientPhone}
-                      onChange={(e) => {
-                        setRecipientPhone(e.target.value);
-                        setSelectedAddressId(null);
-                      }}
-                      className="pl-8 text-xs h-10 font-mono rounded-xl"
-                    />
-                  </div>
-                </div>
-              </div>
-
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label htmlFor="address" className="text-xs font-medium">
-                  Địa chỉ giao hàng chi tiết{" "}
+                <Label
+                  htmlFor="recipientName"
+                  className="text-xs font-semibold"
+                >
+                  Họ và tên người nhận{" "}
                   <span className="text-destructive">*</span>
                 </Label>
-                <textarea
-                  id="address"
-                  required
-                  minLength={5}
-                  value={address}
-                  onChange={(e) => {
-                    setAddress(e.target.value);
-                    setSelectedAddressId(null);
-                  }}
-                  className="w-full rounded-xl border border-input bg-background p-3 text-xs focus:outline-none focus:ring-1 focus:ring-primary transition-shadow"
-                  rows={2}
-                  placeholder="Số nhà, tên đường, phường/xã, quận/huyện, tỉnh/thành phố"
-                />
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    id="recipientName"
+                    required
+                    value={recipientName}
+                    onChange={(e) => setRecipientName(e.target.value)}
+                    placeholder="Nguyễn Văn A"
+                    className="pl-9 h-11 text-xs rounded-xl"
+                  />
+                </div>
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="shippingNote" className="text-xs font-medium">
-                  Ghi chú cho shipper (Tùy chọn)
+                <Label
+                  htmlFor="recipientPhone"
+                  className="text-xs font-semibold"
+                >
+                  Số điện thoại người nhận{" "}
+                  <span className="text-destructive">*</span>
                 </Label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    id="recipientPhone"
+                    type="tel"
+                    required
+                    value={recipientPhone}
+                    onChange={(e) => setRecipientPhone(e.target.value)}
+                    placeholder="0912 345 678"
+                    className="pl-9 h-11 text-xs font-mono rounded-xl"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="address" className="text-xs font-semibold">
+                Địa chỉ chi tiết (Số nhà, tên đường, phường/xã, quận/huyện,
+                tỉnh/thành) <span className="text-destructive">*</span>
+              </Label>
+              <div className="relative">
+                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
-                  id="shippingNote"
-                  value={shippingNote}
-                  onChange={(e) => setShippingNote(e.target.value)}
-                  placeholder="Ví dụ: Gọi trước khi giao, giao trong giờ hành chính..."
-                  className="text-xs h-10 rounded-xl"
+                  id="address"
+                  required
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="123 Lê Lợi, Phường Bến Nghé, Quận 1, TP. Hồ Chí Minh"
+                  className="pl-9 h-11 text-xs rounded-xl"
                 />
               </div>
             </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="shippingNote" className="text-xs font-semibold">
+                Ghi chú giao hàng (Không bắt buộc)
+              </Label>
+              <Input
+                id="shippingNote"
+                value={shippingNote}
+                onChange={(e) => setShippingNote(e.target.value)}
+                placeholder="Ví dụ: Giao giờ hành chính, gọi trước khi đến..."
+                className="h-11 text-xs rounded-xl"
+              />
+            </div>
           </div>
 
-          <div className="bg-card p-6 rounded-2xl shadow-xs border border-border">
-            <h2 className="text-base font-bold text-foreground mb-4 flex items-center gap-2">
-              <Banknote className="w-5 h-5 text-primary" />
-              <span>PHƯƠNG THỨC THANH TOÁN</span>
-            </h2>
-            <div className="border border-primary bg-primary/5 rounded-xl p-4 relative flex items-start sm:items-center gap-3.5 shadow-xs">
-              <div className="w-5 h-5 rounded-full border-4 border-primary bg-background flex shrink-0 mt-0.5 sm:mt-0" />
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-xs text-foreground">
-                    Thanh toán khi nhận hàng (COD)
-                  </span>
-                  <span className="text-[10px] font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-                    Mặc định
-                  </span>
+          {/* Payment Method Selector */}
+          <div className="bg-card p-6 rounded-2xl shadow-xs border border-border space-y-4">
+            <div className="border-b border-border pb-3 flex items-center justify-between">
+              <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+                <Banknote className="w-5 h-5 text-primary" />
+                <span>PHƯƠNG THỨC THANH TOÁN</span>
+              </h2>
+              <span className="text-xs text-muted-foreground">
+                Chọn phương thức phù hợp
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              {/* Method 1: COD */}
+              <div
+                onClick={() => setPaymentMethod("COD")}
+                className={`p-4 rounded-xl border cursor-pointer transition-all flex items-start gap-3 ${
+                  paymentMethod === "COD"
+                    ? "border-primary bg-primary/5 ring-1 ring-primary shadow-xs"
+                    : "border-border hover:border-muted-foreground/30 bg-muted/10"
+                }`}
+              >
+                <div
+                  className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 ${
+                    paymentMethod === "COD"
+                      ? "border-primary"
+                      : "border-muted-foreground/40"
+                  }`}
+                >
+                  {paymentMethod === "COD" && (
+                    <div className="w-2.5 h-2.5 rounded-full bg-primary" />
+                  )}
                 </div>
-                <span className="text-[11px] text-muted-foreground block mt-1 leading-relaxed">
-                  Thanh toán bằng tiền mặt trực tiếp cho nhân viên giao hàng khi
-                  nhận hàng. Quý khách được quyền kiểm tra tình trạng hàng trước
-                  khi thanh toán.
-                </span>
+                <div className="flex-1 space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-xs text-foreground flex items-center gap-1.5">
+                      <Banknote className="w-3.5 h-3.5 text-primary" />
+                      Thanh toán khi nhận hàng (COD)
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    Thanh toán bằng tiền mặt trực tiếp cho nhân viên giao hàng
+                    khi nhận và kiểm tra kiện hàng.
+                  </p>
+                </div>
+              </div>
+
+              {/* Method 2: VietQR */}
+              <div
+                onClick={() => setPaymentMethod("VIETQR")}
+                className={`p-4 rounded-xl border cursor-pointer transition-all flex items-start gap-3 ${
+                  paymentMethod === "VIETQR"
+                    ? "border-primary bg-primary/5 ring-1 ring-primary shadow-xs"
+                    : "border-border hover:border-muted-foreground/30 bg-muted/10"
+                }`}
+              >
+                <div
+                  className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 ${
+                    paymentMethod === "VIETQR"
+                      ? "border-primary"
+                      : "border-muted-foreground/40"
+                  }`}
+                >
+                  {paymentMethod === "VIETQR" && (
+                    <div className="w-2.5 h-2.5 rounded-full bg-primary" />
+                  )}
+                </div>
+                <div className="flex-1 space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-xs text-foreground flex items-center gap-1.5">
+                      <QrCode className="w-3.5 h-3.5 text-primary" />
+                      Chuyển khoản VietQR (Ngân hàng 24/7)
+                    </span>
+                    <span className="text-[10px] font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                      Khuyên dùng - Nhanh chóng
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    Quét mã QR bằng ứng dụng ngân hàng hoặc ví điện tử bất kỳ.
+                    Hệ thống tự động xác nhận đơn hàng ngay khi tiền về tài
+                    khoản.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -422,13 +491,34 @@ export default function CheckoutPage() {
             {/* Price Breakdown */}
             <PriceBreakdown quote={quote} isLoading={isQuoteLoading} />
 
+            {/* Direct Submit Button */}
             <Button
-              disabled={submitting || isQuoteLoading || !hasHydrated}
+              disabled={isQuoteLoading || !hasHydrated || submitting}
               type="submit"
               className="w-full h-12 text-sm font-bold shadow-md disabled:cursor-not-allowed disabled:opacity-60 flex items-center justify-center gap-2 rounded-xl"
             >
-              {submitting ? "ĐANG XỬ LÝ..." : "XÁC NHẬN ĐẶT HÀNG"}
+              {submitting ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>Đang xử lý đơn hàng...</span>
+                </div>
+              ) : paymentMethod === "VIETQR" ? (
+                <>
+                  <span>TIẾP TỤC THANH TOÁN VIETQR</span>
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              ) : (
+                <>
+                  <span>ĐẶT HÀNG NGAY (COD)</span>
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
             </Button>
+
+            <div className="flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground pt-1">
+              <ShieldCheck className="w-4 h-4 text-emerald-600" />
+              <span>Bảo mật thông tin đơn hàng 100%</span>
+            </div>
           </div>
         </div>
       </form>
