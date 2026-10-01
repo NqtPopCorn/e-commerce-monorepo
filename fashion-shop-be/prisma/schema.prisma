@@ -440,3 +440,24 @@ model Notification {
   @@index([userId, createdAt])
   @@map("notifications")
 }
+
+enum OtpType {
+  FORGOT_PASSWORD
+  PHONE_VERIFICATION
+  ORDER_CONFIRMATION
+  LOGIN
+}
+
+model OtpVerification {
+  id        Int      @id @default(autoincrement())
+  target    String   // Email hoặc số điện thoại
+  code      String   // Mã OTP 6 chữ số
+  type      OtpType  @default(FORGOT_PASSWORD)
+  expiresAt DateTime @map("expires_at")
+  used      Boolean  @default(false)
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([target, type, used])
+  @@map("otp_verifications")
+}

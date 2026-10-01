@@ -124,7 +124,9 @@ export function AuditLogDetailModal({
                   {log.userEmail || "Hệ thống"}
                 </p>
                 <div className="pt-1 flex items-center gap-1.5">
-                  <span className="text-[10px] text-muted-foreground">Vai trò:</span>
+                  <span className="text-[10px] text-muted-foreground">
+                    Vai trò:
+                  </span>
                   <AdminStatusBadge
                     status={log.userRole || log.user?.role || "SYSTEM"}
                     size="sm"
@@ -209,7 +211,8 @@ export function AuditLogDetailModal({
                 <span>Lỗi phát sinh trong thao tác</span>
               </div>
               <p className="text-xs font-mono pl-5">
-                {log.errorMessage || "Thao tác không hoàn thành do lỗi hệ thống."}
+                {log.errorMessage ||
+                  "Thao tác không hoàn thành do lỗi hệ thống."}
               </p>
             </div>
           )}
@@ -246,11 +249,22 @@ export function AuditLogDetailModal({
                     </thead>
                     <tbody className="divide-y divide-border/60 bg-card font-mono text-[11px]">
                       {changedKeys.map((key) => {
-                        const oldVal = JSON.stringify(log.oldValue[key], null, 1);
-                        const newVal = JSON.stringify(log.newValue[key], null, 1);
+                        const oldVal = JSON.stringify(
+                          log.oldValue[key],
+                          null,
+                          1,
+                        );
+                        const newVal = JSON.stringify(
+                          log.newValue[key],
+                          null,
+                          1,
+                        );
 
                         return (
-                          <tr key={key} className="hover:bg-muted/30 transition-colors">
+                          <tr
+                            key={key}
+                            className="hover:bg-muted/30 transition-colors"
+                          >
                             <td className="px-3.5 py-2 font-semibold text-foreground">
                               {key}
                             </td>
@@ -282,7 +296,9 @@ export function AuditLogDetailModal({
                 )}
 
                 {hasNewValue && (
-                  <div className={`space-y-1.5 ${!hasOldValue ? "md:col-span-2" : ""}`}>
+                  <div
+                    className={`space-y-1.5 ${!hasOldValue ? "md:col-span-2" : ""}`}
+                  >
                     <span className="text-[11px] font-semibold text-muted-foreground block">
                       {hasOldValue
                         ? "Toàn bộ bản ghi sau thay đổi (After)"

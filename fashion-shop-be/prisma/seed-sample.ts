@@ -650,7 +650,9 @@ async function main() {
       },
     },
   });
-  console.log("Created 1 campaign, 3 auto promotions, and 2 voucher promotions");
+  console.log(
+    "Created 1 campaign, 3 auto promotions, and 2 voucher promotions",
+  );
 
   // 6. Create Mock Orders
   const orders = [];

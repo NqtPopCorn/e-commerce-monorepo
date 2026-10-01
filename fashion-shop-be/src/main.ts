@@ -14,7 +14,7 @@ async function bootstrap() {
 
   // Phục vụ thư mục static uploads cho local-first storage
   const uploadDir = path.isAbsolute(process.env.UPLOAD_DIR || "uploads")
-    ? (process.env.UPLOAD_DIR || "uploads")
+    ? process.env.UPLOAD_DIR || "uploads"
     : path.resolve(process.cwd(), process.env.UPLOAD_DIR || "uploads");
 
   if (!fs.existsSync(uploadDir)) {

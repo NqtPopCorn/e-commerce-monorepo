@@ -23,7 +23,10 @@ export const uploadService = {
    * @param file File từ input hoặc drag & drop
    * @param folder Thư mục đích (vd: 'products', 'brands', 'avatars')
    */
-  uploadSingle: async (file: File, folder = "general"): Promise<UploadResult> => {
+  uploadSingle: async (
+    file: File,
+    folder = "general",
+  ): Promise<UploadResult> => {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("folder", folder);
@@ -69,9 +72,12 @@ export const uploadService = {
    * Xóa file theo key (chủ động gọi khi cần dọn dẹp)
    */
   deleteFile: async (key: string): Promise<boolean> => {
-    const res = await api.delete<{ success: boolean; message: string }>("/upload", {
-      data: { key },
-    });
+    const res = await api.delete<{ success: boolean; message: string }>(
+      "/upload",
+      {
+        data: { key },
+      },
+    );
     return res.data.success;
   },
 

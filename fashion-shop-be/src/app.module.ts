@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
+import { EventEmitterModule } from "@nestjs/event-emitter";
 import { PrismaModule } from "./prisma/prisma.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { ProductsModule } from "./modules/products/products.module";
@@ -14,10 +15,13 @@ import { PurchasesModule } from "./modules/purchases/purchases.module";
 import { AuditLogsModule } from "./modules/audit-logs/audit-logs.module";
 import { UploadModule } from "./modules/upload/upload.module";
 import { NotificationsModule } from "./modules/notifications/notifications.module";
+import { MailModule } from "./modules/mail/mail.module";
+import { SmsModule } from "./modules/sms/sms.module";
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    EventEmitterModule.forRoot(),
     PrismaModule,
     AuditLogsModule,
     AuthModule,
@@ -31,6 +35,8 @@ import { NotificationsModule } from "./modules/notifications/notifications.modul
     PurchasesModule,
     UploadModule,
     NotificationsModule,
+    MailModule,
+    SmsModule,
   ],
   controllers: [HealthController],
 })

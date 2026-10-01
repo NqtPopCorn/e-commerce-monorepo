@@ -1,10 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from "@nestjs/common";
 import {
   IStorageDriver,
   StorageFile,
   StorageResult,
   UploadOptions,
-} from '../interfaces/storage-driver.interface';
+} from "../interfaces/storage-driver.interface";
 
 interface MemoryRecord {
   buffer: Buffer;
@@ -17,19 +17,25 @@ interface MemoryRecord {
 
 @Injectable()
 export class MemoryStorageAdapter implements IStorageDriver {
-  readonly name = 'memory';
+  readonly name = "memory";
   private readonly logger = new Logger(MemoryStorageAdapter.name);
   private readonly store = new Map<string, MemoryRecord>();
 
-  async upload(file: StorageFile, options?: UploadOptions): Promise<StorageResult> {
-    const folder = (options?.folder || 'general').replace(/^[\\/]+|[\\/]+$/g, '');
-    const ext = file.originalname.includes('.')
-      ? file.originalname.split('.').pop()
-      : 'bin';
+  async upload(
+    file: StorageFile,
+    options?: UploadOptions,
+  ): Promise<StorageResult> {
+    const folder = (options?.folder || "general").replace(
+      /^[\\/]+|[\\/]+$/g,
+      "",
+    );
+    const ext = file.originalname.includes(".")
+      ? file.originalname.split(".").pop()
+      : "bin";
     const randomId = Math.random().toString(36).substring(2, 9);
     const key = `memory/${folder}/${Date.now()}-${randomId}.${ext}`;
 
-    const base64 = file.buffer.toString('base64');
+    const base64 = file.buffer.toString("base64");
     const dataUrl = `data:${file.mimetype};base64,${base64}`;
 
     const record: MemoryRecord = {
@@ -42,7 +48,9 @@ export class MemoryStorageAdapter implements IStorageDriver {
     };
 
     this.store.set(key, record);
-    this.logger.debug(`[MemoryStorage] Stored file key: ${key}, size: ${file.size} bytes`);
+    this.logger.debug(
+      `[MemoryStorage] Stored file key: ${key}, size: ${file.size} bytes`,
+    );
 
     return {
       key,

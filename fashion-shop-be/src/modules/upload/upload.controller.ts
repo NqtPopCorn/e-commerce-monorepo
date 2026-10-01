@@ -12,28 +12,28 @@ import {
   UploadedFiles,
   UseGuards,
   UseInterceptors,
-} from '@nestjs/common';
-import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
+} from "@nestjs/common";
+import { FileInterceptor, FilesInterceptor } from "@nestjs/platform-express";
 import {
   ApiBearerAuth,
   ApiBody,
   ApiConsumes,
   ApiOperation,
   ApiTags,
-} from '@nestjs/swagger';
-import { UploadService } from './upload.service';
-import { DeleteFileDto, UploadQueryDto } from './dto/upload.dto';
-import { JwtAuthGuard } from '../auth/jwt.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
+} from "@nestjs/swagger";
+import { UploadService } from "./upload.service";
+import { DeleteFileDto, UploadQueryDto } from "./dto/upload.dto";
+import { JwtAuthGuard } from "../auth/jwt.guard";
+import { RolesGuard } from "../auth/roles.guard";
+import { Roles } from "../auth/roles.decorator";
 
-@ApiTags('Upload')
-@Controller('upload')
+@ApiTags("Upload")
+@Controller("upload")
 export class UploadController {
   constructor(private readonly uploadService: UploadService) {}
 
-  @Get('driver-info')
-  @ApiOperation({ summary: 'Lấy thông tin storage driver đang hoạt động' })
+  @Get("driver-info")
+  @ApiOperation({ summary: "Lấy thông tin storage driver đang hoạt động" })
   getDriverInfo() {
     return {
       success: true,
@@ -41,41 +41,44 @@ export class UploadController {
     };
   }
 
-  @Post('single')
+  @Post("single")
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN', 'STAFF', 'CUSTOMER')
+  @Roles("ADMIN", "STAFF", "CUSTOMER")
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Upload 1 file ảnh (Admin/Staff: tất cả folder, Customer: chỉ avatars)' })
-  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary:
+      "Upload 1 file ảnh (Admin/Staff: tất cả folder, Customer: chỉ avatars)",
+  })
+  @ApiConsumes("multipart/form-data")
   @ApiBody({
     schema: {
-      type: 'object',
+      type: "object",
       properties: {
-        file: { type: 'string', format: 'binary' },
-        folder: { type: 'string', example: 'products' },
+        file: { type: "string", format: "binary" },
+        folder: { type: "string", example: "products" },
       },
     },
   })
   @UseInterceptors(
-    FileInterceptor('file', {
+    FileInterceptor("file", {
       limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
     }),
   )
   async uploadSingle(
     @UploadedFile() file: Express.Multer.File,
     @Query() query: UploadQueryDto,
-    @Body('folder') bodyFolder?: string,
+    @Body("folder") bodyFolder?: string,
     @Req() req?: any,
   ) {
     if (!file) {
-      throw new BadRequestException('Vui lòng chọn một file ảnh để tải lên');
+      throw new BadRequestException("Vui lòng chọn một file ảnh để tải lên");
     }
 
-    const targetFolder = bodyFolder || query.folder || 'general';
+    const targetFolder = bodyFolder || query.folder || "general";
     const userRole = req?.user?.role;
 
     // Customer chỉ được phép upload vào thư mục avatars
-    if (userRole === 'CUSTOMER' && targetFolder !== 'avatars') {
+    if (userRole === "CUSTOMER" && targetFolder !== "avatars") {
       throw new ForbiddenException(
         'Khách hàng chỉ có quyền tải ảnh đại diện vào thư mục "avatars"',
       );
@@ -94,44 +97,44 @@ export class UploadController {
 
     return {
       success: true,
-      message: 'Tải lên thành công',
+      message: "Tải lên thành công",
       data: result,
     };
   }
 
-  @Post('multiple')
+  @Post("multiple")
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN', 'STAFF')
+  @Roles("ADMIN", "STAFF")
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Upload nhiều file ảnh (tối đa 10 files)' })
-  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: "Upload nhiều file ảnh (tối đa 10 files)" })
+  @ApiConsumes("multipart/form-data")
   @ApiBody({
     schema: {
-      type: 'object',
+      type: "object",
       properties: {
         files: {
-          type: 'array',
-          items: { type: 'string', format: 'binary' },
+          type: "array",
+          items: { type: "string", format: "binary" },
         },
-        folder: { type: 'string', example: 'products' },
+        folder: { type: "string", example: "products" },
       },
     },
   })
   @UseInterceptors(
-    FilesInterceptor('files', 10, {
+    FilesInterceptor("files", 10, {
       limits: { fileSize: 5 * 1024 * 1024 },
     }),
   )
   async uploadMultiple(
     @UploadedFiles() files: Express.Multer.File[],
     @Query() query: UploadQueryDto,
-    @Body('folder') bodyFolder?: string,
+    @Body("folder") bodyFolder?: string,
   ) {
     if (!files || files.length === 0) {
-      throw new BadRequestException('Vui lòng chọn ít nhất một file ảnh');
+      throw new BadRequestException("Vui lòng chọn ít nhất một file ảnh");
     }
 
-    const targetFolder = bodyFolder || query.folder || 'general';
+    const targetFolder = bodyFolder || query.folder || "general";
 
     const storageFiles = files.map((file) => ({
       buffer: file.buffer,
@@ -154,10 +157,10 @@ export class UploadController {
 
   @Delete()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN', 'STAFF')
+  @Roles("ADMIN", "STAFF")
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Xóa file thủ công theo key (chỉ dành cho quản trị viên)',
+    summary: "Xóa file thủ công theo key (chỉ dành cho quản trị viên)",
   })
   async deleteFile(@Body() dto: DeleteFileDto) {
     const success = await this.uploadService.deleteFile(dto.key);

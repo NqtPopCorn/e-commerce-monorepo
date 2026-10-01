@@ -6,12 +6,16 @@ import { AuditLogsService } from "../audit-logs/audit-logs.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { NotFoundException } from "@nestjs/common";
 
+import { EventEmitter2 } from "@nestjs/event-emitter";
+
 describe("AdminOrdersService", () => {
   let service: AdminOrdersService;
   let prismaMock: DeepMockProxy<PrismaService>;
+  let eventEmitterMock: any;
 
   beforeEach(async () => {
     prismaMock = mockDeep<PrismaService>();
+    eventEmitterMock = { emit: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -21,13 +25,7 @@ describe("AdminOrdersService", () => {
           provide: AuditLogsService,
           useValue: { log: jest.fn().mockResolvedValue(undefined) },
         },
-        {
-          provide: NotificationsService,
-          useValue: {
-            notifyUser: jest.fn().mockResolvedValue(undefined),
-            notifyRoles: jest.fn().mockResolvedValue([]),
-          },
-        },
+        { provide: EventEmitter2, useValue: eventEmitterMock },
       ],
     }).compile();
 

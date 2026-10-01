@@ -1,7 +1,13 @@
 "use client";
 
 import React, { useState, useRef } from "react";
-import { UploadCloud, X, Loader2, Image as ImageIcon, ExternalLink } from "lucide-react";
+import {
+  UploadCloud,
+  X,
+  Loader2,
+  Image as ImageIcon,
+  ExternalLink,
+} from "lucide-react";
 import { toast } from "sonner";
 import { uploadService } from "@/services/upload.service";
 import { Button } from "@/components/ui/button";
@@ -41,12 +47,16 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
 
   const handleFileProcess = async (file: File) => {
     if (!allowedTypes.includes(file.type)) {
-      toast.error(`Định dạng "${file.type}" không hợp lệ. Chỉ chấp nhận file ảnh.`);
+      toast.error(
+        `Định dạng "${file.type}" không hợp lệ. Chỉ chấp nhận file ảnh.`,
+      );
       return;
     }
 
     if (file.size > maxSizeMB * 1024 * 1024) {
-      toast.error(`Dung lượng file (${(file.size / (1024 * 1024)).toFixed(1)}MB) vượt quá giới hạn ${maxSizeMB}MB.`);
+      toast.error(
+        `Dung lượng file (${(file.size / (1024 * 1024)).toFixed(1)}MB) vượt quá giới hạn ${maxSizeMB}MB.`,
+      );
       return;
     }
 
@@ -58,7 +68,9 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     } catch (err: any) {
       console.error("Upload error:", err);
       const errMsg =
-        err?.response?.data?.message || err?.message || "Không thể tải ảnh lên. Vui lòng thử lại.";
+        err?.response?.data?.message ||
+        err?.message ||
+        "Không thể tải ảnh lên. Vui lòng thử lại.";
       toast.error(errMsg);
     } finally {
       setIsUploading(false);
@@ -181,7 +193,9 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
           {isUploading ? (
             <div className="flex flex-col items-center gap-2 py-3 text-rose-600">
               <Loader2 className="w-8 h-8 animate-spin" />
-              <p className="text-sm font-medium">Đang tải ảnh lên hệ thống...</p>
+              <p className="text-sm font-medium">
+                Đang tải ảnh lên hệ thống...
+              </p>
             </div>
           ) : (
             <>

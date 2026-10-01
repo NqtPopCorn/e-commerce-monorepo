@@ -115,9 +115,11 @@ async function main() {
           action: "SYSTEM_INITIALIZE",
           entityType: "SYSTEM",
           entityId: "SYSTEM-01",
-          description: "Khởi tạo hệ thống Fashion Shop v2 và cấu hình cơ sở dữ liệu ban đầu",
+          description:
+            "Khởi tạo hệ thống Fashion Shop v2 và cấu hình cơ sở dữ liệu ban đầu",
           ipAddress: "127.0.0.1",
-          userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0",
+          userAgent:
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0",
           status: "SUCCESS",
           createdAt: new Date(now.getTime() - 3 * 3600 * 1000),
         },
@@ -130,7 +132,8 @@ async function main() {
           entityId: String(admin.id),
           description: `Đăng nhập thành công với vai trò ${admin.role} (${admin.email})`,
           ipAddress: "192.168.1.15",
-          userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0",
+          userAgent:
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0",
           status: "SUCCESS",
           createdAt: new Date(now.getTime() - 2 * 3600 * 1000),
         },
@@ -141,7 +144,8 @@ async function main() {
           action: "PURCHASE_RECEIPT_CREATE",
           entityType: "PURCHASE",
           entityId: "1",
-          description: "Tạo phiếu nhập kho #PN-20260930-1001 (Tổng: 15.000.000 ₫, 12 mặt hàng)",
+          description:
+            "Tạo phiếu nhập kho #PN-20260930-1001 (Tổng: 15.000.000 ₫, 12 mặt hàng)",
           newValue: {
             code: "PN-20260930-1001",
             supplier: "Fashion Shop Official",
@@ -164,7 +168,8 @@ async function main() {
           oldValue: { status: "PENDING", paymentStatus: "UNPAID" },
           newValue: { status: "CONFIRMED", paymentStatus: "UNPAID" },
           ipAddress: "192.168.1.15",
-          userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0",
+          userAgent:
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0",
           status: "SUCCESS",
           createdAt: new Date(now.getTime() - 45 * 60 * 1000),
         },
@@ -182,7 +187,8 @@ async function main() {
             budgetLimit: 50000000,
           },
           ipAddress: "192.168.1.15",
-          userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0",
+          userAgent:
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0",
           status: "SUCCESS",
           createdAt: new Date(now.getTime() - 20 * 60 * 1000),
         },
@@ -190,7 +196,8 @@ async function main() {
           userEmail: "unknown_hacker@bad.net",
           action: "LOGIN_FAILED",
           entityType: "AUTH",
-          description: "Đăng nhập thất bại: Tài khoản không tồn tại (unknown_hacker@bad.net)",
+          description:
+            "Đăng nhập thất bại: Tài khoản không tồn tại (unknown_hacker@bad.net)",
           ipAddress: "45.134.14.89",
           userAgent: "curl/7.88.1",
           status: "FAILED",

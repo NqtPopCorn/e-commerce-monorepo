@@ -6,14 +6,18 @@ import { OrdersService } from "./orders.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { BadRequestException, NotFoundException } from "@nestjs/common";
 
+import { EventEmitter2 } from "@nestjs/event-emitter";
+
 describe("OrdersService", () => {
   let service: OrdersService;
   let prismaMock: DeepMockProxy<PrismaService>;
   let pricingMock: any;
+  let eventEmitterMock: any;
 
   beforeEach(async () => {
     prismaMock = mockDeep<PrismaService>();
     pricingMock = { quote: jest.fn() };
+    eventEmitterMock = { emit: jest.fn() };
 
     // Giả lập Prisma $transaction callback ngay lập tức với prismaMock
     prismaMock.$transaction.mockImplementation(async (cb: any) =>
@@ -25,13 +29,7 @@ describe("OrdersService", () => {
         OrdersService,
         { provide: PrismaService, useValue: prismaMock },
         { provide: PromotionPricingService, useValue: pricingMock },
-        {
-          provide: NotificationsService,
-          useValue: {
-            notifyUser: jest.fn().mockResolvedValue(undefined),
-            notifyRoles: jest.fn().mockResolvedValue([]),
-          },
-        },
+        { provide: EventEmitter2, useValue: eventEmitterMock },
       ],
     }).compile();
 

@@ -3,16 +3,17 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
+import { EventEmitter2 } from "@nestjs/event-emitter";
 import { PrismaService } from "../../prisma/prisma.service";
 import { AuditLogsService } from "../audit-logs/audit-logs.service";
-import { NotificationsService } from "../notifications/notifications.service";
+import { OrderStatusUpdatedEvent } from "../notifications/events/order.events";
 
 @Injectable()
 export class AdminOrdersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditLogsService: AuditLogsService,
-    private readonly notificationsService: NotificationsService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   findAll(status?: string) {
@@ -36,7 +37,21 @@ export class AdminOrdersService {
     currentUser?: { id: number; email: string; role: string },
     req?: any,
   ) {
-    const order = await this.prisma.order.findUnique({ where: { id } });
+    const order = await this.prisma.order.findUnique({
+      where: { id },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            phone: true,
+          },
+        },
+        items: { include: { variant: { include: { product: true } } } },
+      },
+    });
     if (!order) throw new NotFoundException("Order not found");
 
     const data: any = {};
@@ -129,38 +144,12 @@ export class AdminOrdersService {
       status: "SUCCESS",
     });
 
-    // Thông báo cho khách hàng khi trạng thái đơn hàng thay đổi
+    // Phát sinh sự kiện thay đổi trạng thái bất đồng bộ - không block phản hồi của admin
     if (oldValue.status !== newValue.status) {
-      let title = "Cập nhật đơn hàng";
-      let message = `Đơn hàng #${id} đã chuyển sang trạng thái: ${newValue.status}.`;
-      let level: "INFO" | "SUCCESS" | "WARNING" | "ERROR" = "INFO";
-
-      if (newValue.status === "CONFIRMED") {
-        title = "Đơn hàng đã được xác nhận";
-        message = `Đơn hàng #${id} đã được xác nhận và đang đóng gói sản phẩm.`;
-        level = "INFO";
-      } else if (newValue.status === "SHIPPING") {
-        title = "Đơn hàng đang được giao";
-        message = `Đơn hàng #${id} đang trên đường vận chuyển đến bạn.`;
-        level = "INFO";
-      } else if (newValue.status === "COMPLETED") {
-        title = "Đơn hàng đã hoàn tất";
-        message = `Đơn hàng #${id} đã giao thành công. Cảm ơn bạn đã tin tưởng mua sắm!`;
-        level = "SUCCESS";
-      } else if (newValue.status === "CANCELLED") {
-        title = "Đơn hàng đã bị hủy";
-        message = `Đơn hàng #${id} đã bị hủy bởi hệ thống/quản trị viên.`;
-        level = "WARNING";
-      }
-
-      await this.notificationsService.notifyUser(order.userId, {
-        title,
-        message,
-        type: "ORDER",
-        level,
-        link: "/orders",
-        data: { orderId: id, status: newValue.status },
-      });
+      this.eventEmitter.emit(
+        "order.status_updated",
+        new OrderStatusUpdatedEvent(order, oldValue.status, newValue.status),
+      );
     }
 
     return updated;
