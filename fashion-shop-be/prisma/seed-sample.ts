@@ -490,31 +490,32 @@ async function main() {
     `Created ${products.length} fashion products with variants, images, and purchase receipts`,
   );
 
-  // 5. Create Promotions
-  console.log("Creating promotions...");
-  await prisma.promotionVariant.deleteMany();
-  await prisma.promotionGroup.deleteMany();
-  await prisma.promotionApplication.deleteMany();
+  // 5. Create Discounts & Vouchers
+  console.log("Creating discounts and vouchers...");
+  await prisma.discountVariant.deleteMany();
+  await prisma.discountGroup.deleteMany();
+  await prisma.discountApplication.deleteMany();
+  await prisma.voucherApplication.deleteMany();
   await prisma.voucher.deleteMany();
-  await prisma.promotion.deleteMany();
+  await prisma.discount.deleteMany();
   await prisma.campaign.deleteMany();
 
   const summerCampaign = await prisma.campaign.create({
     data: {
-      name: "Tuần lễ thời trang Hè - Ưu đãi bùng nổ",
+      name: "Chiến dịch Hè Rực Rỡ 2026",
       description: "Chiến dịch trợ giá lớn mùa hè 2026",
-      budgetLimit: 20000000,
+      budgetLimit: 50000000,
       spentAmount: 0,
       status: "ACTIVE",
       startsAt: new Date("2026-01-01"),
     },
   });
 
-  await prisma.promotion.create({
+  await prisma.discount.create({
     data: {
       campaignId: summerCampaign.id,
-      name: "Giảm giá sâu BST Áo & Quần Hè",
-      applicationType: "AUTO",
+      name: "Flash Sale 20% BST Áo Hè",
+      description: "Giảm 20% cho các sản phẩm áo chọn lọc",
       priority: 10,
       budgetLimit: 15000000,
       startsAt: new Date("2026-01-01"),
@@ -522,7 +523,7 @@ async function main() {
       groups: {
         create: [
           {
-            name: "Giảm 20% bộ sưu tập Áo Hot",
+            name: "Giảm 20% tối đa 100k",
             sortOrder: 1,
             discountType: "PERCENT",
             discountValue: 20,
@@ -531,68 +532,16 @@ async function main() {
               create: variants.slice(0, 6).map((v) => ({ variantId: v.id })),
             },
           },
-          {
-            name: "Giảm 50k cho Quần & Váy chọn lọc",
-            sortOrder: 2,
-            discountType: "FIXED",
-            discountValue: 50000,
-            variants: {
-              create: variants.slice(6, 12).map((v) => ({ variantId: v.id })),
-            },
-          },
         ],
       },
     },
   });
 
-  await prisma.promotion.create({
+  await prisma.discount.create({
     data: {
-      name: "Giảm 50k cho đơn từ 400k",
-      applicationType: "AUTO",
-      minOrderAmount: 400000,
+      name: "Xả Kho Giảm 50.000đ Quần & Váy",
+      description: "Giảm trực tiếp 50k cho mỗi sản phẩm quần và váy",
       priority: 5,
-      startsAt: new Date("2026-01-01"),
-      active: true,
-      groups: {
-        create: [
-          {
-            name: "Giảm 50k đơn hàng",
-            sortOrder: 1,
-            discountType: "FIXED",
-            discountValue: 50000,
-          },
-        ],
-      },
-    },
-  });
-
-  await prisma.promotion.create({
-    data: {
-      name: "Giảm 10% cho đơn từ 800k",
-      applicationType: "AUTO",
-      minOrderAmount: 800000,
-      priority: 10,
-      startsAt: new Date("2026-01-01"),
-      active: true,
-      groups: {
-        create: [
-          {
-            name: "Giảm 10% đơn hàng",
-            sortOrder: 1,
-            discountType: "PERCENT",
-            discountValue: 10,
-            maxDiscountValue: 150000,
-          },
-        ],
-      },
-    },
-  });
-
-  await prisma.promotion.create({
-    data: {
-      name: "Voucher khách hàng thân thiết - Giảm 50k",
-      applicationType: "VOUCHER",
-      minOrderAmount: 250000,
       budgetLimit: 10000000,
       startsAt: new Date("2026-01-01"),
       active: true,
@@ -603,56 +552,51 @@ async function main() {
             sortOrder: 1,
             discountType: "FIXED",
             discountValue: 50000,
-          },
-        ],
-      },
-      vouchers: {
-        create: [
-          {
-            code: "FASHION50K",
-            maxUses: 100,
-            maxUsesPerCustomer: 1,
-            active: true,
+            maxDiscountValue: 50000,
+            variants: {
+              create: variants.slice(6, 12).map((v) => ({ variantId: v.id })),
+            },
           },
         ],
       },
     },
   });
 
-  await prisma.promotion.create({
+  await prisma.voucher.create({
     data: {
-      name: "Voucher chào bạn mới - Giảm 15%",
-      applicationType: "VOUCHER",
+      campaignId: summerCampaign.id,
+      code: "SUMMER2026",
+      name: "Voucher Hè - Giảm 10% đơn từ 300k",
+      description: "Giảm 10% tối đa 80k cho đơn từ 300k",
+      discountType: "PERCENT",
+      discountValue: 10,
+      maxDiscountValue: 80000,
       minOrderAmount: 300000,
+      maxUses: 200,
+      maxUsesPerCustomer: 1,
+      budgetLimit: 10000000,
+      startsAt: new Date("2026-01-01"),
+      active: true,
+    },
+  });
+
+  await prisma.voucher.create({
+    data: {
+      code: "FASHION50K",
+      name: "Voucher VIP - Giảm 50k đơn từ 250k",
+      description: "Giảm ngay 50k tiền mặt cho đơn hàng đạt tối thiểu 250k",
+      discountType: "FIXED",
+      discountValue: 50000,
+      minOrderAmount: 250000,
+      maxUses: 100,
+      maxUsesPerCustomer: 1,
       budgetLimit: 5000000,
       startsAt: new Date("2026-01-01"),
       active: true,
-      groups: {
-        create: [
-          {
-            name: "Giảm 15%",
-            sortOrder: 1,
-            discountType: "PERCENT",
-            discountValue: 15,
-            maxDiscountValue: 80000,
-          },
-        ],
-      },
-      vouchers: {
-        create: [
-          {
-            code: "WELCOMEFASHION",
-            maxUses: 500,
-            maxUsesPerCustomer: 1,
-            active: true,
-          },
-        ],
-      },
     },
   });
-  console.log(
-    "Created 1 campaign, 3 auto promotions, and 2 voucher promotions",
-  );
+
+  console.log("Created 1 campaign, 2 item discounts, and 2 order vouchers");
 
   // 6. Create Mock Orders
   const orders = [];
@@ -682,7 +626,6 @@ async function main() {
         status: status as any,
         subtotal: subtotal,
         productDiscount: 0,
-        orderDiscount: 0,
         voucherDiscount: 0,
         total: total,
         items: {
