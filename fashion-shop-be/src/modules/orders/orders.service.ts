@@ -6,7 +6,7 @@ import {
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CreateOrderDto } from "./dto/create-order.dto";
-import { PromotionPricingService } from "../promotions/promotion-pricing.service";
+import { PricingService } from "../pricing/pricing.service";
 import {
   OrderCancelledEvent,
   OrderCreatedEvent,
@@ -16,7 +16,7 @@ import {
 export class OrdersService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly pricingService: PromotionPricingService,
+    private readonly pricingService: PricingService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
@@ -59,36 +59,15 @@ export class OrdersService {
         });
       }
 
-      const voucherApp = quote.applied.find((a) => a.scope === "VOUCHER");
-      if (voucherApp) {
-        let isExhausted = false;
-        if (voucherApp.code) {
-          const voucher = await tx.voucher.findUnique({
-            where: { code: voucherApp.code.trim().toUpperCase() },
-            include: { promotion: true },
-          });
-          if (
-            !voucher ||
-            !voucher.active ||
-            !voucher.promotion.active ||
-            (voucher.maxUses !== null && voucher.usedCount >= voucher.maxUses)
-          ) {
-            isExhausted = true;
-          }
-        } else {
-          const promo = await tx.promotion.findUnique({
-            where: { id: voucherApp.id },
-          });
-          if (
-            !promo ||
-            !promo.active ||
-            (promo.maxUses !== null && promo.usedCount >= promo.maxUses)
-          ) {
-            isExhausted = true;
-          }
-        }
-
-        if (isExhausted) {
+      if (quote.appliedVoucher) {
+        const voucher = await tx.voucher.findUnique({
+          where: { id: quote.appliedVoucher.voucherId },
+        });
+        if (
+          !voucher ||
+          !voucher.active ||
+          (voucher.maxUses !== null && voucher.usedCount >= voucher.maxUses)
+        ) {
           throw new BadRequestException(
             "Voucher đã hết lượt sử dụng hoặc không khả dụng",
           );
@@ -98,10 +77,7 @@ export class OrdersService {
       const order = await tx.order.create({
         data: {
           userId,
-          status:
-            dto.paymentMethod === "COD" || !dto.paymentMethod
-              ? "CONFIRMED"
-              : "PENDING",
+          status: "PENDING",
           paymentMethod: (dto.paymentMethod as any) || "COD",
           paymentStatus: "UNPAID",
           recipientName: dto.recipientName,
@@ -110,7 +86,6 @@ export class OrdersService {
           shippingNote: dto.shippingNote,
           subtotal: quote.subtotal,
           productDiscount: quote.productDiscount,
-          orderDiscount: quote.orderDiscount,
           voucherDiscount: quote.voucherDiscount,
           total: quote.total,
           items: {
@@ -133,58 +108,74 @@ export class OrdersService {
         (order?.items || []).map((item) => [item.variantId, item.id]),
       );
 
-      for (const app of quote.applied) {
-        let orderItemId: number | null = null;
-        if (app.scope === "LINE") {
-          const line = quote.lines.find(
-            (l) =>
-              l.campaign?.id === app.id &&
-              app.discountAmount === l.productDiscount,
-          );
-          if (line) {
-            orderItemId = itemMapByVariant.get(line.variantId) || null;
+      // Lưu các discount dòng sản phẩm (ITEM-level)
+      for (const app of quote.appliedDiscounts) {
+        const orderItemId = itemMapByVariant.get(app.variantId);
+        if (orderItemId) {
+          await tx.discountApplication.create({
+            data: {
+              orderId: order.id,
+              orderItemId,
+              discountId: app.discountId,
+              discountName: app.discountName,
+              discountAmount: app.discountAmount,
+            },
+          });
+
+          const disc = await tx.discount.findUnique({
+            where: { id: app.discountId },
+            select: { campaignId: true },
+          });
+
+          await tx.discount.update({
+            where: { id: app.discountId },
+            data: {
+              spentAmount: { increment: app.discountAmount },
+              usedCount: { increment: 1 },
+            },
+          });
+
+          if (disc?.campaignId) {
+            await tx.campaign.update({
+              where: { id: disc.campaignId },
+              data: {
+                spentAmount: { increment: app.discountAmount },
+              },
+            });
           }
         }
+      }
 
-        await tx.promotionApplication.create({
+      // Lưu voucher giảm giá đơn hàng (ORDER-level)
+      if (quote.appliedVoucher) {
+        await tx.voucherApplication.create({
           data: {
             orderId: order.id,
-            orderItemId: orderItemId,
-            promotionId: app.id,
-            scope: app.scope,
-            promotionName: app.name,
-            promotionCode: app.code || null,
-            discountAmount: app.discountAmount,
+            voucherId: quote.appliedVoucher.voucherId,
+            voucherCode: quote.appliedVoucher.voucherCode,
+            voucherName: quote.appliedVoucher.voucherName,
+            discountAmount: quote.appliedVoucher.discountAmount,
           },
         });
 
-        const promo = await tx.promotion.findUnique({
-          where: { id: app.id },
+        const v = await tx.voucher.findUnique({
+          where: { id: quote.appliedVoucher.voucherId },
           select: { campaignId: true },
         });
 
-        await tx.promotion.update({
-          where: { id: app.id },
+        await tx.voucher.update({
+          where: { id: quote.appliedVoucher.voucherId },
           data: {
-            spentAmount: { increment: app.discountAmount },
+            spentAmount: { increment: quote.appliedVoucher.discountAmount },
             usedCount: { increment: 1 },
           },
         });
 
-        if (promo?.campaignId) {
+        if (v?.campaignId) {
           await tx.campaign.update({
-            where: { id: promo.campaignId },
+            where: { id: v.campaignId },
             data: {
-              spentAmount: { increment: app.discountAmount },
-            },
-          });
-        }
-
-        if (app.scope === "VOUCHER" && app.code) {
-          await tx.voucher.update({
-            where: { code: app.code.trim().toUpperCase() },
-            data: {
-              usedCount: { increment: 1 },
+              spentAmount: { increment: quote.appliedVoucher.discountAmount },
             },
           });
         }
@@ -209,7 +200,8 @@ export class OrdersService {
               },
             },
           },
-          promotionApplications: true,
+          discountApplications: true,
+          voucherApplications: true,
         },
       });
     });
@@ -230,7 +222,8 @@ export class OrdersService {
       where: { userId },
       include: {
         items: { include: { variant: { include: { product: true } } } },
-        promotionApplications: true,
+        discountApplications: true,
+        voucherApplications: true,
       },
       orderBy: { createdAt: "desc" },
     });
@@ -250,7 +243,8 @@ export class OrdersService {
           },
         },
         items: { include: { variant: { include: { product: true } } } },
-        promotionApplications: true,
+        discountApplications: true,
+        voucherApplications: true,
       },
     });
     if (!order || order.userId !== userId)
@@ -271,34 +265,51 @@ export class OrdersService {
         });
       }
 
-      for (const app of order.promotionApplications || []) {
-        const promo = await tx.promotion.findUnique({
-          where: { id: app.promotionId },
+      // Hoàn trả ngân sách và lượt dùng của các Discounts
+      for (const app of order.discountApplications || []) {
+        const disc = await tx.discount.findUnique({
+          where: { id: app.discountId },
           select: { campaignId: true },
         });
 
-        await tx.promotion.update({
-          where: { id: app.promotionId },
+        await tx.discount.update({
+          where: { id: app.discountId },
           data: {
             spentAmount: { decrement: app.discountAmount },
             usedCount: { decrement: 1 },
           },
         });
 
-        if (promo?.campaignId) {
+        if (disc?.campaignId) {
           await tx.campaign.update({
-            where: { id: promo.campaignId },
+            where: { id: disc.campaignId },
             data: {
               spentAmount: { decrement: app.discountAmount },
             },
           });
         }
+      }
 
-        if (app.scope === "VOUCHER" && app.promotionCode) {
-          await tx.voucher.update({
-            where: { code: app.promotionCode.trim().toUpperCase() },
+      // Hoàn trả ngân sách và lượt dùng của Voucher
+      for (const app of order.voucherApplications || []) {
+        const v = await tx.voucher.findUnique({
+          where: { id: app.voucherId },
+          select: { campaignId: true },
+        });
+
+        await tx.voucher.update({
+          where: { id: app.voucherId },
+          data: {
+            spentAmount: { decrement: app.discountAmount },
+            usedCount: { decrement: 1 },
+          },
+        });
+
+        if (v?.campaignId) {
+          await tx.campaign.update({
+            where: { id: v.campaignId },
             data: {
-              usedCount: { decrement: 1 },
+              spentAmount: { decrement: app.discountAmount },
             },
           });
         }
@@ -309,7 +320,8 @@ export class OrdersService {
         data: { status: "CANCELLED" },
         include: {
           items: { include: { variant: { include: { product: true } } } },
-          promotionApplications: true,
+          discountApplications: true,
+          voucherApplications: true,
         },
       });
     });
