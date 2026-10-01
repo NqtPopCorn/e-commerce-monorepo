@@ -98,6 +98,10 @@ export class OrdersService {
       const order = await tx.order.create({
         data: {
           userId,
+          status:
+            dto.paymentMethod === "COD" || !dto.paymentMethod
+              ? "CONFIRMED"
+              : "PENDING",
           paymentMethod: (dto.paymentMethod as any) || "COD",
           paymentStatus: "UNPAID",
           recipientName: dto.recipientName,

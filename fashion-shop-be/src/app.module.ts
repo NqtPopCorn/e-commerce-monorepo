@@ -17,6 +17,7 @@ import { UploadModule } from "./modules/upload/upload.module";
 import { NotificationsModule } from "./modules/notifications/notifications.module";
 import { MailModule } from "./modules/mail/mail.module";
 import { SmsModule } from "./modules/sms/sms.module";
+import { PaymentsModule } from "./modules/payments/payments.module";
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { SmsModule } from "./modules/sms/sms.module";
     ProductsModule,
     BrandsModule,
     OrdersModule,
+    PaymentsModule,
     StatisticsModule,
     PromotionsModule,
     AccountsModule,
