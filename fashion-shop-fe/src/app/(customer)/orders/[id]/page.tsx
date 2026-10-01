@@ -436,13 +436,13 @@ export default function OrderDetailPage() {
                 key={item.id}
                 className="w-full flex gap-4 items-center bg-card p-4 rounded-2xl border border-border text-xs shadow-xs"
               >
-                <div className="w-14 h-16 sm:w-16 sm:h-18 bg-muted/40 rounded-xl border border-border flex shrink-0 items-center justify-center overflow-hidden">
+                <div className="relative w-14 sm:w-16 aspect-[3/4] bg-muted/40 rounded-xl border border-border flex shrink-0 items-center justify-center overflow-hidden">
                   {item.variant?.imageUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={item.variant.imageUrl}
                       alt={productTitle}
-                      className="w-full h-full object-cover"
+                      className="absolute inset-0 w-full h-full object-cover object-center"
                     />
                   ) : (
                     <Package className="w-6 h-6 text-muted-foreground/60" />
@@ -479,24 +479,41 @@ export default function OrderDetailPage() {
       </div>
 
       {/* 6. Section: Ưu đãi áp dụng (nếu có) */}
-      {order.promotionApplications &&
-        order.promotionApplications.length > 0 && (
-          <div className="w-full bg-emerald-500/10 border border-emerald-500/20 p-4 rounded-2xl space-y-2 shadow-xs">
-            <h3 className="font-bold text-emerald-800 dark:text-emerald-300 text-xs flex items-center gap-1.5 uppercase tracking-wider">
-              <Tag className="w-3.5 h-3.5" /> Khuyến mãi áp dụng
-            </h3>
-            <div className="space-y-1.5 text-xs text-emerald-700 dark:text-emerald-400">
-              {order.promotionApplications.map((app) => (
-                <div key={app.id} className="flex justify-between items-center">
-                  <span>{app.promotionName || "Khuyến mãi"}</span>
-                  <span className="font-semibold font-mono">
-                    -{formatCurrency(Number(app.discountAmount))}
-                  </span>
-                </div>
-              ))}
-            </div>
+      {((order.discountApplications && order.discountApplications.length > 0) ||
+        (order.voucherApplications && order.voucherApplications.length > 0) ||
+        (order.promotionApplications && order.promotionApplications.length > 0)) && (
+        <div className="w-full bg-emerald-500/10 border border-emerald-500/20 p-4 rounded-2xl space-y-2 shadow-xs">
+          <h3 className="font-bold text-emerald-800 dark:text-emerald-300 text-xs flex items-center gap-1.5 uppercase tracking-wider">
+            <Tag className="w-3.5 h-3.5" /> Ưu đãi áp dụng
+          </h3>
+          <div className="space-y-1.5 text-xs text-emerald-700 dark:text-emerald-400">
+            {order.discountApplications?.map((app) => (
+              <div key={`discount-${app.id}`} className="flex justify-between items-center">
+                <span>Ưu đãi sản phẩm: {app.discountName}</span>
+                <span className="font-semibold font-mono">
+                  -{formatCurrency(Number(app.discountAmount))}
+                </span>
+              </div>
+            ))}
+            {order.voucherApplications?.map((app) => (
+              <div key={`voucher-${app.id}`} className="flex justify-between items-center">
+                <span>Voucher: {app.voucherCode} ({app.voucherName})</span>
+                <span className="font-semibold font-mono">
+                  -{formatCurrency(Number(app.discountAmount))}
+                </span>
+              </div>
+            ))}
+            {order.promotionApplications?.map((app) => (
+              <div key={`promo-${app.id}`} className="flex justify-between items-center">
+                <span>{app.promotionName || "Khuyến mãi"}</span>
+                <span className="font-semibold font-mono">
+                  -{formatCurrency(Number(app.discountAmount))}
+                </span>
+              </div>
+            ))}
           </div>
-        )}
+        </div>
+      )}
 
       {/* 7. Section: GHI CHÚ THANH TOÁN & BẢNG TÍNH TIỀN */}
       <div className="w-full bg-card p-5 sm:p-6 rounded-2xl border border-border text-xs shadow-xs">
@@ -528,14 +545,6 @@ export default function OrderDetailPage() {
                 <span>Giảm giá sản phẩm:</span>
                 <span className="font-mono">
                   -{formatCurrency(Number(order.productDiscount))}
-                </span>
-              </div>
-            )}
-            {Number(order.orderDiscount) > 0 && (
-              <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-medium text-xs">
-                <span>Khuyến mãi hóa đơn:</span>
-                <span className="font-mono">
-                  -{formatCurrency(Number(order.orderDiscount))}
                 </span>
               </div>
             )}

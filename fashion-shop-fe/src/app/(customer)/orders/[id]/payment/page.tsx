@@ -565,13 +565,13 @@ export default function OrderPaymentPage() {
                       className="flex items-center justify-between gap-3 p-2.5 bg-muted/20 rounded-xl border border-border/50 text-xs"
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-10 h-12 bg-muted rounded-lg border border-border flex shrink-0 items-center justify-center overflow-hidden">
+                        <div className="relative w-10 aspect-[3/4] bg-muted rounded-lg border border-border flex shrink-0 items-center justify-center overflow-hidden">
                           {item.variant?.imageUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
                               src={item.variant.imageUrl}
                               alt={productTitle}
-                              className="w-full h-full object-cover"
+                              className="absolute inset-0 w-full h-full object-cover object-center"
                             />
                           ) : (
                             <span className="text-[9px] text-muted-foreground">

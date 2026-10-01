@@ -90,3 +90,13 @@
 .transition-card:hover {
   transform: translateY(-1px);
 }
+
+/* Hide scrollbar for gallery and horizontal strips */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+

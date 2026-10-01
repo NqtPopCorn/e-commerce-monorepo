@@ -495,36 +495,71 @@ export function OrderDetailModal({
               </table>
             </div>
 
-            {/* Promotion Applications Snapshot */}
-            {order.promotionApplications &&
-              order.promotionApplications.length > 0 && (
-                <div className="bg-emerald-500/10 border border-emerald-500/20 p-4 rounded-xl space-y-2">
-                  <h4 className="font-semibold text-emerald-700 dark:text-emerald-400 text-xs flex items-center gap-1.5 uppercase tracking-wider">
-                    <Tag className="w-3.5 h-3.5" /> Lịch sử áp dụng khuyến mãi
-                    (Audit Log)
-                  </h4>
-                  <div className="space-y-1.5 text-xs text-emerald-800 dark:text-emerald-300">
-                    {order.promotionApplications.map((app: any) => (
-                      <div
-                        key={app.id}
-                        className="flex justify-between items-center bg-card/60 px-3 py-2 rounded-md border border-emerald-500/15"
-                      >
-                        <span>
-                          •{" "}
-                          <strong className="font-semibold text-foreground">
-                            {app.promotionName}
-                          </strong>
-                          {app.promotionCode ? ` (${app.promotionCode})` : ""}{" "}
-                          <span className="opacity-75">[{app.scope}]</span>
-                        </span>
-                        <span className="font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
-                          -{formatCurrency(Number(app.discountAmount))}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
+            {/* Discount & Voucher Applications Snapshot */}
+            {((order.discountApplications && order.discountApplications.length > 0) ||
+              (order.voucherApplications && order.voucherApplications.length > 0) ||
+              (order.promotionApplications && order.promotionApplications.length > 0)) && (
+              <div className="bg-emerald-500/10 border border-emerald-500/20 p-4 rounded-xl space-y-2">
+                <h4 className="font-semibold text-emerald-700 dark:text-emerald-400 text-xs flex items-center gap-1.5 uppercase tracking-wider">
+                  <Tag className="w-3.5 h-3.5" /> Lịch sử ưu đãi & Voucher áp dụng
+                </h4>
+                <div className="space-y-1.5 text-xs text-emerald-800 dark:text-emerald-300">
+                  {order.discountApplications?.map((app: any) => (
+                    <div
+                      key={`discount-${app.id}`}
+                      className="flex justify-between items-center bg-card/60 px-3 py-2 rounded-md border border-emerald-500/15"
+                    >
+                      <span>
+                        •{" "}
+                        <strong className="font-semibold text-foreground">
+                          {app.discountName}
+                        </strong>{" "}
+                        <span className="opacity-75">[GIẢM GIÁ SP]</span>
+                      </span>
+                      <span className="font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                        -{formatCurrency(Number(app.discountAmount))}
+                      </span>
+                    </div>
+                  ))}
+                  {order.voucherApplications?.map((app: any) => (
+                    <div
+                      key={`voucher-${app.id}`}
+                      className="flex justify-between items-center bg-card/60 px-3 py-2 rounded-md border border-emerald-500/15"
+                    >
+                      <span>
+                        •{" "}
+                        <strong className="font-semibold text-foreground">
+                          {app.voucherName}
+                        </strong>{" "}
+                        ({app.voucherCode}){" "}
+                        <span className="opacity-75">[VOUCHER]</span>
+                      </span>
+                      <span className="font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                        -{formatCurrency(Number(app.discountAmount))}
+                      </span>
+                    </div>
+                  ))}
+                  {order.promotionApplications?.map((app: any) => (
+                    <div
+                      key={`promo-${app.id}`}
+                      className="flex justify-between items-center bg-card/60 px-3 py-2 rounded-md border border-emerald-500/15"
+                    >
+                      <span>
+                        •{" "}
+                        <strong className="font-semibold text-foreground">
+                          {app.promotionName}
+                        </strong>
+                        {app.promotionCode ? ` (${app.promotionCode})` : ""}{" "}
+                        <span className="opacity-75">[{app.scope}]</span>
+                      </span>
+                      <span className="font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                        -{formatCurrency(Number(app.discountAmount))}
+                      </span>
+                    </div>
+                  ))}
                 </div>
-              )}
+              </div>
+            )}
 
             {/* Order Summary Snapshot */}
             <div className="bg-muted/40 p-4 rounded-xl border border-border space-y-2.5 text-xs text-muted-foreground max-w-sm ml-auto">
@@ -539,14 +574,6 @@ export function OrderDetailModal({
                   <span>Ưu đãi sản phẩm:</span>
                   <span className="font-medium tabular-nums">
                     -{formatCurrency(Number(order.productDiscount))}
-                  </span>
-                </div>
-              )}
-              {Number(order.orderDiscount) > 0 && (
-                <div className="flex justify-between items-center text-emerald-600 dark:text-emerald-400">
-                  <span>Khuyến mãi hóa đơn:</span>
-                  <span className="font-medium tabular-nums">
-                    -{formatCurrency(Number(order.orderDiscount))}
                   </span>
                 </div>
               )}

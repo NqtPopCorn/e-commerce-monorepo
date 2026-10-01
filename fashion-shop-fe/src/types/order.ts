@@ -6,14 +6,37 @@ export type PaymentMethod = "COD" | "VIETQR" | "BANK_TRANSFER";
 export type PaymentStatus =
   "UNPAID" | "PENDING" | "PAID" | "FAILED" | "REFUNDED";
 
+export interface OrderDiscountApplication {
+  id: number;
+  orderId: number;
+  orderItemId: number;
+  discountId: number;
+  discountName: string;
+  discountAmount: number | string;
+}
+
+export interface OrderVoucherApplication {
+  id: number;
+  orderId: number;
+  voucherId: number;
+  voucherCode: string;
+  voucherName: string;
+  discountAmount: number | string;
+}
+
 export interface OrderPromotionApplication {
   id: number;
   orderId: number;
   orderItemId?: number | null;
-  promotionId: number;
-  scope: "LINE" | "ORDER" | "VOUCHER";
-  promotionName: string;
+  promotionId?: number;
+  discountId?: number;
+  voucherId?: number;
+  scope?: "LINE" | "ORDER" | "VOUCHER" | string;
+  promotionName?: string;
+  discountName?: string;
+  voucherName?: string;
   promotionCode?: string | null;
+  voucherCode?: string | null;
   discountAmount: number | string;
 }
 
@@ -72,13 +95,15 @@ export interface Order {
   shippingNote?: string | null;
   subtotal: number | string;
   productDiscount: number | string;
-  orderDiscount: number | string;
+  orderDiscount?: number | string;
   voucherDiscount: number | string;
   total: number | string;
   createdAt: string;
   updatedAt: string;
   user?: OrderUser;
   items?: OrderItem[];
+  discountApplications?: OrderDiscountApplication[];
+  voucherApplications?: OrderVoucherApplication[];
   promotionApplications?: OrderPromotionApplication[];
 }
 
