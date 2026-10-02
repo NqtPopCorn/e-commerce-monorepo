@@ -12,6 +12,7 @@
     "prisma:deploy": "prisma migrate deploy",
     "prisma:seed": "tsx prisma/seed-deploy.ts",
     "prisma:seed:sample": "tsx prisma/seed-sample.ts",
+    "prisma:studio": "prisma studio",
     "format": "prettier --write \"src/**/*.ts\" \"prisma/**/*.ts\"",
     "lint": "eslint \"{src,prisma}/**/*.ts\"",
     "test": "jest",
