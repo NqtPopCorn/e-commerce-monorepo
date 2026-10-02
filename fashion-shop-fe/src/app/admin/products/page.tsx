@@ -31,7 +31,7 @@ import {
   useGetPaginatedProducts,
   useGetProductStats,
 } from "@/hooks/useProducts";
-import { useGetCategories } from "@/hooks/useCategories";
+import { useGetCategoryTree } from "@/hooks/useCategories";
 import { useGetBrands } from "@/hooks/useBrands";
 import { useTableParams } from "@/hooks/useTableParams";
 import { formatCurrency } from "@/lib/format";
@@ -110,7 +110,7 @@ function AdminProductsContent() {
   });
 
   const { data: stats, isLoading: isLoadingStats } = useGetProductStats();
-  const { data: categories } = useGetCategories();
+  const { data: categoryTree } = useGetCategoryTree();
   const { data: brands } = useGetBrands();
 
   const deleteProduct = useDeleteProduct();
@@ -474,10 +474,15 @@ function AdminProductsContent() {
               className="w-full h-9 px-3 rounded-lg border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
             >
               <option value="">Tất cả Danh mục</option>
-              {categories?.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.name}
-                </option>
+              {categoryTree?.map((root) => (
+                <optgroup key={root.id} label={root.name}>
+                  <option value={root.id}>Toàn bộ {root.name}</option>
+                  {root.children?.map((child) => (
+                    <option key={child.id} value={child.id}>
+                      — {child.name}
+                    </option>
+                  ))}
+                </optgroup>
               ))}
             </select>
           </div>

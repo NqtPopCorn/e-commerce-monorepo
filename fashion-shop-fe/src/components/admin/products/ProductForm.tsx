@@ -13,7 +13,9 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -25,7 +27,7 @@ import {
 
 import { useCreateProduct, useUpdateProduct } from "@/hooks/useProducts";
 import { useGetBrands } from "@/hooks/useBrands";
-import { useGetCategories } from "@/hooks/useCategories";
+import { useGetCategoryTree } from "@/hooks/useCategories";
 
 import {
   productFormSchema,
@@ -46,7 +48,7 @@ export function ProductForm({ onClose, product }: ProductFormProps) {
   const updateProduct = useUpdateProduct();
 
   const { data: brands = [] } = useGetBrands();
-  const { data: categories = [] } = useGetCategories();
+  const { data: categoryTree = [] } = useGetCategoryTree();
 
   // Convert initial product values
   const defaultValues: ProductFormValues = {
@@ -420,7 +422,12 @@ export function ProductForm({ onClose, product }: ProductFormProps) {
 
               {/* Danh mục */}
               <div className="space-y-1.5">
-                <Label className="text-sm font-medium">Danh mục</Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium">Danh mục</Label>
+                  <span className="text-xs text-muted-foreground">
+                    Chỉ chọn danh mục con (Cấp 2)
+                  </span>
+                </div>
                 <Controller
                   name="categoryId"
                   control={control}
@@ -432,14 +439,28 @@ export function ProductForm({ onClose, product }: ProductFormProps) {
                       }
                     >
                       <SelectTrigger className="h-9 text-sm">
-                        <SelectValue placeholder="Chọn danh mục" />
+                        <SelectValue placeholder="Chọn danh mục con (Cấp 2)" />
                       </SelectTrigger>
                       <SelectContent>
-                        {categories.map((c: any) => (
-                          <SelectItem key={c.id} value={String(c.id)}>
-                            {c.name}
-                          </SelectItem>
-                        ))}
+                        {categoryTree.map((root: any) => {
+                          const children = root.children || [];
+                          if (children.length === 0) return null;
+                          return (
+                            <SelectGroup key={root.id}>
+                              <SelectLabel className="font-semibold text-xs text-muted-foreground uppercase tracking-wider px-2 py-1.5 bg-muted/40">
+                                {root.name}
+                              </SelectLabel>
+                              {children.map((child: any) => (
+                                <SelectItem
+                                  key={child.id}
+                                  value={String(child.id)}
+                                >
+                                  {child.name}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          );
+                        })}
                       </SelectContent>
                     </Select>
                   )}

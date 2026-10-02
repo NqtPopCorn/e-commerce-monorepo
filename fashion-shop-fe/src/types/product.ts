@@ -46,6 +46,10 @@ export interface Category {
   parentId?: number | null;
   parent?: Category | null;
   children?: Category[];
+  _count?: {
+    products?: number;
+    children?: number;
+  };
 }
 
 export interface Product {

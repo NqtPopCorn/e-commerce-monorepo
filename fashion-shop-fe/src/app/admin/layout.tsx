@@ -21,6 +21,8 @@ import {
   MoreVertical,
   History,
   Megaphone,
+  FolderTree,
+  Tag,
 } from "lucide-react";
 import { AdminHeaderBar } from "@/components/admin";
 
@@ -44,6 +46,8 @@ const navGroups: NavGroup[] = [
     label: "VẬN HÀNH",
     items: [
       { name: "Sản phẩm", link: "/admin/products", icon: Shirt },
+      { name: "Danh mục", link: "/admin/categories", icon: FolderTree },
+      { name: "Thương hiệu", link: "/admin/brands", icon: Tag },
       { name: "Đơn hàng", link: "/admin/orders", icon: ShoppingBag },
       { name: "Nhập kho", link: "/admin/purchase", icon: Truck },
     ],
