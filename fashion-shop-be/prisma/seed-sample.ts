@@ -506,7 +506,6 @@ async function main() {
       description: "Chiến dịch trợ giá lớn mùa hè 2026",
       budgetLimit: 50000000,
       spentAmount: 0,
-      status: "ACTIVE",
       startsAt: new Date("2026-01-01"),
     },
   });

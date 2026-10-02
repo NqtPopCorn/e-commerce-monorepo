@@ -20,6 +20,7 @@ import {
   ChevronRight,
   MoreVertical,
   History,
+  Megaphone,
 } from "lucide-react";
 import { AdminHeaderBar } from "@/components/admin";
 
@@ -52,6 +53,7 @@ const navGroups: NavGroup[] = [
     items: [
       { name: "Phân tích", link: "/admin/analytics", icon: BarChart3 },
       { name: "Tài khoản", link: "/admin/accounts", icon: Users },
+      { name: "Chiến dịch", link: "/admin/campaigns", icon: Megaphone },
       { name: "Giảm giá SP", link: "/admin/discounts", icon: Percent },
       { name: "Voucher", link: "/admin/vouchers", icon: Ticket },
       { name: "Nhật ký hoạt động", link: "/admin/audit-logs", icon: History },

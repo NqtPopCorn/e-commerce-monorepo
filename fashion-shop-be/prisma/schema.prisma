@@ -185,34 +185,26 @@ model PurchaseReceiptItem {
   @@map("purchase_receipt_items")
 }
 
-enum CampaignStatus {
-  DRAFT
-  ACTIVE
-  PAUSED
-  ENDED
-}
-
 enum DiscountType {
   PERCENT
   FIXED
 }
 
 model Campaign {
-  id          Int            @id @default(autoincrement())
+  id          Int       @id @default(autoincrement())
   name        String
   description String?
-  startsAt    DateTime       @map("starts_at")
-  endsAt      DateTime?      @map("ends_at")
-  budgetLimit Decimal?       @map("budget_limit") @db.Decimal(12, 2)
-  spentAmount Decimal        @default(0) @map("spent_amount") @db.Decimal(12, 2)
-  status      CampaignStatus @default(ACTIVE)
-  createdAt   DateTime       @default(now()) @map("created_at")
-  updatedAt   DateTime       @updatedAt @map("updated_at")
+  startsAt    DateTime  @map("starts_at")
+  endsAt      DateTime? @map("ends_at")
+  budgetLimit Decimal?  @map("budget_limit") @db.Decimal(12, 2)
+  spentAmount Decimal   @default(0) @map("spent_amount") @db.Decimal(12, 2)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
 
   discounts   Discount[]
   vouchers    Voucher[]
 
-  @@index([status, startsAt, endsAt])
+  @@index([startsAt, endsAt])
   @@map("campaigns")
 }
 

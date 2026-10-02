@@ -83,7 +83,7 @@ export function CreateAccountModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md md:max-w-2xl">
         <form onSubmit={handleSubmit}>
           <DialogHeader className="border-b border-border pb-3">
             <div className="flex items-center gap-2.5">
