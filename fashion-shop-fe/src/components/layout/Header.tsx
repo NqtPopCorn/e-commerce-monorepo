@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { categoriesService } from "@/services/categories.service";
 import { Category } from "@/types/product";
+import CategorySearchAutocomplete from "@/components/layout/CategorySearchAutocomplete";
 import {
   Search,
   ShoppingCart,
@@ -26,7 +27,6 @@ export default function Header() {
   const router = useRouter();
   const [showDropdown, setShowDropdown] = useState(false);
   const [hoveredCategory, setHoveredCategory] = useState<number | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
   const dropdownMenuRef = useRef<HTMLDivElement>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const { items } = useCartStore();
@@ -93,13 +93,6 @@ export default function Header() {
       setShowDropdown(false);
       setHoveredCategory(null);
     }, 300);
-  };
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchTerm.trim()) {
-      router.push(`/products?q=${encodeURIComponent(searchTerm.trim())}`);
-    }
   };
 
   const activeCategory = categories.find(
@@ -195,23 +188,9 @@ export default function Header() {
               )}
             </div>
 
-            {/* Search Box */}
+            {/* Search Box with Category Autocomplete */}
             <div className="flex-1 max-w-2xl hidden md:flex">
-              <form onSubmit={handleSearch} className="relative w-full">
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Tìm kiếm áo thun, sơ mi, quần jeans, váy..."
-                  className="w-full border border-gray-300 rounded-full py-2 px-5 pr-12 focus:outline-none focus:border-rose-500 text-sm transition-colors"
-                />
-                <button
-                  type="submit"
-                  className="absolute right-1 top-1 bottom-1 px-4 bg-rose-600 text-white rounded-full hover:bg-rose-700 transition-colors flex items-center justify-center"
-                >
-                  <Search className="w-4 h-4" />
-                </button>
-              </form>
+              <CategorySearchAutocomplete categories={categories} />
             </div>
 
             {/* Icons Group */}
@@ -367,23 +346,13 @@ export default function Header() {
             </div>
           </div>
 
-          {/* Mobile Search Box */}
+          {/* Mobile Search Box with Category Autocomplete */}
           <div className="mt-3 md:hidden">
-            <form onSubmit={handleSearch} className="relative w-full">
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Tìm quần áo, phụ kiện..."
-                className="w-full border border-gray-300 rounded-full py-2 px-4 pr-10 focus:outline-none focus:border-rose-500 text-sm"
-              />
-              <button
-                type="submit"
-                className="absolute right-1 top-1 bottom-1 px-3 bg-rose-600 text-white rounded-full"
-              >
-                <Search className="w-4 h-4" />
-              </button>
-            </form>
+            <CategorySearchAutocomplete
+              categories={categories}
+              placeholder="Tìm quần áo, phụ kiện..."
+              isMobile
+            />
           </div>
         </div>
       </header>
