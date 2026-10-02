@@ -24,6 +24,7 @@ describe("PaymentsService", () => {
       paymentTransaction: {
         create: jest.fn(),
         findFirst: jest.fn(),
+        findMany: jest.fn(),
       },
       $transaction: jest.fn((cb) => cb(prisma)),
     };
@@ -107,7 +108,7 @@ describe("PaymentsService", () => {
       expect(prisma.order.update).not.toHaveBeenCalled();
     });
 
-    it("should mark transaction FAILED when underpaid and NOT update order to PAID", async () => {
+    it("should record partial payment transaction and keep order PENDING when underpaid", async () => {
       prisma.paymentEvent.create.mockResolvedValueOnce({ id: 1 });
       prisma.order.findUnique.mockResolvedValueOnce({
         id: 101,
@@ -116,6 +117,7 @@ describe("PaymentsService", () => {
         status: "PENDING",
         userId: 1,
       });
+      prisma.paymentTransaction.findMany.mockResolvedValueOnce([]);
 
       const res = await service.handleVietQRWebhook(
         {
@@ -127,14 +129,23 @@ describe("PaymentsService", () => {
         "Apikey test-api-key",
       );
 
-      expect(res.success).toBe(false);
-      expect(res.message).toBe("Underpaid amount");
-      expect(prisma.order.update).not.toHaveBeenCalled();
+      expect(res.success).toBe(true);
+      expect(res.message).toContain("Đã ghi nhận thanh toán một phần");
+      // Since order was UNPAID, it updates order paymentStatus to PENDING (not PAID, not CONFIRMED)
+      expect(prisma.order.update).toHaveBeenCalledWith({
+        where: { id: 101 },
+        data: { paymentStatus: "PENDING" },
+      });
       expect(prisma.paymentTransaction.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
-            status: "FAILED",
+            status: "SUCCESS",
             amount: 400000,
+            metadata: expect.objectContaining({
+              isPartial: true,
+              accumulatedPaid: 400000,
+              remainingAmount: 100000,
+            }),
           }),
         }),
       );
@@ -150,6 +161,7 @@ describe("PaymentsService", () => {
         userId: 1,
         user: { id: 1, email: "customer@example.com" },
       });
+      prisma.paymentTransaction.findMany.mockResolvedValueOnce([]);
 
       const res = await service.handleVietQRWebhook(
         {
@@ -169,10 +181,58 @@ describe("PaymentsService", () => {
           data: { paymentStatus: "PAID", status: "CONFIRMED" },
         }),
       );
+      expect(prisma.paymentTransaction.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            status: "SUCCESS",
+            amount: 500000,
+            metadata: expect.objectContaining({
+              isPartial: false,
+              accumulatedPaid: 500000,
+              remainingAmount: 0,
+            }),
+          }),
+        }),
+      );
       expect(auditLogsService.log).toHaveBeenCalled();
       expect(eventEmitter.emit).toHaveBeenCalledWith(
         "order.status_updated",
         expect.anything(),
+      );
+    });
+
+    it("should complete order payment when accumulated partial payments reach total", async () => {
+      prisma.paymentEvent.create.mockResolvedValueOnce({ id: 2 });
+      prisma.order.findUnique.mockResolvedValueOnce({
+        id: 103,
+        total: 500000,
+        paymentStatus: "PENDING",
+        status: "PENDING",
+        userId: 1,
+        user: { id: 1, email: "customer@example.com" },
+      });
+      // Already paid 200,000 previously
+      prisma.paymentTransaction.findMany.mockResolvedValueOnce([
+        { id: 1, amount: 200000, status: "SUCCESS" },
+      ]);
+
+      const res = await service.handleVietQRWebhook(
+        {
+          id: 1003,
+          content: "DH103 bo sung",
+          transferAmount: 300000, // 200k + 300k = 500k
+          transferType: "in",
+        },
+        "Apikey test-api-key",
+      );
+
+      expect(res.success).toBe(true);
+      expect(res.orderId).toBe(103);
+      expect(prisma.order.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 103 },
+          data: { paymentStatus: "PAID", status: "CONFIRMED" },
+        }),
       );
     });
   });
