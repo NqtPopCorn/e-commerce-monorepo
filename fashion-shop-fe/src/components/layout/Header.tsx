@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { categoriesService } from "@/services/categories.service";
 import { Category } from "@/types/product";
+import CategorySearchAutocomplete from "@/components/layout/CategorySearchAutocomplete";
 import {
   Search,
   ShoppingCart,
@@ -24,14 +25,37 @@ import { NotificationItem } from "@/types/notification";
 
 export default function Header() {
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const [hoveredCategory, setHoveredCategory] = useState<number | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
   const dropdownMenuRef = useRef<HTMLDivElement>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const { items } = useCartStore();
   const user = useAuthStore((state) => state.user);
   const hasHydrated = useAuthStore((state) => state.hasHydrated);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const isAuthenticated = (mounted || hasHydrated) && Boolean(user);
+
+  const userDisplayName = useMemo(() => {
+    if (!isAuthenticated || !user) return "Tài khoản";
+    // 1. Tên gọi riêng firstName
+    if (user.firstName?.trim()) return user.firstName.trim();
+    // 2. Họ và tên kết hợp nếu có
+    const full = [user.lastName, user.firstName]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+    if (full) return full;
+    // 3. Họ lastName
+    if (user.lastName?.trim()) return user.lastName.trim();
+    // 4. Tên từ email
+    if (user.email) return user.email.split("@")[0];
+    return "Tài khoản";
+  }, [isAuthenticated, user]);
 
   const [notifOpen, setNotifOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -93,13 +117,6 @@ export default function Header() {
       setShowDropdown(false);
       setHoveredCategory(null);
     }, 300);
-  };
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchTerm.trim()) {
-      router.push(`/products?q=${encodeURIComponent(searchTerm.trim())}`);
-    }
   };
 
   const activeCategory = categories.find(
@@ -195,23 +212,9 @@ export default function Header() {
               )}
             </div>
 
-            {/* Search Box */}
+            {/* Search Box with Category Autocomplete */}
             <div className="flex-1 max-w-2xl hidden md:flex">
-              <form onSubmit={handleSearch} className="relative w-full">
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Tìm kiếm áo thun, sơ mi, quần jeans, váy..."
-                  className="w-full border border-gray-300 rounded-full py-2 px-5 pr-12 focus:outline-none focus:border-rose-500 text-sm transition-colors"
-                />
-                <button
-                  type="submit"
-                  className="absolute right-1 top-1 bottom-1 px-4 bg-rose-600 text-white rounded-full hover:bg-rose-700 transition-colors flex items-center justify-center"
-                >
-                  <Search className="w-4 h-4" />
-                </button>
-              </form>
+              <CategorySearchAutocomplete categories={categories} />
             </div>
 
             {/* Icons Group */}
@@ -234,7 +237,7 @@ export default function Header() {
               </Link>
 
               {/* Notification Bell (khi đã đăng nhập) */}
-              {hasHydrated && user && (
+              {isAuthenticated && (
                 <div ref={notifRef} className="relative">
                   <button
                     type="button"
@@ -354,36 +357,29 @@ export default function Header() {
               )}
 
               <Link
-                href={hasHydrated && user ? "/profile" : "/login"}
-                className="flex flex-col items-center hover:text-rose-600 transition-colors"
+                href={isAuthenticated ? "/profile" : "/login"}
+                className="flex flex-col items-center hover:text-rose-600 transition-colors max-w-[100px]"
+                title={
+                  isAuthenticated && user
+                    ? `${userDisplayName}${user.email ? ` (${user.email})` : ""}`
+                    : "Đăng nhập / Tài khoản"
+                }
               >
-                <UserCircle className="w-6 h-6" />
-                <span className="text-[11px] mt-1 hidden lg:block font-medium">
-                  {hasHydrated && user
-                    ? user.firstName || "Tài khoản"
-                    : "Tài khoản"}
+                <UserCircle className="w-6 h-6 shrink-0" />
+                <span className="text-[11px] mt-1 hidden lg:block font-medium truncate max-w-full">
+                  {userDisplayName}
                 </span>
               </Link>
             </div>
           </div>
 
-          {/* Mobile Search Box */}
+          {/* Mobile Search Box with Category Autocomplete */}
           <div className="mt-3 md:hidden">
-            <form onSubmit={handleSearch} className="relative w-full">
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Tìm quần áo, phụ kiện..."
-                className="w-full border border-gray-300 rounded-full py-2 px-4 pr-10 focus:outline-none focus:border-rose-500 text-sm"
-              />
-              <button
-                type="submit"
-                className="absolute right-1 top-1 bottom-1 px-3 bg-rose-600 text-white rounded-full"
-              >
-                <Search className="w-4 h-4" />
-              </button>
-            </form>
+            <CategorySearchAutocomplete
+              categories={categories}
+              placeholder="Tìm quần áo, phụ kiện..."
+              isMobile
+            />
           </div>
         </div>
       </header>

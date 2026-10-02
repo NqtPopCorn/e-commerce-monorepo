@@ -27,18 +27,19 @@ export const useAuthStore = create<AuthState>()(
       hasHydrated: false,
       setAuth: (token, user) => {
         localStorage.setItem("accessToken", token);
-        set({ token, user });
+        set({ token, user, hasHydrated: true });
       },
       setHasHydrated: (hasHydrated) => set({ hasHydrated }),
       logout: () => {
         localStorage.removeItem("accessToken");
-        set({ token: null, user: null });
+        set({ token: null, user: null, hasHydrated: true });
       },
     }),
     {
       name: "fashion-shop-auth",
-      onRehydrateStorage: () => (state) => {
-        state?.setHasHydrated(true);
+      partialize: (state) => ({ token: state.token, user: state.user }),
+      onRehydrateStorage: () => () => {
+        useAuthStore.setState({ hasHydrated: true });
       },
     },
   ),

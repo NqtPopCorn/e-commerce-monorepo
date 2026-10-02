@@ -140,12 +140,20 @@ export function SalesPerformanceChart({
                 margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
                 onClick={(e: any) => {
                   if (e && e.activePayload && e.activePayload[0]) {
-                    onPointClick?.(e.activePayload[0].payload as SalesTimelinePoint);
+                    onPointClick?.(
+                      e.activePayload[0].payload as SalesTimelinePoint,
+                    );
                   }
                 }}
               >
                 <defs>
-                  <linearGradient id="colorCurrentMetric" x1="0" y1="0" x2="0" y2="1">
+                  <linearGradient
+                    id="colorCurrentMetric"
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="1"
+                  >
                     <stop
                       offset="5%"
                       stopColor="hsl(var(--primary))"
@@ -187,11 +195,13 @@ export function SalesPerformanceChart({
                 <Tooltip
                   content={({ active, payload, label }) => {
                     if (active && payload && payload.length) {
-                      const currentVal = Number(payload[0]?.value || 0);
-                      const prevVal = Number(payload[1]?.value || 0);
+                      const currentVal = Number(payload[1]?.value || 0);
+                      const prevVal = Number(payload[0]?.value || 0);
                       const delta =
                         prevVal > 0
-                          ? (((currentVal - prevVal) / prevVal) * 100).toFixed(1)
+                          ? (((currentVal - prevVal) / prevVal) * 100).toFixed(
+                              1,
+                            )
                           : null;
 
                       return (
@@ -228,7 +238,10 @@ export function SalesPerformanceChart({
                                     : "text-rose-600 dark:text-rose-400"
                                 }`}
                               >
-                                {Number(delta) >= 0 ? `+${delta}%` : `${delta}%`} vs kỳ trước
+                                {Number(delta) >= 0
+                                  ? `+${delta}%`
+                                  : `${delta}%`}{" "}
+                                vs kỳ trước
                               </span>
                             </div>
                           )}

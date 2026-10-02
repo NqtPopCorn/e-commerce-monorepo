@@ -2,15 +2,29 @@
 
 import { useState, Suspense } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useGetProducts } from "@/hooks/useProducts";
-import { ChevronRight, Filter, Star, Sparkles } from "lucide-react";
+import {
+  ChevronRight,
+  ChevronDown,
+  ChevronLeft,
+  ChevronsLeft,
+  ChevronsRight,
+  Filter,
+  Star,
+  Sparkles,
+  Folder,
+  FolderTree,
+  Tag,
+} from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { categoriesService } from "@/services/categories.service";
 import { brandsService } from "@/services/brands.service";
 import { Product, Category, Brand } from "@/types/product";
 
 function ProductsContent() {
+  const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const categoryParam = searchParams.get("category");
   const brandParam = searchParams.get("brand");
@@ -18,10 +32,22 @@ function ProductsContent() {
 
   const { data: productsData, isLoading: isLoadingProducts } = useGetProducts();
 
-  // Fetch categories & brands for sidebar
-  const { data: categoriesData } = useQuery({
-    queryKey: ["categories"],
-    queryFn: categoriesService.getAll,
+  // State mở/đóng các nhánh danh mục gốc
+  const [expandedRoots, setExpandedRoots] = useState<Record<number, boolean>>(
+    {},
+  );
+
+  const toggleRoot = (id: number) => {
+    setExpandedRoots((prev) => ({
+      ...prev,
+      [id]: prev[id] === undefined ? false : !prev[id],
+    }));
+  };
+
+  // Fetch categories tree & brands for sidebar
+  const { data: treeData } = useQuery({
+    queryKey: ["categories-tree"],
+    queryFn: categoriesService.getTree,
     staleTime: 5 * 60 * 1000,
   });
 
@@ -31,16 +57,54 @@ function ProductsContent() {
     staleTime: 5 * 60 * 1000,
   });
 
-  const categories = Array.isArray(categoriesData) ? categoriesData : [];
+  const categoryTree = Array.isArray(treeData) ? treeData : [];
   const brands = Array.isArray(brandsData) ? brandsData : [];
 
   // Lọc sản phẩm
   let filteredProducts = Array.isArray(productsData) ? productsData : [];
 
   if (categoryParam) {
+    const categoryParamLower = categoryParam.toLowerCase();
+
+    // 1. Tìm xem categoryParam có phải là danh mục cha (gốc) không
+    const matchingRoot = categoryTree.find(
+      (root: Category) =>
+        root.name.toLowerCase() === categoryParamLower ||
+        String(root.id) === categoryParam,
+    );
+
+    // 2. Danh sách tên danh mục hợp lệ (nếu là cha thì gồm tên cha + tất cả tên con của nó)
+    const validNames = matchingRoot
+      ? [
+          matchingRoot.name.toLowerCase(),
+          ...(matchingRoot.children || []).map((c) => c.name.toLowerCase()),
+        ]
+      : [categoryParamLower];
+
+    // Danh sách id danh mục hợp lệ
+    const validIds = matchingRoot
+      ? [matchingRoot.id, ...(matchingRoot.children || []).map((c) => c.id)]
+      : !isNaN(Number(categoryParam))
+        ? [Number(categoryParam)]
+        : [];
+
     filteredProducts = filteredProducts.filter((prod: Product) => {
-      if (prod.category?.name === categoryParam) return true;
-      if (prod.category?.parent?.name === categoryParam) return true;
+      const catName = prod.category?.name?.toLowerCase();
+      const parentName = prod.category?.parent?.name?.toLowerCase();
+
+      // Khớp theo tên danh mục sản phẩm hoặc tên danh mục cha
+      if (catName && validNames.includes(catName)) return true;
+      if (parentName && validNames.includes(parentName)) return true;
+
+      // Khớp theo ID danh mục sản phẩm hoặc ID cha
+      if (prod.categoryId && validIds.includes(prod.categoryId)) return true;
+      if (
+        prod.category?.parentId &&
+        validIds.includes(prod.category.parentId)
+      ) {
+        return true;
+      }
+
       return false;
     });
   }
@@ -67,23 +131,131 @@ function ProductsContent() {
     });
   }
 
+  // Tìm danh mục đang chọn để render Breadcrumb phân cấp
+  const activeRoot = categoryTree.find(
+    (root: Category) =>
+      root.name.toLowerCase() === categoryParam?.toLowerCase() ||
+      String(root.id) === categoryParam,
+  );
+
+  const activeChild =
+    !activeRoot && categoryParam
+      ? categoryTree
+          .flatMap((r: Category) =>
+            (r.children || []).map((c: Category) => ({
+              ...c,
+              parentName: r.name,
+              parentId: r.id,
+            })),
+          )
+          .find(
+            (c) =>
+              c.name.toLowerCase() === categoryParam.toLowerCase() ||
+              String(c.id) === categoryParam,
+          )
+      : null;
+
+  // Phân trang sản phẩm
+  const [pageSize, setPageSize] = useState<number>(6);
+  const pageParam = searchParams.get("page");
+  const currentPage = pageParam ? Math.max(1, parseInt(pageParam, 10)) : 1;
+
+  const totalProducts = filteredProducts.length;
+  const totalPages = Math.ceil(totalProducts / pageSize) || 1;
+  const validPage = Math.min(currentPage, totalPages);
+
+  const startItem = totalProducts > 0 ? (validPage - 1) * pageSize + 1 : 0;
+  const endItem = Math.min(validPage * pageSize, totalProducts);
+
+  const paginatedProducts = filteredProducts.slice(
+    (validPage - 1) * pageSize,
+    validPage * pageSize,
+  );
+
+  const handlePageChange = (newPage: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (newPage > 1) {
+      params.set("page", String(newPage));
+    } else {
+      params.delete("page");
+    }
+    router.push(`${pathname}?${params.toString()}`);
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 120, behavior: "smooth" });
+    }
+  };
+
+  const getPageNumbers = () => {
+    const pages: (number | string)[] = [];
+    const maxVisible = 5;
+
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      pages.push(1);
+      if (validPage > 3) {
+        pages.push("...");
+      }
+
+      const start = Math.max(2, validPage - 1);
+      const end = Math.min(totalPages - 1, validPage + 1);
+
+      for (let i = start; i <= end; i++) {
+        pages.push(i);
+      }
+
+      if (validPage < totalPages - 2) {
+        pages.push("...");
+      }
+      pages.push(totalPages);
+    }
+
+    return pages;
+  };
+
+  const pageNumbers = getPageNumbers();
+
   return (
     <div className="flex flex-col gap-6 max-w-7xl mx-auto">
       {/* Breadcrumb */}
-      <nav className="text-sm text-gray-500 flex items-center gap-2 bg-white p-3.5 rounded-xl shadow-xs border border-gray-100">
+      <nav className="text-sm text-gray-500 flex items-center flex-wrap gap-2 bg-white p-3.5 rounded-xl shadow-xs border border-gray-100">
         <Link href="/" className="hover:text-rose-600 transition-colors">
           Trang chủ
         </Link>
-        <ChevronRight className="w-4 h-4" />
+        <ChevronRight className="w-4 h-4 text-gray-400" />
         <Link
           href="/products"
           className="hover:text-rose-600 transition-colors"
         >
           Thời trang
         </Link>
-        {(categoryParam || brandParam || searchQuery) && (
+
+        {activeChild ? (
           <>
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRight className="w-4 h-4 text-gray-400" />
+            <Link
+              href={`/products?category=${encodeURIComponent(activeChild.parentName)}`}
+              className="hover:text-rose-600 transition-colors"
+            >
+              {activeChild.parentName}
+            </Link>
+            <ChevronRight className="w-4 h-4 text-gray-400" />
+            <span className="text-gray-900 font-semibold">
+              {activeChild.name}
+            </span>
+          </>
+        ) : activeRoot ? (
+          <>
+            <ChevronRight className="w-4 h-4 text-gray-400" />
+            <span className="text-gray-900 font-semibold">
+              {activeRoot.name}
+            </span>
+          </>
+        ) : categoryParam || brandParam || searchQuery ? (
+          <>
+            <ChevronRight className="w-4 h-4 text-gray-400" />
             <span className="text-gray-900 font-semibold">
               {categoryParam
                 ? `Danh mục: ${categoryParam}`
@@ -92,7 +264,7 @@ function ProductsContent() {
                   : `Tìm kiếm: "${searchQuery}"`}
             </span>
           </>
-        )}
+        ) : null}
       </nav>
 
       <div className="flex flex-col md:flex-row gap-6">
@@ -103,39 +275,135 @@ function ProductsContent() {
               <Filter className="w-4 h-4 text-rose-600" /> Bộ lọc thời trang
             </div>
 
-            {/* Category List */}
+            {/* Category Tree List */}
             <div className="p-4">
-              <h3 className="font-semibold text-gray-800 text-sm mb-3">
-                Danh mục
-              </h3>
-              <ul className="space-y-1.5 text-sm">
-                <li>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold text-gray-800 text-sm">
+                  Danh mục
+                </h3>
+                {categoryParam && (
                   <Link
                     href="/products"
-                    className={`block py-1 hover:text-rose-600 transition-colors ${
-                      !categoryParam && !brandParam
-                        ? "font-bold text-rose-600"
-                        : "text-gray-600"
-                    }`}
+                    className="text-[11px] font-medium text-rose-600 hover:underline"
                   >
-                    Tất cả sản phẩm
+                    Xóa lọc
                   </Link>
-                </li>
-                {categories.map((cat: Category) => (
-                  <li key={cat.id}>
-                    <Link
-                      href={`/products?category=${encodeURIComponent(cat.name)}`}
-                      className={`block py-1 hover:text-rose-600 transition-colors ${
-                        categoryParam === cat.name
-                          ? "font-bold text-rose-600"
-                          : "text-gray-600"
-                      }`}
-                    >
-                      {cat.name}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+                )}
+              </div>
+
+              <div className="space-y-1 text-sm">
+                {/* Tất cả sản phẩm */}
+                <Link
+                  href="/products"
+                  className={`flex items-center justify-between py-1.5 px-2.5 rounded-lg text-sm transition-colors ${
+                    !categoryParam && !brandParam
+                      ? "font-bold text-rose-600 bg-rose-50"
+                      : "text-gray-700 hover:text-rose-600 hover:bg-gray-50"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-rose-600" />
+                    <span>Tất cả sản phẩm</span>
+                  </div>
+                </Link>
+
+                {/* Tree Branches */}
+                <div className="space-y-2 pt-1.5">
+                  {categoryTree.map((root: Category) => {
+                    const children = root.children || [];
+                    const isRootActive =
+                      categoryParam?.toLowerCase() ===
+                        root.name.toLowerCase() ||
+                      categoryParam === String(root.id);
+                    const isChildActive = children.some(
+                      (c) =>
+                        c.name.toLowerCase() === categoryParam?.toLowerCase() ||
+                        String(c.id) === categoryParam,
+                    );
+                    const isOpen =
+                      expandedRoots[root.id] !== undefined
+                        ? expandedRoots[root.id]
+                        : true;
+
+                    return (
+                      <div key={root.id} className="space-y-1">
+                        {/* Root Category Row */}
+                        <div
+                          className={`flex items-center justify-between rounded-lg px-2 py-1.5 transition-colors ${
+                            isRootActive
+                              ? "bg-rose-50 text-rose-600 font-bold"
+                              : "text-gray-800 hover:bg-gray-50 font-medium"
+                          }`}
+                        >
+                          <Link
+                            href={`/products?category=${encodeURIComponent(root.name)}`}
+                            className="flex items-center justify-between flex-1 min-w-0 pr-1 group"
+                            title={`Lọc tất cả sản phẩm thuộc ${root.name}`}
+                          >
+                            <span className="truncate text-sm">
+                              {root.name}
+                            </span>
+                          </Link>
+
+                          {children.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                toggleRoot(root.id);
+                              }}
+                              className="p-1 rounded hover:bg-gray-200/60 text-gray-400 hover:text-gray-700 transition-colors ml-1"
+                              aria-label={isOpen ? "Thu gọn" : "Mở rộng"}
+                            >
+                              <ChevronDown
+                                className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                                  isOpen ? "" : "-rotate-90"
+                                }`}
+                              />
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Children / Leaf Categories (with visual tree connector lines) */}
+                        {isOpen && children.length > 0 && (
+                          <div className="ml-3 pl-3.5 border-l-2 border-slate-200 space-y-0.5 py-0.5">
+                            {children.map((child: Category) => {
+                              const isLeafActive =
+                                categoryParam?.toLowerCase() ===
+                                  child.name.toLowerCase() ||
+                                categoryParam === String(child.id);
+
+                              return (
+                                <div
+                                  key={child.id}
+                                  className="relative flex items-center"
+                                >
+                                  {/* Horizontal branch tick */}
+                                  <span className="absolute -left-3.5 top-1/2 -translate-y-1/2 w-2.5 h-px bg-slate-200" />
+
+                                  <Link
+                                    href={`/products?category=${encodeURIComponent(child.name)}`}
+                                    className={`flex items-center justify-between w-full py-1 px-2.5 rounded-md text-xs transition-colors truncate ${
+                                      isLeafActive
+                                        ? "font-bold text-rose-600 bg-rose-50 shadow-2xs"
+                                        : "text-gray-600 hover:text-rose-600 hover:bg-gray-50"
+                                    }`}
+                                  >
+                                    <span className="truncate">
+                                      {child.name}
+                                    </span>
+                                  </Link>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
 
             {/* Brand List */}
@@ -172,8 +440,9 @@ function ProductsContent() {
                   ? `Kết quả: "${searchQuery}"`
                   : "Bộ sưu tập thời trang")}
             </h1>
-            <div className="text-sm text-gray-500">
-              {filteredProducts.length} sản phẩm
+            <div className="text-sm text-gray-500 font-medium">
+              Trang <span className="text-gray-900 font-bold">{validPage}</span>{" "}
+              / {totalPages} • {totalProducts} sản phẩm
             </div>
           </div>
 
@@ -195,7 +464,7 @@ function ProductsContent() {
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
-              {filteredProducts.map((prod: Product) => {
+              {paginatedProducts.map((prod: Product) => {
                 const minFinalPrice = Math.min(
                   ...(prod.variants?.map((v) =>
                     v.discountedPrice !== undefined
@@ -296,6 +565,125 @@ function ProductsContent() {
                   </Link>
                 );
               })}
+            </div>
+          )}
+
+          {/* Phân trang khách hàng */}
+          {totalProducts > 0 && (
+            <div className="mt-8 bg-white p-4 rounded-xl border border-gray-100 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-3 text-xs text-gray-500 font-medium">
+                <div>
+                  <span className="font-semibold text-gray-900 tabular-nums">
+                    {startItem}
+                  </span>{" "}
+                  -{" "}
+                  <span className="font-semibold text-gray-900 tabular-nums">
+                    {endItem}
+                  </span>{" "}
+                  trên{" "}
+                  <span className="font-semibold text-gray-900 tabular-nums">
+                    {totalProducts}
+                  </span>{" "}
+                  sản phẩm
+                </div>
+
+                <div className="flex items-center gap-1.5 border-l border-gray-200 pl-3">
+                  <span className="text-gray-400">Hiển thị:</span>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => {
+                      setPageSize(Number(e.target.value));
+                      handlePageChange(1);
+                    }}
+                    aria-label="Số sản phẩm trên mỗi trang"
+                    className="h-7 px-2 bg-gray-50 border border-gray-200 rounded-md text-xs font-semibold text-gray-700 cursor-pointer focus:outline-none focus:ring-1 focus:ring-rose-500"
+                  >
+                    <option value={6}>6 / trang</option>
+                    <option value={12}>12 / trang</option>
+                    <option value={24}>24 / trang</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1.5 flex-wrap justify-center">
+                {/* Về trang đầu */}
+                <button
+                  type="button"
+                  disabled={validPage <= 1}
+                  onClick={() => handlePageChange(1)}
+                  className="p-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-rose-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  title="Trang đầu"
+                  aria-label="Trang đầu"
+                >
+                  <ChevronsLeft className="w-4 h-4" />
+                </button>
+
+                {/* Trang trước */}
+                <button
+                  type="button"
+                  disabled={validPage <= 1}
+                  onClick={() => handlePageChange(validPage - 1)}
+                  className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-50 hover:text-rose-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
+                  aria-label="Trang trước"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+
+                {/* Các số trang */}
+                <div className="flex items-center gap-1">
+                  {pageNumbers.map((p, idx) => {
+                    if (p === "...") {
+                      return (
+                        <span
+                          key={`ellipsis-${idx}`}
+                          className="px-2 py-1 text-gray-400 text-xs font-medium select-none"
+                        >
+                          ...
+                        </span>
+                      );
+                    }
+                    const isCurrent = p === validPage;
+                    return (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => handlePageChange(Number(p))}
+                        aria-current={isCurrent ? "page" : undefined}
+                        className={`min-w-[36px] h-9 px-2.5 rounded-lg text-xs font-semibold tabular-nums transition-colors ${
+                          isCurrent
+                            ? "bg-rose-600 text-white shadow-xs"
+                            : "border border-gray-200 text-gray-700 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200"
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Trang sau */}
+                <button
+                  type="button"
+                  disabled={validPage >= totalPages}
+                  onClick={() => handlePageChange(validPage + 1)}
+                  className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-50 hover:text-rose-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
+                  aria-label="Trang sau"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+
+                {/* Đến trang cuối */}
+                <button
+                  type="button"
+                  disabled={validPage >= totalPages}
+                  onClick={() => handlePageChange(totalPages)}
+                  className="p-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-rose-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  title="Trang cuối"
+                  aria-label="Trang cuối"
+                >
+                  <ChevronsRight className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           )}
         </div>

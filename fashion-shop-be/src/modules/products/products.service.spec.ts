@@ -30,17 +30,50 @@ describe("ProductsService", () => {
   });
 
   describe("create", () => {
-    it("should create a product and generate slug if not provided", async () => {
+    it("should throw NotFoundException if category does not exist", async () => {
+      prismaMock.category.findUnique.mockResolvedValue(null);
+      await expect(
+        service.create({
+          name: "Áo Thun",
+          categoryId: 999,
+        } as any),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it("should throw BadRequestException if category is a root category (parentId is null)", async () => {
+      prismaMock.category.findUnique.mockResolvedValue({
+        id: 1,
+        name: "Áo",
+        parentId: null,
+      } as any);
+
+      await expect(
+        service.create({
+          name: "Áo Thun",
+          categoryId: 1,
+        } as any),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it("should create a product and generate slug if not provided when category is leaf", async () => {
+      prismaMock.category.findUnique.mockResolvedValue({
+        id: 2,
+        name: "Áo Thun",
+        parentId: 1,
+      } as any);
+
       prismaMock.product.create.mockResolvedValue({
         id: 1,
         name: "Áo Thun",
         slug: "ao-thun-123",
       } as any);
+
       const res = await service.create({
         name: "Áo Thun",
-        categoryId: 1,
+        categoryId: 2,
         brandId: 1,
       } as any);
+
       expect(res.name).toBe("Áo Thun");
       expect(res.slug).toBe("ao-thun-123");
       expect(prismaMock.product.create).toHaveBeenCalled();
@@ -65,6 +98,48 @@ describe("ProductsService", () => {
       ] as any);
 
       const res = (await service.findAll()) as any;
+      expect(res.length).toBe(1);
+    });
+
+    it("should filter by parent categoryId including children", async () => {
+      prismaMock.category.findUnique.mockResolvedValue({
+        id: 1,
+        name: "Áo",
+        children: [{ id: 2 }, { id: 3 }],
+      } as any);
+      prismaMock.product.findMany.mockResolvedValue([
+        { id: 10, name: "Áo Thun", categoryId: 2 },
+      ] as any);
+
+      const res = (await service.findAll({ categoryId: 1 })) as any;
+      expect(prismaMock.product.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            categoryId: { in: [1, 2, 3] },
+          }),
+        }),
+      );
+      expect(res.length).toBe(1);
+    });
+
+    it("should filter by parent category name including children", async () => {
+      prismaMock.category.findFirst.mockResolvedValue({
+        id: 1,
+        name: "Áo",
+        children: [{ id: 2 }, { id: 3 }],
+      } as any);
+      prismaMock.product.findMany.mockResolvedValue([
+        { id: 10, name: "Áo Thun", categoryId: 2 },
+      ] as any);
+
+      const res = (await service.findAll({ category: "Áo" })) as any;
+      expect(prismaMock.product.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            categoryId: { in: [1, 2, 3] },
+          }),
+        }),
+      );
       expect(res.length).toBe(1);
     });
   });
@@ -113,6 +188,24 @@ describe("ProductsService", () => {
     beforeEach(() => {
       prismaMock.$transaction.mockImplementation(async (cb: any) =>
         cb(prismaMock),
+      );
+    });
+
+    it("should throw BadRequestException when trying to assign a root category on update", async () => {
+      prismaMock.product.findUnique.mockResolvedValue({
+        id: 1,
+        name: "Áo Polo",
+        variants: [],
+      } as any);
+
+      prismaMock.category.findUnique.mockResolvedValue({
+        id: 1,
+        name: "Root Áo",
+        parentId: null,
+      } as any);
+
+      await expect(service.update(1, { categoryId: 1 } as any)).rejects.toThrow(
+        BadRequestException,
       );
     });
 

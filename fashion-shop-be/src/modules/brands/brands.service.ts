@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CreateBrandDto } from "./dto/create-brand.dto";
 import { UpdateBrandDto } from "./dto/update-brand.dto";
@@ -19,11 +23,36 @@ export class BrandsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(dto: CreateBrandDto) {
-    const slug = dto.slug || slugify(dto.name);
+    const trimmedName = (dto.name || "").trim();
+    if (!trimmedName) {
+      throw new BadRequestException("Tên thương hiệu không được để trống");
+    }
+
+    const existing = await this.prisma.brand.findUnique({
+      where: { name: trimmedName },
+    });
+    if (existing) {
+      throw new BadRequestException(`Thương hiệu "${trimmedName}" đã tồn tại`);
+    }
+
+    let slug = dto.slug ? slugify(dto.slug) : slugify(trimmedName);
+    const existingSlug = await this.prisma.brand.findUnique({
+      where: { slug },
+    });
+    if (existingSlug) {
+      slug = `${slug}-${Date.now()}`;
+    }
+
     return this.prisma.brand.create({
       data: {
-        ...dto,
+        name: trimmedName,
         slug,
+        logo: dto.logo || null,
+      },
+      include: {
+        _count: {
+          select: { products: true },
+        },
       },
     });
   }
@@ -49,26 +78,91 @@ export class BrandsService {
             images: { orderBy: { sortOrder: "asc" } },
           },
         },
+        _count: {
+          select: { products: true },
+        },
       },
     });
-    if (!brand) throw new NotFoundException("Brand not found");
+    if (!brand) throw new NotFoundException("Thương hiệu không tồn tại");
     return brand;
   }
 
   async update(id: number, dto: UpdateBrandDto) {
-    await this.findOne(id);
-    const data: any = { ...dto };
-    if (dto.name && !dto.slug) {
-      data.slug = slugify(dto.name);
+    const brand = await this.prisma.brand.findUnique({ where: { id } });
+    if (!brand) throw new NotFoundException("Thương hiệu không tồn tại");
+
+    const data: any = {};
+
+    if (dto.name !== undefined) {
+      const trimmedName = dto.name.trim();
+      if (!trimmedName) {
+        throw new BadRequestException("Tên thương hiệu không được để trống");
+      }
+      if (trimmedName !== brand.name) {
+        const existing = await this.prisma.brand.findUnique({
+          where: { name: trimmedName },
+        });
+        if (existing && existing.id !== id) {
+          throw new BadRequestException(
+            `Thương hiệu "${trimmedName}" đã tồn tại`,
+          );
+        }
+      }
+      data.name = trimmedName;
+
+      if (!dto.slug) {
+        let slug = slugify(trimmedName);
+        const existingSlug = await this.prisma.brand.findUnique({
+          where: { slug },
+        });
+        if (existingSlug && existingSlug.id !== id) {
+          slug = `${slug}-${Date.now()}`;
+        }
+        data.slug = slug;
+      }
     }
+
+    if (dto.slug !== undefined) {
+      let slug = slugify(dto.slug);
+      const existingSlug = await this.prisma.brand.findUnique({
+        where: { slug },
+      });
+      if (existingSlug && existingSlug.id !== id) {
+        throw new BadRequestException(`Đường dẫn slug "${slug}" đã tồn tại`);
+      }
+      data.slug = slug;
+    }
+
+    if (dto.logo !== undefined) {
+      data.logo = dto.logo || null;
+    }
+
     return this.prisma.brand.update({
       where: { id },
       data,
+      include: {
+        _count: {
+          select: { products: true },
+        },
+      },
     });
   }
 
   async remove(id: number) {
-    await this.findOne(id);
+    const brand = await this.prisma.brand.findUnique({
+      where: { id },
+      include: {
+        _count: { select: { products: true } },
+      },
+    });
+    if (!brand) throw new NotFoundException("Thương hiệu không tồn tại");
+
+    if (brand._count.products > 0) {
+      throw new BadRequestException(
+        `Không thể xóa thương hiệu đang có ${brand._count.products} sản phẩm liên kết. Vui lòng gỡ hoặc chuyển sản phẩm trước.`,
+      );
+    }
+
     return this.prisma.brand.delete({ where: { id } });
   }
 }
