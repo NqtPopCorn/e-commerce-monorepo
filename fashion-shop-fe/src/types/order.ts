@@ -98,6 +98,20 @@ export interface Order {
   orderDiscount?: number | string;
   voucherDiscount: number | string;
   total: number | string;
+  paidAmount?: number;
+  remainingAmount?: number;
+  isPartialPaid?: boolean;
+  transactions?: {
+    id: number;
+    amount: number | string;
+    provider?: string;
+    status: string;
+    transactionCode?: string | null;
+    providerTxnId?: string | null;
+    metadata?: any;
+    paidAt?: string | null;
+    createdAt?: string;
+  }[];
   createdAt: string;
   updatedAt: string;
   user?: OrderUser;
