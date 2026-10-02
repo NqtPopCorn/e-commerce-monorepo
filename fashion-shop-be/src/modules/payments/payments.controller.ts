@@ -14,6 +14,7 @@ import { JwtAuthGuard } from "../auth/jwt.guard";
 import { RolesGuard } from "../auth/roles.guard";
 import { Roles } from "../auth/roles.decorator";
 import { SePayWebhookDto } from "./dto/sepay-webhook.dto";
+import { SimulatePaymentDto } from "./dto/simulate-payment.dto";
 import { PaymentsService } from "./payments.service";
 
 @ApiTags("payments")
@@ -43,6 +44,14 @@ export class PaymentsController {
     @Headers("authorization") authHeader?: string,
   ) {
     return this.paymentsService.handleVietQRWebhook(dto, authHeader);
+  }
+
+  /**
+   * Sandbox Simulator endpoint to test incoming bank transfers without external tunnel.
+   */
+  @Post("vietqr/simulate")
+  async simulateVietQRPayment(@Body() dto: SimulatePaymentDto) {
+    return this.paymentsService.simulatePayment(dto);
   }
 
   /**

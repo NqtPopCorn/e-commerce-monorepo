@@ -218,14 +218,32 @@ export class OrdersService {
   }
 
   async findMine(userId: number) {
-    return this.prisma.order.findMany({
+    const orders = await this.prisma.order.findMany({
       where: { userId },
       include: {
         items: { include: { variant: { include: { product: true } } } },
         discountApplications: true,
         voucherApplications: true,
+        transactions: {
+          orderBy: { createdAt: "desc" },
+        },
       },
       orderBy: { createdAt: "desc" },
+    });
+
+    return orders.map((order) => {
+      const paidAmount = (order.transactions || [])
+        .filter((tx) => tx.status === "SUCCESS")
+        .reduce((sum, tx) => sum + Number(tx.amount), 0);
+      const orderTotal = Math.round(Number(order.total));
+      const remainingAmount = Math.max(0, orderTotal - paidAmount);
+      const isPartialPaid = paidAmount > 0 && remainingAmount > 0;
+      return {
+        ...order,
+        paidAmount,
+        remainingAmount,
+        isPartialPaid,
+      };
     });
   }
 
@@ -245,11 +263,27 @@ export class OrdersService {
         items: { include: { variant: { include: { product: true } } } },
         discountApplications: true,
         voucherApplications: true,
+        transactions: {
+          orderBy: { createdAt: "desc" },
+        },
       },
     });
     if (!order || order.userId !== userId)
       throw new NotFoundException("Đơn hàng không tồn tại");
-    return order;
+
+    const paidAmount = (order.transactions || [])
+      .filter((tx) => tx.status === "SUCCESS")
+      .reduce((sum, tx) => sum + Number(tx.amount), 0);
+    const orderTotal = Math.round(Number(order.total));
+    const remainingAmount = Math.max(0, orderTotal - paidAmount);
+    const isPartialPaid = paidAmount > 0 && remainingAmount > 0;
+
+    return {
+      ...order,
+      paidAmount,
+      remainingAmount,
+      isPartialPaid,
+    };
   }
 
   async cancel(userId: number, orderId: number) {

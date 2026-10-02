@@ -347,6 +347,7 @@ model Order {
   updatedAt             DateTime               @updatedAt @map("updated_at")
 
   @@index([userId, status])
+  @@index([paymentStatus])
   @@map("orders")
 }
 
@@ -402,6 +403,7 @@ model PaymentTransaction {
   order           Order                    @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
+  @@index([orderId, status])
   @@index([transactionCode])
   @@index([providerTxnId])
   @@map("payment_transactions")

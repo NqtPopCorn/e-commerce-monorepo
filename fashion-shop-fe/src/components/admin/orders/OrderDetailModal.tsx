@@ -81,6 +81,11 @@ const PAYMENT_STATUS_MAP: Record<string, { label: string; color: string }> = {
     color:
       "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30",
   },
+  PENDING: {
+    label: "Thanh toán một phần",
+    color:
+      "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30",
+  },
   PAID: {
     label: "Đã thanh toán",
     color:
@@ -114,11 +119,20 @@ export function OrderDetailModal({
   };
   const StatusIcon = statusInfo.icon;
 
+  const isPartialPaid =
+    order.isPartialPaid ||
+    (Number(order.paidAmount || 0) > 0 && order.paymentStatus !== "PAID");
   const paymentStatus = order.paymentStatus || "UNPAID";
-  const paymentInfo = PAYMENT_STATUS_MAP[paymentStatus] || {
-    label: paymentStatus,
-    color: "bg-muted text-muted-foreground border-border",
-  };
+  const paymentInfo = isPartialPaid
+    ? {
+        label: "Thanh toán một phần",
+        color:
+          "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30",
+      }
+    : PAYMENT_STATUS_MAP[paymentStatus] || {
+        label: paymentStatus,
+        color: "bg-muted text-muted-foreground border-border",
+      };
 
   const recipientName =
     order.recipientName ||
@@ -315,6 +329,29 @@ export function OrderDetailModal({
                       {paymentInfo.label}
                     </Badge>
                   </div>
+
+                  {Number(order.paidAmount || 0) > 0 && (
+                    <div className="space-y-1 pt-1 border-t border-border/60">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="font-medium text-emerald-600 dark:text-emerald-400">
+                          Đã thanh toán:
+                        </span>
+                        <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                          {formatCurrency(Number(order.paidAmount))}
+                        </span>
+                      </div>
+                      {paymentStatus !== "PAID" && (
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="font-medium text-amber-700 dark:text-amber-400">
+                            Còn thiếu:
+                          </span>
+                          <span className="font-mono font-bold text-amber-700 dark:text-amber-400">
+                            {formatCurrency(Number(order.remainingAmount ?? order.total))}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -329,8 +366,10 @@ export function OrderDetailModal({
                       <span className="font-mono font-bold text-xs text-foreground">
                         DH{order.id}
                       </span>
-                      <span className="font-bold text-xs text-primary">
-                        {formatCurrency(Number(order.total))}
+                      <span className="font-bold text-xs text-primary font-mono">
+                        {isPartialPaid
+                          ? `Thiếu ${formatCurrency(Number(order.remainingAmount ?? order.total))}`
+                          : formatCurrency(Number(order.total))}
                       </span>
                     </div>
                   </div>
@@ -343,7 +382,7 @@ export function OrderDetailModal({
                     className="w-full h-8 text-xs font-semibold gap-1.5 rounded-lg shadow-xs bg-emerald-600 hover:bg-emerald-700 text-white"
                   >
                     <Check className="w-3.5 h-3.5" />
-                    Xác nhận nhận tiền VietQR
+                    Xác nhận nhận đủ tiền VietQR
                   </Button>
                 </div>
               )}
@@ -586,12 +625,86 @@ export function OrderDetailModal({
                 </div>
               )}
               <div className="flex justify-between items-center font-bold border-t border-border pt-2.5 text-sm text-foreground mt-2">
-                <span>Tổng tiền thanh toán:</span>
-                <span className="text-primary text-base tabular-nums">
+                <span>Tổng tiền đơn hàng:</span>
+                <span className="text-foreground text-base tabular-nums">
                   {formatCurrency(Number(order.total))}
                 </span>
               </div>
+              {Number(order.paidAmount || 0) > 0 && (
+                <div className="flex justify-between items-center text-emerald-600 dark:text-emerald-400 font-medium text-xs">
+                  <span>Đã thanh toán (VietQR):</span>
+                  <span className="font-mono tabular-nums font-semibold">
+                    -{formatCurrency(Number(order.paidAmount))}
+                  </span>
+                </div>
+              )}
+              {paymentStatus !== "PAID" && (
+                <div className="flex justify-between items-center font-bold border-t border-dashed border-border pt-2 text-sm text-amber-700 dark:text-amber-400">
+                  <span>Số tiền còn thiếu:</span>
+                  <span className="text-primary text-base font-mono tabular-nums">
+                    {formatCurrency(Number(order.remainingAmount ?? order.total))}
+                  </span>
+                </div>
+              )}
             </div>
+
+            {/* Lịch sử giao dịch ngân hàng / VietQR */}
+            {order.transactions && order.transactions.length > 0 && (
+              <div className="border border-border/80 rounded-xl p-4 bg-muted/20 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-xs text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <Banknote className="w-3.5 h-3.5 text-primary" />
+                    <span>Lịch sử giao dịch ngân hàng / VietQR ({order.transactions.length})</span>
+                  </h3>
+                  <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
+                    Đã ghi nhận: {formatCurrency(Number(order.paidAmount || 0))}
+                  </Badge>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs text-left">
+                    <thead>
+                      <tr className="border-b border-border/60 text-muted-foreground">
+                        <th className="py-2 pr-3 font-medium">Mã giao dịch</th>
+                        <th className="py-2 px-3 font-medium">Cổng / Provider</th>
+                        <th className="py-2 px-3 font-medium">Thời gian</th>
+                        <th className="py-2 px-3 font-medium text-right">Số tiền</th>
+                        <th className="py-2 pl-3 font-medium text-right">Trạng thái</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/40">
+                      {order.transactions.map((tx: any) => (
+                        <tr key={tx.id} className="hover:bg-muted/40 transition-colors">
+                          <td className="py-2.5 pr-3 font-mono font-medium text-foreground">
+                            {tx.providerTxnId || tx.transactionCode || `#${tx.id}`}
+                          </td>
+                          <td className="py-2.5 px-3 text-muted-foreground uppercase text-[11px]">
+                            {tx.provider || "VietQR"}
+                          </td>
+                          <td className="py-2.5 px-3 text-muted-foreground">
+                            {tx.paidAt || tx.createdAt ? formatDateTime(tx.paidAt || tx.createdAt) : "N/A"}
+                          </td>
+                          <td className="py-2.5 px-3 font-mono font-bold text-emerald-600 dark:text-emerald-400 text-right">
+                            +{formatCurrency(Number(tx.amount))}
+                          </td>
+                          <td className="py-2.5 pl-3 text-right">
+                            <Badge
+                              variant="outline"
+                              className={`text-[10px] ${
+                                tx.status === "SUCCESS"
+                                  ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30"
+                                  : "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30"
+                              }`}
+                            >
+                              {tx.status === "SUCCESS" ? "Thành công (Đã khớp)" : tx.status}
+                            </Badge>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
         </DialogBody>
 

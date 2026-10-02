@@ -14,6 +14,10 @@ export interface VietQRInfoResponse {
   accountName: string;
   amount: number;
   transferContent: string;
+  totalOrderAmount?: number;
+  paidAmount?: number;
+  remainingAmount?: number;
+  isPartial?: boolean;
 }
 
 @Injectable()
@@ -58,7 +62,14 @@ export class VietQRService {
     );
   }
 
-  generateVietQR(order: { id: number; total: any }): VietQRInfoResponse {
+  generateVietQR(order: {
+    id: number;
+    total: any;
+    totalOrderAmount?: number;
+    paidAmount?: number;
+    remainingAmount?: number;
+    isPartial?: boolean;
+  }): VietQRInfoResponse {
     const bankBin = this.getBankBin();
     const bankId = this.getBankId();
     const bankName = this.getBankName();
@@ -97,6 +108,10 @@ export class VietQRService {
       accountName,
       amount,
       transferContent,
+      totalOrderAmount: order.totalOrderAmount ?? amount,
+      paidAmount: order.paidAmount ?? 0,
+      remainingAmount: order.remainingAmount ?? amount,
+      isPartial: order.isPartial ?? false,
     };
   }
 }

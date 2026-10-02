@@ -113,7 +113,17 @@ export function CustomerOrdersList() {
     }
   };
 
-  const getPaymentStatusConfig = (status?: PaymentStatus | string) => {
+  const getPaymentStatusConfig = (
+    status?: PaymentStatus | string,
+    isPartial?: boolean,
+  ) => {
+    if (isPartial || status === "PENDING") {
+      return {
+        label: "Thanh toán một phần",
+        color:
+          "text-amber-700 bg-amber-50 border-amber-300 dark:text-amber-400 dark:bg-amber-950/40 dark:border-amber-800",
+      };
+    }
     switch (status) {
       case "PAID":
         return {
@@ -270,8 +280,14 @@ export function CustomerOrdersList() {
       ) : (
         <div className="space-y-4 w-full">
           {filteredOrders.map((order) => {
+            const isPartialPaid =
+              order.isPartialPaid ||
+              (Number(order.paidAmount || 0) > 0 && order.paymentStatus !== "PAID");
             const statusConfig = getStatusConfig(order.status);
-            const paymentConfig = getPaymentStatusConfig(order.paymentStatus);
+            const paymentConfig = getPaymentStatusConfig(
+              order.paymentStatus,
+              isPartialPaid,
+            );
 
             return (
               <div
@@ -362,11 +378,23 @@ export function CustomerOrdersList() {
                 </div>
 
                 {/* 5. Total Price Row */}
-                <div className="px-4 sm:px-5 py-2 text-right text-xs sm:text-sm text-foreground">
-                  <span className="text-muted-foreground">Tổng đơn hàng: </span>
-                  <span className="font-bold text-sm sm:text-base text-foreground font-mono">
-                    {formatCurrency(Number(order.total))}
-                  </span>
+                <div className="px-4 sm:px-5 py-2.5 text-right text-xs sm:text-sm text-foreground space-y-1">
+                  <div>
+                    <span className="text-muted-foreground">Tổng đơn hàng: </span>
+                    <span className="font-bold text-sm sm:text-base text-foreground font-mono">
+                      {formatCurrency(Number(order.total))}
+                    </span>
+                  </div>
+                  {Number(order.paidAmount || 0) > 0 && order.paymentStatus !== "PAID" && (
+                    <div className="text-xs flex items-center justify-end gap-3 pt-0.5">
+                      <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                        Đã chuyển: {formatCurrency(Number(order.paidAmount))}
+                      </span>
+                      <span className="text-amber-700 dark:text-amber-400 font-bold">
+                        Còn thiếu: {formatCurrency(Number(order.remainingAmount ?? order.total))}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {/* 6. Bottom Action Bar (3-column layout) */}
@@ -385,14 +413,16 @@ export function CustomerOrdersList() {
                   >
                     Liên hệ
                   </button>
-                  {order.paymentStatus === "UNPAID" &&
-                  order.paymentMethod === "VIETQR" &&
+                  {order.paymentMethod === "VIETQR" &&
+                  order.paymentStatus !== "PAID" &&
                   order.status !== "CANCELLED" ? (
                     <Link
                       href={`/orders/${order.id}/payment`}
                       className="py-3 px-2 text-center text-xs sm:text-sm font-bold text-primary hover:bg-primary/10 transition-colors flex items-center justify-center gap-1 cursor-pointer select-none"
                     >
-                      Thanh toán VietQR
+                      {isPartialPaid
+                        ? `Thanh toán nốt`
+                        : "Thanh toán VietQR"}
                     </Link>
                   ) : (
                     <button

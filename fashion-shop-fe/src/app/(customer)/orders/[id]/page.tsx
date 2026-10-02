@@ -27,7 +27,9 @@ import {
   RotateCcw,
   Headphones,
   Mail,
+  CreditCard,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { OrderProgressPipeline } from "@/components/orders/OrderProgressPipeline";
 import { VietQRModal } from "@/components/payments/VietQRModal";
 import {
@@ -114,7 +116,17 @@ export default function OrderDetailPage() {
     }
   };
 
-  const getPaymentStatusConfig = (status?: PaymentStatus | string) => {
+  const getPaymentStatusConfig = (
+    status?: PaymentStatus | string,
+    isPartial?: boolean,
+  ) => {
+    if (isPartial || status === "PENDING") {
+      return {
+        label: "Thanh toán một phần",
+        color:
+          "text-amber-700 bg-amber-50 border-amber-300 dark:text-amber-400 dark:bg-amber-950/40 dark:border-amber-800",
+      };
+    }
     switch (status) {
       case "PAID":
         return {
@@ -227,8 +239,11 @@ export default function OrderDetailPage() {
     );
   }
 
+  const isPartialPaid =
+    order.isPartialPaid ||
+    (Number(order.paidAmount || 0) > 0 && order.paymentStatus !== "PAID");
   const statusConfig = getStatusConfig(order.status);
-  const paymentConfig = getPaymentStatusConfig(order.paymentStatus);
+  const paymentConfig = getPaymentStatusConfig(order.paymentStatus, isPartialPaid);
   const StatusIcon = statusConfig.icon;
 
   const displayRecipientName =
@@ -308,6 +323,97 @@ export default function OrderDetailPage() {
         <OrderProgressPipeline status={order.status} />
       </div>
 
+      {/* Thông báo thanh toán một phần nếu khách chuyển thiếu tiền */}
+      {isPartialPaid && (
+        <div className="w-full bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/30 rounded-2xl p-5 space-y-4 shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                <CreditCard className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
+                  <span>Đã ghi nhận thanh toán một phần</span>
+                  <Badge
+                    variant="outline"
+                    className="text-[10px] bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30 font-semibold"
+                  >
+                    Chờ thanh toán nốt
+                  </Badge>
+                </h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Tài khoản ngân hàng đã nhận một phần tiền chuyển khoản. Quý khách vui lòng chuyển khoản nốt số tiền còn lại để đơn hàng được tự động xác nhận.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Link href={`/orders/${order.id}/payment`}>
+                <Button
+                  size="sm"
+                  className="rounded-xl text-xs font-semibold gap-1.5 shadow-xs"
+                >
+                  <QrCode className="w-3.5 h-3.5" />
+                  Thanh toán nốt {formatCurrency(Number(order.remainingAmount || 0))}
+                </Button>
+              </Link>
+              <Button
+                size="sm"
+                variant="outline"
+                type="button"
+                onClick={() => setIsQRModalOpen(true)}
+                className="rounded-xl text-xs font-medium border-amber-500/30 text-amber-800 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40"
+              >
+                Mã QR nhanh
+              </Button>
+            </div>
+          </div>
+
+          {/* Progress bar */}
+          <div className="space-y-1.5 pt-1">
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground font-medium">Tiến độ thanh toán:</span>
+              <span className="font-mono font-bold text-amber-700 dark:text-amber-400">
+                {Math.round(((order.paidAmount || 0) / Number(order.total)) * 100)}%
+              </span>
+            </div>
+            <div className="h-2.5 w-full bg-muted rounded-full overflow-hidden">
+              <div
+                className="h-full bg-amber-500 transition-all duration-500 rounded-full"
+                style={{
+                  width: `${Math.min(
+                    100,
+                    Math.max(
+                      0,
+                      ((order.paidAmount || 0) / Number(order.total)) * 100,
+                    ),
+                  )}%`,
+                }}
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-2 pt-1 text-center">
+              <div className="p-2.5 rounded-xl bg-card border border-border">
+                <span className="text-[11px] text-muted-foreground block">Tổng đơn hàng</span>
+                <span className="font-mono font-bold text-xs text-foreground">
+                  {formatCurrency(Number(order.total))}
+                </span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-card border border-emerald-500/30">
+                <span className="text-[11px] text-emerald-600 dark:text-emerald-400 block font-medium">Đã chuyển khoản</span>
+                <span className="font-mono font-bold text-xs text-emerald-600 dark:text-emerald-400">
+                  {formatCurrency(Number(order.paidAmount || 0))}
+                </span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-card border border-amber-500/30">
+                <span className="text-[11px] text-amber-700 dark:text-amber-400 block font-medium">Còn thiếu</span>
+                <span className="font-mono font-bold text-xs text-amber-700 dark:text-amber-400">
+                  {formatCurrency(Number(order.remainingAmount || 0))}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 4. Section: THÔNG TIN NHẬN HÀNG & HÌNH THỨC THANH TOÁN (2-COL GRID) */}
       <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Thông tin nhận hàng */}
@@ -372,8 +478,27 @@ export default function OrderDetailPage() {
               </span>
             </div>
 
+            {Number(order.paidAmount || 0) > 0 && (
+              <div className="space-y-1.5 pt-1.5 border-t border-border/60">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-muted-foreground">Đã chuyển khoản:</span>
+                  <span className="font-mono font-semibold text-emerald-600 dark:text-emerald-400">
+                    {formatCurrency(Number(order.paidAmount))}
+                  </span>
+                </div>
+                {order.paymentStatus !== "PAID" && (
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-muted-foreground">Còn thiếu:</span>
+                    <span className="font-mono font-bold text-amber-700 dark:text-amber-400">
+                      {formatCurrency(Number(order.remainingAmount ?? order.total))}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
             {order.paymentMethod === "VIETQR" &&
-              order.paymentStatus === "UNPAID" &&
+              order.paymentStatus !== "PAID" &&
               order.status !== "CANCELLED" && (
                 <div className="flex items-center gap-2 pt-2">
                   <Link
@@ -381,7 +506,9 @@ export default function OrderDetailPage() {
                     className="flex-1 inline-flex items-center justify-center text-xs font-semibold gap-1.5 rounded-xl py-2 px-3 bg-primary text-primary-foreground hover:bg-primary/90 transition shadow-xs"
                   >
                     <QrCode className="w-3.5 h-3.5" />
-                    Trang thanh toán VietQR
+                    {isPartialPaid
+                      ? `Thanh toán nốt (${formatCurrency(Number(order.remainingAmount || 0))})`
+                      : "Trang thanh toán VietQR"}
                   </Link>
                   <Button
                     size="sm"
@@ -398,10 +525,12 @@ export default function OrderDetailPage() {
 
           <div className="p-3 rounded-xl bg-muted/40 border border-border/60 text-xs text-muted-foreground mt-3">
             {order.paymentMethod === "VIETQR" && order.paymentStatus === "PAID"
-              ? "Đơn hàng đã được thanh toán thành công qua chuyển khoản ngân hàng VietQR."
-              : order.paymentMethod === "VIETQR"
-                ? `Vui lòng quét mã QR chuyển khoản với cú pháp DH${order.id}. Hệ thống tự động xác nhận sau 10 giây.`
-                : "Quý khách vui lòng chuẩn bị số tiền tương ứng để thanh toán cho shipper khi nhận và kiểm hàng."}
+              ? "Đơn hàng đã được thanh toán đầy đủ thành công qua chuyển khoản ngân hàng VietQR."
+              : order.paymentMethod === "VIETQR" && isPartialPaid
+                ? `Đơn hàng đã nhận ${formatCurrency(Number(order.paidAmount))}. Vui lòng chuyển khoản nốt ${formatCurrency(Number(order.remainingAmount))} để hoàn tất.`
+                : order.paymentMethod === "VIETQR"
+                  ? `Vui lòng quét mã QR chuyển khoản với cú pháp DH${order.id}. Hệ thống tự động xác nhận sau khi nhận tiền.`
+                  : "Quý khách vui lòng chuẩn bị số tiền tương ứng để thanh toán cho shipper khi nhận và kiểm hàng."}
           </div>
         </div>
       </div>
@@ -557,14 +686,91 @@ export default function OrderDetailPage() {
               </div>
             )}
             <div className="flex justify-between font-bold border-t border-border pt-3 text-sm sm:text-base text-foreground">
-              <span>Tổng thanh toán:</span>
-              <span className="text-primary font-mono text-lg">
+              <span>Tổng giá trị đơn hàng:</span>
+              <span className="font-mono text-base sm:text-lg text-foreground">
                 {formatCurrency(Number(order.total))}
               </span>
             </div>
+            {Number(order.paidAmount || 0) > 0 && (
+              <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-semibold text-xs sm:text-sm">
+                <span>Số tiền đã thanh toán:</span>
+                <span className="font-mono">
+                  -{formatCurrency(Number(order.paidAmount))}
+                </span>
+              </div>
+            )}
+            {order.paymentStatus !== "PAID" && (
+              <div className="flex justify-between font-bold border-t border-dashed border-border pt-2 text-sm sm:text-base text-amber-700 dark:text-amber-400">
+                <span>Số tiền còn lại cần thanh toán:</span>
+                <span className="text-primary font-mono text-base sm:text-lg">
+                  {formatCurrency(Number(order.remainingAmount ?? order.total))}
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </div>
+
+      {/* 7.5 Section: LỊCH SỬ GIAO DỊCH VIETQR */}
+      {order.transactions && order.transactions.length > 0 && (
+        <div className="w-full bg-card p-5 sm:p-6 rounded-2xl border border-border text-xs shadow-xs space-y-4">
+          <div className="flex items-center justify-between border-b border-border pb-3">
+            <div className="font-semibold text-foreground text-sm flex items-center gap-2">
+              <Banknote className="w-4 h-4 text-primary" />
+              <span>Lịch sử giao dịch chuyển khoản VietQR</span>
+              <Badge variant="outline" className="text-[10px] ml-1">
+                {order.transactions.length} giao dịch
+              </Badge>
+            </div>
+            <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 font-mono">
+              Tổng đã nhận: {formatCurrency(Number(order.paidAmount || 0))}
+            </span>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="border-b border-border/60 text-muted-foreground">
+                  <th className="py-2 pr-3 font-medium">Mã GD</th>
+                  <th className="py-2 px-3 font-medium">Kênh</th>
+                  <th className="py-2 px-3 font-medium">Thời gian</th>
+                  <th className="py-2 px-3 font-medium text-right">Số tiền</th>
+                  <th className="py-2 pl-3 font-medium text-right">Trạng thái</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/40">
+                {order.transactions.map((tx) => (
+                  <tr key={tx.id} className="hover:bg-muted/30 transition-colors">
+                    <td className="py-2.5 pr-3 font-mono font-medium text-foreground">
+                      {tx.providerTxnId || tx.transactionCode || `#${tx.id}`}
+                    </td>
+                    <td className="py-2.5 px-3 text-muted-foreground uppercase text-[11px]">
+                      {tx.provider || "VietQR"}
+                    </td>
+                    <td className="py-2.5 px-3 text-muted-foreground">
+                      {tx.paidAt || tx.createdAt ? formatDateTime(tx.paidAt || tx.createdAt) : "N/A"}
+                    </td>
+                    <td className="py-2.5 px-3 font-mono font-bold text-emerald-600 dark:text-emerald-400 text-right">
+                      +{formatCurrency(Number(tx.amount))}
+                    </td>
+                    <td className="py-2.5 pl-3 text-right">
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                          tx.status === "SUCCESS"
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-900/50"
+                            : "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-900/50"
+                        }`}
+                      >
+                        {tx.status === "SUCCESS" ? "Thành công (Đã khớp)" : tx.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* 8. Bottom Action Buttons Bar */}
       <div className="w-full flex flex-wrap items-center justify-between gap-3 pt-2">
@@ -596,8 +802,8 @@ export default function OrderDetailPage() {
           >
             Liên hệ CSKH
           </Button>
-          {order.paymentStatus === "UNPAID" &&
-          order.paymentMethod === "VIETQR" &&
+          {order.paymentMethod === "VIETQR" &&
+          order.paymentStatus !== "PAID" &&
           order.status !== "CANCELLED" ? (
             <Link href={`/orders/${order.id}/payment`}>
               <Button
@@ -605,7 +811,9 @@ export default function OrderDetailPage() {
                 className="rounded-xl text-xs font-semibold gap-1.5 shadow-xs"
               >
                 <QrCode className="w-3.5 h-3.5" />
-                Thanh toán VietQR ngay
+                {isPartialPaid
+                  ? `Thanh toán nốt ${formatCurrency(Number(order.remainingAmount || 0))}`
+                  : "Thanh toán VietQR ngay"}
               </Button>
             </Link>
           ) : (

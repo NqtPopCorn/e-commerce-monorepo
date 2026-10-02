@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
+import { VietQRSandboxSimulator } from "@/components/payments/VietQRSandboxSimulator";
 
 export default function OrderPaymentPage() {
   const params = useParams();
@@ -52,6 +53,7 @@ export default function OrderPaymentPage() {
     data: qrInfo,
     isLoading: isLoadingQR,
     isError: isQRError,
+    refetch: refetchQR,
   } = useGetVietQRInfo(orderId, !!orderId);
 
   // Real-time Polling Payment Status
@@ -63,6 +65,30 @@ export default function OrderPaymentPage() {
     enabled: !!orderId && !isSuccessState,
     refetchInterval: isSuccessState ? false : 3000,
   });
+
+  // Partial Payment tracking values
+  const totalAmount = Number(
+    paymentStatus?.total || qrInfo?.totalOrderAmount || order?.total || 0,
+  );
+  const paidAmount = Number(
+    paymentStatus?.paidAmount ?? qrInfo?.paidAmount ?? 0,
+  );
+  const remainingAmount = Number(
+    paymentStatus?.remainingAmount ??
+      qrInfo?.remainingAmount ??
+      Math.max(0, totalAmount - paidAmount),
+  );
+  const isPartialPaid = paidAmount > 0 && remainingAmount > 0;
+  const currentChargeAmount = isPartialPaid
+    ? remainingAmount
+    : Number(qrInfo?.amount || totalAmount);
+
+  // When paymentStatus updates with partial payment, refetch QR to reflect remaining amount
+  useEffect(() => {
+    if (paymentStatus?.paidAmount !== undefined && paymentStatus.paidAmount > 0) {
+      refetchQR();
+    }
+  }, [paymentStatus?.paidAmount, paymentStatus?.remainingAmount, refetchQR]);
 
   // Countdown timer
   useEffect(() => {
@@ -258,7 +284,20 @@ export default function OrderPaymentPage() {
         </div>
       ) : (
         /* MAIN PAYMENT WORKSPACE VIEW */
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        <div className="space-y-6">
+          <VietQRSandboxSimulator
+            orderId={order.id}
+            expectedAmount={currentChargeAmount}
+            transferContent={qrInfo?.transferContent || `DH${order.id}`}
+            accountNo={qrInfo?.accountNo || "0987654321"}
+            bankName={qrInfo?.bankName}
+            onSimulationSuccess={() => {
+              refetchStatus();
+              refetchQR();
+            }}
+          />
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* Left Column: QR Code Hero Presentation */}
           <div className="lg:col-span-6 space-y-4">
             <div className="bg-card rounded-3xl border border-border p-6 shadow-lg relative overflow-hidden flex flex-col items-center text-center space-y-5">
@@ -312,6 +351,16 @@ export default function OrderPaymentPage() {
                         className="w-56 h-56 sm:w-64 sm:h-64 object-contain"
                       />
                     </div>
+
+                    {isPartialPaid && (
+                      <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-[11px] font-bold text-amber-600 dark:text-amber-400">
+                        <AlertCircle className="w-3.5 h-3.5" />
+                        <span>
+                          Mã QR đã nạp số tiền còn lại:{" "}
+                          {formatCurrency(remainingAmount)}
+                        </span>
+                      </div>
+                    )}
 
                     <div className="flex items-center gap-2">
                       <Button
@@ -426,6 +475,52 @@ export default function OrderPaymentPage() {
               </div>
 
               <div className="space-y-3 text-xs">
+                {/* Partial Payment Progress Banner */}
+                {isPartialPaid && (
+                  <div className="p-3.5 bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/30 rounded-2xl space-y-2.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-bold flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
+                        <AlertCircle className="w-4 h-4 shrink-0" />
+                        Đã thanh toán một phần
+                      </span>
+                      <span className="font-mono font-bold text-foreground">
+                        {Math.round((paidAmount / totalAmount) * 100)}%
+                      </span>
+                    </div>
+
+                    <div className="w-full h-2 rounded-full bg-muted/60 overflow-hidden">
+                      <div
+                        className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                        style={{
+                          width: `${Math.min(
+                            100,
+                            (paidAmount / totalAmount) * 100,
+                          )}%`,
+                        }}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 pt-1 text-[11px] border-t border-amber-500/20">
+                      <div>
+                        <span className="text-muted-foreground block text-[10px]">
+                          Đã chuyển (đã nhận):
+                        </span>
+                        <span className="font-bold text-emerald-600 dark:text-emerald-400 font-mono">
+                          {formatCurrency(paidAmount)}
+                        </span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-muted-foreground block text-[10px]">
+                          Còn thiếu cần nộp:
+                        </span>
+                        <span className="font-bold text-amber-600 dark:text-amber-400 font-mono">
+                          {formatCurrency(remainingAmount)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Bank Name */}
                 <div className="flex items-center justify-between py-1 border-b border-border/50">
                   <span className="text-muted-foreground flex items-center gap-2">
@@ -474,12 +569,23 @@ export default function OrderPaymentPage() {
 
                 {/* Transfer Amount */}
                 <div className="flex items-center justify-between py-1.5 border-b border-border/50">
-                  <span className="text-muted-foreground flex items-center gap-2">
-                    <span>Số tiền cần chuyển</span>
-                  </span>
+                  <div className="space-y-0.5">
+                    <span className="text-muted-foreground flex items-center gap-2">
+                      <span>
+                        {isPartialPaid
+                          ? "Số tiền còn thiếu cần chuyển"
+                          : "Số tiền cần chuyển"}
+                      </span>
+                    </span>
+                    {isPartialPaid && (
+                      <span className="text-[10px] text-amber-600 dark:text-amber-400 block font-medium">
+                        (Đã trừ {formatCurrency(paidAmount)} đã nhận)
+                      </span>
+                    )}
+                  </div>
                   <div className="flex items-center gap-2">
                     <span className="font-black text-base text-primary font-mono">
-                      {formatCurrency(qrInfo?.amount || Number(order.total))}
+                      {formatCurrency(currentChargeAmount)}
                     </span>
                     <Button
                       type="button"
@@ -488,7 +594,7 @@ export default function OrderPaymentPage() {
                       className="h-7 w-7 rounded-lg hover:bg-primary/10 hover:text-primary"
                       onClick={() =>
                         handleCopy(
-                          String(qrInfo?.amount || Number(order.total)),
+                          String(currentChargeAmount),
                           "số tiền",
                         )
                       }
@@ -625,7 +731,8 @@ export default function OrderPaymentPage() {
             </div>
           </div>
         </div>
-      )}
+      </div>
+    )}
     </div>
   );
 }

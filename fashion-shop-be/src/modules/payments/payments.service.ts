@@ -12,6 +12,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { AuditLogsService } from "../audit-logs/audit-logs.service";
 import { OrderStatusUpdatedEvent } from "../notifications/events/order.events";
 import { SePayWebhookDto } from "./dto/sepay-webhook.dto";
+import { SimulatePaymentDto } from "./dto/simulate-payment.dto";
 import { VietQRService, VietQRInfoResponse } from "./providers/vietqr.service";
 import { extractOrderIdFromMemo } from "./utils/transfer-code";
 
@@ -65,6 +66,19 @@ export class PaymentsService {
       throw new ForbiddenException("Bạn không có quyền truy cập đơn hàng này");
     }
 
+    // Calculate previously paid amount from SUCCESS transactions
+    const paidTxs = await this.prisma.paymentTransaction.findMany({
+      where: {
+        orderId: order.id,
+        status: "SUCCESS",
+      },
+    });
+    const paidAmount = paidTxs.reduce((sum, tx) => sum + Number(tx.amount), 0);
+    const orderTotal = Math.round(Number(order.total));
+    const remainingAmount = Math.max(0, orderTotal - paidAmount);
+    const isPartial = paidAmount > 0 && remainingAmount > 0;
+    const chargeAmount = remainingAmount > 0 ? remainingAmount : orderTotal;
+
     // Ensure a pending transaction exists
     const existingTx = await this.prisma.paymentTransaction.findFirst({
       where: {
@@ -79,7 +93,7 @@ export class PaymentsService {
         data: {
           orderId: order.id,
           provider: "VIETQR",
-          amount: order.total,
+          amount: chargeAmount,
           currency: "VND",
           status: "PENDING",
           transactionCode: `DH${order.id}`,
@@ -87,7 +101,14 @@ export class PaymentsService {
       });
     }
 
-    return this.vietqrService.generateVietQR(order);
+    return this.vietqrService.generateVietQR({
+      id: order.id,
+      total: chargeAmount,
+      totalOrderAmount: orderTotal,
+      paidAmount,
+      remainingAmount,
+      isPartial,
+    });
   }
 
   /**
@@ -181,40 +202,91 @@ export class PaymentsService {
       };
     }
 
-    // 6. Amount Verification
-    const transferAmount = Number(dto.transferAmount || dto.amount || 0);
-    const orderTotal = Number(order.total);
+    // 6. Amount Verification & Partial Payment Accumulation
+    const transferAmount = Math.round(
+      Number(dto.transferAmount || dto.amount || 0),
+    );
+    if (transferAmount <= 0) {
+      this.logger.warn(`Ignoring invalid transfer amount: ${transferAmount}`);
+      return { success: true, message: "Invalid transfer amount" };
+    }
 
-    if (transferAmount < orderTotal) {
-      this.logger.warn(
-        `Order #${order.id} underpaid: received ${transferAmount} VND, required ${orderTotal} VND`,
+    const orderTotal = Math.round(Number(order.total));
+
+    // Calculate sum of existing SUCCESS transactions
+    const existingSuccessTxs = await this.prisma.paymentTransaction.findMany({
+      where: { orderId: order.id, status: "SUCCESS" },
+    });
+    const previouslyPaid = existingSuccessTxs.reduce(
+      (sum, tx) => sum + Number(tx.amount),
+      0,
+    );
+    const newTotalPaid = previouslyPaid + transferAmount;
+    const remainingAfterTransfer = Math.max(0, orderTotal - newTotalPaid);
+
+    const oldStatus = order.status;
+    const oldPaymentStatus = order.paymentStatus;
+
+    if (newTotalPaid < orderTotal) {
+      // PARTIAL PAYMENT CASE (Chuyển thiếu tiền -> Ghi nhận số tiền đã chuyển và cập nhật còn thiếu)
+      this.logger.log(
+        `Order #${order.id} partially paid: received +${transferAmount} VND. Total paid: ${newTotalPaid}/${orderTotal} VND. Remaining: ${remainingAfterTransfer} VND.`,
       );
 
-      // Record failed transaction attempt
+      // Record successful partial payment transaction
       await this.prisma.paymentTransaction.create({
         data: {
           orderId: order.id,
           provider: "VIETQR",
           amount: transferAmount,
           currency: "VND",
-          status: "FAILED",
+          status: "SUCCESS",
           providerTxnId: eventId,
+          transactionCode: `DH${order.id}`,
+          paidAt: new Date(),
           metadata: {
-            reason: "AMOUNT_MISMATCH",
-            requiredAmount: orderTotal,
-            receivedAmount: transferAmount,
-            payload: dto,
+            ...dto,
+            isPartial: true,
+            accumulatedPaid: newTotalPaid,
+            remainingAmount: remainingAfterTransfer,
+            orderTotal,
           } as any,
         },
       });
 
-      return { success: false, message: "Underpaid amount" };
+      // Update order to PENDING payment status if it was UNPAID
+      if (order.paymentStatus === "UNPAID") {
+        await this.prisma.order.update({
+          where: { id: order.id },
+          data: { paymentStatus: "PENDING" },
+        });
+      }
+
+      await this.auditLogsService.log({
+        userId: order.userId,
+        userEmail: order.user?.email,
+        action: "PAYMENT_PARTIAL_WEBHOOK",
+        entityType: "ORDER",
+        entityId: String(order.id),
+        description: `Nhận thanh toán một phần VietQR đơn #${order.id}: +${transferAmount.toLocaleString("vi-VN")} đ. Đã nhận: ${newTotalPaid.toLocaleString("vi-VN")}/${orderTotal.toLocaleString("vi-VN")} đ (Còn thiếu: ${remainingAfterTransfer.toLocaleString("vi-VN")} đ)`,
+        oldValue: { status: oldStatus, paymentStatus: oldPaymentStatus },
+        newValue: {
+          status: order.status,
+          paymentStatus: "PENDING",
+          paidAmount: newTotalPaid,
+          remainingAmount: remainingAfterTransfer,
+        },
+        status: "SUCCESS",
+      });
+
+      return {
+        success: true,
+        message: `Đã ghi nhận thanh toán một phần: +${transferAmount.toLocaleString("vi-VN")} đ. Tổng đã nhận: ${newTotalPaid.toLocaleString("vi-VN")} đ. Còn thiếu: ${remainingAfterTransfer.toLocaleString("vi-VN")} đ.`,
+        orderId: order.id,
+      };
     }
 
-    // 7. Atomic confirmation transaction
-    const oldStatus = order.status;
-    const oldPaymentStatus = order.paymentStatus;
-
+    // FULL PAYMENT CASE (Số tiền tích lũy đã đủ hoặc dư)
     await this.prisma.$transaction(async (tx) => {
       await tx.order.update({
         where: { id: order.id },
@@ -234,7 +306,13 @@ export class PaymentsService {
           providerTxnId: eventId,
           transactionCode: `DH${order.id}`,
           paidAt: new Date(),
-          metadata: dto as any,
+          metadata: {
+            ...dto,
+            isPartial: false,
+            accumulatedPaid: newTotalPaid,
+            remainingAmount: 0,
+            orderTotal,
+          } as any,
         },
       });
     });
@@ -246,7 +324,7 @@ export class PaymentsService {
       action: "PAYMENT_CONFIRMED_WEBHOOK",
       entityType: "ORDER",
       entityId: String(order.id),
-      description: `Thanh toán VietQR đơn hàng #${order.id} thành công qua Webhook ngân hàng (Số tiền: ${transferAmount.toLocaleString("vi-VN")} đ, GD: ${eventId})`,
+      description: `Thanh toán VietQR hoàn tất đơn hàng #${order.id} qua Webhook ngân hàng (Số tiền nhận lần này: ${transferAmount.toLocaleString("vi-VN")} đ, Tổng đã trả: ${newTotalPaid.toLocaleString("vi-VN")} đ, GD: ${eventId})`,
       oldValue: { status: oldStatus, paymentStatus: oldPaymentStatus },
       newValue: { status: "CONFIRMED", paymentStatus: "PAID" },
       status: "SUCCESS",
@@ -257,9 +335,6 @@ export class PaymentsService {
       new OrderStatusUpdatedEvent(order, oldStatus, "CONFIRMED"),
     );
 
-    this.logger.log(
-      `Order #${order.id} successfully marked PAID via VietQR webhook`,
-    );
     return {
       success: true,
       message: "Payment confirmed successfully",
@@ -268,7 +343,7 @@ export class PaymentsService {
   }
 
   /**
-   * Admin manual confirmation for an order's VietQR payment.
+   * Admin manual confirmation of VietQR payment.
    */
   async confirmVietQRManually(
     orderId: number,
@@ -324,8 +399,9 @@ export class PaymentsService {
           transactionCode: `DH${order.id}`,
           paidAt: new Date(),
           metadata: {
-            confirmedBy: adminUser?.email,
-            confirmedAt: new Date().toISOString(),
+            method: "MANUAL_ADMIN_CONFIRM",
+            adminId: adminUser?.id,
+            adminEmail: adminUser?.email,
           },
         },
       });
@@ -335,8 +411,8 @@ export class PaymentsService {
 
     const rawIp =
       req?.headers?.["x-forwarded-for"] ||
-      req?.socket?.remoteAddress ||
       req?.ip ||
+      req?.socket?.remoteAddress ||
       null;
     const ipAddress =
       typeof rawIp === "string" ? rawIp.split(",")[0].trim() : null;
@@ -392,13 +468,110 @@ export class PaymentsService {
       );
     }
 
+    const paidTxs = await this.prisma.paymentTransaction.findMany({
+      where: { orderId: order.id, status: "SUCCESS" },
+      orderBy: { createdAt: "desc" },
+    });
+    const paidAmount = paidTxs.reduce((sum, tx) => sum + Number(tx.amount), 0);
+    const orderTotal = Math.round(Number(order.total));
+    const remainingAmount = Math.max(0, orderTotal - paidAmount);
+
     return {
       orderId: order.id,
       status: order.status,
       paymentStatus: order.paymentStatus,
       paymentMethod: order.paymentMethod,
-      total: Number(order.total),
+      total: orderTotal,
+      paidAmount,
+      remainingAmount,
+      isPartial: paidAmount > 0 && remainingAmount > 0,
+      transactions: paidTxs.map((tx) => ({
+        id: tx.id,
+        amount: Number(tx.amount),
+        providerTxnId: tx.providerTxnId,
+        paidAt: tx.paidAt || tx.createdAt,
+      })),
       updatedAt: order.updatedAt,
+    };
+  }
+
+  /**
+   * Sandbox simulation: creates and delivers an incoming bank transfer webhook locally.
+   */
+  async simulatePayment(dto: SimulatePaymentDto) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: dto.orderId },
+    });
+
+    if (!order) {
+      throw new NotFoundException(`Đơn hàng #${dto.orderId} không tồn tại`);
+    }
+
+    // Get current paid amount to compute default remaining transfer
+    const paidTxs = await this.prisma.paymentTransaction.findMany({
+      where: { orderId: order.id, status: "SUCCESS" },
+      select: { amount: true },
+    });
+    const previouslyPaid = paidTxs.reduce((sum, tx) => sum + Number(tx.amount), 0);
+    const orderTotal = Math.round(Number(order.total));
+    const remainingAmount = Math.max(0, orderTotal - previouslyPaid);
+
+    const scenario = dto.scenario || "SUCCESS";
+    let transferAmount = dto.amount;
+
+    if (!transferAmount) {
+      if (scenario === "UNDERPAID") {
+        transferAmount = Math.max(
+          10000,
+          Math.floor((remainingAmount > 0 ? remainingAmount : orderTotal) / 2),
+        );
+      } else {
+        transferAmount = remainingAmount > 0 ? remainingAmount : orderTotal;
+      }
+    }
+
+    let memoContent = dto.customContent;
+    if (!memoContent) {
+      if (scenario === "WRONG_MEMO") {
+        memoContent = "Chuyen tien mua hang khong ghi ma don";
+      } else {
+        memoContent = `DH${order.id} thanh toan`;
+      }
+    }
+
+    const eventId =
+      scenario === "DUPLICATE"
+        ? `SANDBOX_DUP_${order.id}`
+        : `SANDBOX_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+
+    const webhookPayload: SePayWebhookDto = {
+      id: eventId,
+      gateway: "MBBank",
+      transactionDate: new Date().toISOString().replace("T", " ").substring(0, 19),
+      accountNumber: this.vietqrService.getAccountNo(),
+      code: undefined,
+      content: memoContent,
+      transferType: "in",
+      transferAmount,
+      referenceCode: `FT_${eventId}`,
+      description: memoContent,
+    };
+
+    const apiKey =
+      this.config.get<string>("VIETQR_WEBHOOK_API_KEY") ||
+      "sepay-secret-api-key-123";
+
+    const result = await this.handleVietQRWebhook(
+      webhookPayload,
+      `Apikey ${apiKey}`,
+    );
+
+    return {
+      simulation: {
+        scenario,
+        payload: webhookPayload,
+      },
+      result,
     };
   }
 }
