@@ -2,7 +2,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { PrismaService } from "../../prisma/prisma.service";
 import { mockDeep, DeepMockProxy } from "jest-mock-extended";
 import { BrandsService } from "./brands.service";
-import { NotFoundException } from "@nestjs/common";
+import { BadRequestException, NotFoundException } from "@nestjs/common";
 
 describe("BrandsService", () => {
   let service: BrandsService;
@@ -22,8 +22,29 @@ describe("BrandsService", () => {
   });
 
   describe("create", () => {
-    it("should create a brand", async () => {
-      prismaMock.brand.create.mockResolvedValue({ id: 1, name: "Nike" } as any);
+    it("should throw BadRequestException if name is empty", async () => {
+      await expect(service.create({ name: "   " })).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it("should throw BadRequestException if name already exists", async () => {
+      prismaMock.brand.findUnique.mockResolvedValue({
+        id: 1,
+        name: "Nike",
+      } as any);
+      await expect(service.create({ name: "Nike" })).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it("should create a brand and auto-generate slug", async () => {
+      prismaMock.brand.findUnique.mockResolvedValue(null);
+      prismaMock.brand.create.mockResolvedValue({
+        id: 1,
+        name: "Nike",
+        slug: "nike",
+      } as any);
       const res = await service.create({ name: "Nike" });
       expect(res.name).toBe("Nike");
       expect(prismaMock.brand.create).toHaveBeenCalled();
@@ -64,22 +85,47 @@ describe("BrandsService", () => {
       );
     });
 
+    it("should update successfully", async () => {
+      prismaMock.brand.findUnique
+        .mockResolvedValueOnce({
+          id: 1,
+          name: "Nike",
+        } as any) // existing
+        .mockResolvedValueOnce(null) // uniqueness check
+        .mockResolvedValueOnce(null); // slug check
+
+      prismaMock.brand.update.mockResolvedValue({
+        id: 1,
+        name: "Adidas",
+        slug: "adidas",
+      } as any);
+      const res = await service.update(1, { name: "Adidas" });
+      expect(res.name).toBe("Adidas");
+    });
+
     it("should throw NotFoundException on remove if not found", async () => {
       prismaMock.brand.findUnique.mockResolvedValue(null);
       await expect(service.remove(999)).rejects.toThrow(NotFoundException);
     });
 
-    it("should update successfully", async () => {
+    it("should throw BadRequestException on remove if brand has products", async () => {
       prismaMock.brand.findUnique.mockResolvedValue({
         id: 1,
         name: "Nike",
+        _count: { products: 3 },
       } as any);
-      prismaMock.brand.update.mockResolvedValue({
+      await expect(service.remove(1)).rejects.toThrow(BadRequestException);
+    });
+
+    it("should remove successfully if brand has no products", async () => {
+      prismaMock.brand.findUnique.mockResolvedValue({
         id: 1,
-        name: "Adidas",
+        name: "Nike",
+        _count: { products: 0 },
       } as any);
-      const res = await service.update(1, { name: "Adidas" });
-      expect(res.name).toBe("Adidas");
+      prismaMock.brand.delete.mockResolvedValue({ id: 1, name: "Nike" } as any);
+      const res = await service.remove(1);
+      expect(res.id).toBe(1);
     });
   });
 });

@@ -27,6 +27,22 @@ export class ProductsService {
   ) {}
 
   async create(dto: CreateProductDto) {
+    if (dto.categoryId) {
+      const category = await this.prisma.category.findUnique({
+        where: { id: dto.categoryId },
+      });
+      if (!category) {
+        throw new NotFoundException(
+          `Danh mục với ID ${dto.categoryId} không tồn tại`,
+        );
+      }
+      if (category.parentId === null) {
+        throw new BadRequestException(
+          "Chỉ có thể gán danh mục con (cấp 2) cho sản phẩm, không thể gán danh mục gốc.",
+        );
+      }
+    }
+
     const { variants, images, slug, ...productData } = dto;
     const finalSlug = slug || `${slugify(productData.name)}-${Date.now()}`;
     return this.prisma.product.create({
@@ -46,7 +62,9 @@ export class ProductsService {
       },
       include: {
         brand: true,
-        category: true,
+        category: {
+          include: { parent: true },
+        },
         variants: true,
         images: { orderBy: { sortOrder: "asc" } },
       },
@@ -56,18 +74,64 @@ export class ProductsService {
   async findAll(query?: {
     search?: string;
     categoryId?: number;
+    category?: string;
     brandId?: number;
     minPrice?: number;
     maxPrice?: number;
     page?: number;
     limit?: number;
   }) {
-    const { search, categoryId, brandId, minPrice, maxPrice, page, limit } =
-      query || {};
+    const {
+      search,
+      categoryId,
+      category,
+      brandId,
+      minPrice,
+      maxPrice,
+      page,
+      limit,
+    } = query || {};
+
+    let categoryFilter: any = undefined;
+    if (categoryId) {
+      const targetCategory = await this.prisma.category.findUnique({
+        where: { id: categoryId },
+        include: { children: { select: { id: true } } },
+      });
+      if (targetCategory && targetCategory.children.length > 0) {
+        categoryFilter = {
+          in: [targetCategory.id, ...targetCategory.children.map((c) => c.id)],
+        };
+      } else {
+        categoryFilter = categoryId;
+      }
+    } else if (category) {
+      const targetCategory = await this.prisma.category.findFirst({
+        where: {
+          OR: [
+            { name: { equals: category, mode: "insensitive" } },
+            ...(isNaN(Number(category)) ? [] : [{ id: Number(category) }]),
+          ],
+        },
+        include: { children: { select: { id: true } } },
+      });
+      if (targetCategory) {
+        if (targetCategory.children.length > 0) {
+          categoryFilter = {
+            in: [
+              targetCategory.id,
+              ...targetCategory.children.map((c) => c.id),
+            ],
+          };
+        } else {
+          categoryFilter = targetCategory.id;
+        }
+      }
+    }
 
     const where: any = {
       ...(search ? { name: { contains: search, mode: "insensitive" } } : {}),
-      ...(categoryId ? { categoryId } : {}),
+      ...(categoryFilter ? { categoryId: categoryFilter } : {}),
       ...(brandId ? { brandId } : {}),
     };
 
@@ -93,7 +157,9 @@ export class ProductsService {
           where,
           include: {
             brand: true,
-            category: true,
+            category: {
+              include: { parent: true },
+            },
             variants: true,
             images: { orderBy: { sortOrder: "asc" } },
           },
@@ -120,7 +186,9 @@ export class ProductsService {
       where,
       include: {
         brand: true,
-        category: true,
+        category: {
+          include: { parent: true },
+        },
         variants: true,
         images: { orderBy: { sortOrder: "asc" } },
       },
@@ -191,8 +259,9 @@ export class ProductsService {
     if (!product || !product.variants || product.variants.length === 0) {
       return product;
     }
-    const pricedVariants =
-      await this.pricingService.calculateVariantsPrice(product.variants);
+    const pricedVariants = await this.pricingService.calculateVariantsPrice(
+      product.variants,
+    );
     return {
       ...product,
       variants: pricedVariants,
@@ -204,7 +273,9 @@ export class ProductsService {
       where: { id },
       include: {
         brand: true,
-        category: true,
+        category: {
+          include: { parent: true },
+        },
         variants: true,
         images: { orderBy: { sortOrder: "asc" } },
       },
@@ -218,7 +289,9 @@ export class ProductsService {
       where: { slug },
       include: {
         brand: true,
-        category: true,
+        category: {
+          include: { parent: true },
+        },
         variants: true,
         images: { orderBy: { sortOrder: "asc" } },
       },
@@ -229,6 +302,23 @@ export class ProductsService {
 
   async update(id: number, dto: UpdateProductDto) {
     await this.findOne(id);
+
+    if (dto.categoryId !== undefined && dto.categoryId !== null) {
+      const category = await this.prisma.category.findUnique({
+        where: { id: dto.categoryId },
+      });
+      if (!category) {
+        throw new NotFoundException(
+          `Danh mục với ID ${dto.categoryId} không tồn tại`,
+        );
+      }
+      if (category.parentId === null) {
+        throw new BadRequestException(
+          "Chỉ có thể gán danh mục con (cấp 2) cho sản phẩm, không thể gán danh mục gốc.",
+        );
+      }
+    }
+
     const { variants, images, ...productData } = dto;
     return this.prisma.$transaction(async (tx) => {
       if (variants) {
@@ -310,7 +400,9 @@ export class ProductsService {
         },
         include: {
           brand: true,
-          category: true,
+          category: {
+            include: { parent: true },
+          },
           variants: true,
           images: { orderBy: { sortOrder: "asc" } },
         },
