@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CreateVoucherDto, UpdateVoucherDto, Voucher } from "@/types/voucher";
 import { DiscountType } from "@/types/discount";
 import { useCreateVoucher, useUpdateVoucher } from "@/hooks/useVouchers";
+import { useGetCampaigns } from "@/hooks/useCampaigns";
 import { formatCurrency } from "@/lib/format";
 import { toast } from "sonner";
 import {
@@ -22,6 +23,7 @@ import {
   Coins,
   Shuffle,
   Sliders,
+  Megaphone,
 } from "lucide-react";
 
 interface VoucherFormProps {
@@ -31,9 +33,17 @@ interface VoucherFormProps {
 
 export function VoucherForm({ initialData, isEdit = false }: VoucherFormProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const queryCampaignId = searchParams.get("campaignId");
   const createMutation = useCreateVoucher();
   const updateMutation = useUpdateVoucher();
+  const { data: campaignsData } = useGetCampaigns({ limit: 100 });
+  const campaignsList = campaignsData?.data || [];
 
+  const [campaignId, setCampaignId] = useState<number | undefined>(
+    initialData?.campaignId ||
+      (queryCampaignId ? Number(queryCampaignId) : undefined),
+  );
   const [code, setCode] = useState(initialData?.code || "");
   const [name, setName] = useState(initialData?.name || "");
   const [description, setDescription] = useState(
@@ -136,6 +146,7 @@ export function VoucherForm({ initialData, isEdit = false }: VoucherFormProps) {
       code: code.trim().toUpperCase(),
       name: name.trim(),
       description: description.trim() || undefined,
+      campaignId: campaignId ? Number(campaignId) : undefined,
       discountType,
       discountValue: Number(discountValue),
       maxDiscountValue:
@@ -265,6 +276,40 @@ export function VoucherForm({ initialData, isEdit = false }: VoucherFormProps) {
                 {errors.name && (
                   <p className="text-[11px] text-destructive">{errors.name}</p>
                 )}
+              </div>
+
+              {/* Campaign Selector */}
+              <div className="space-y-1">
+                <Label
+                  htmlFor="voucher-campaign"
+                  className="text-xs font-medium text-foreground flex items-center gap-1.5"
+                >
+                  <Megaphone className="w-3.5 h-3.5 text-primary" />
+                  Chiến dịch trực thuộc (tùy chọn)
+                </Label>
+                <select
+                  id="voucher-campaign"
+                  value={campaignId ?? ""}
+                  onChange={(e) =>
+                    setCampaignId(
+                      e.target.value ? Number(e.target.value) : undefined,
+                    )
+                  }
+                  className="h-8 text-xs w-full rounded-md border border-input bg-card px-2.5 py-1 text-foreground shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                >
+                  <option value="">-- Không liên kết chiến dịch --</option>
+                  {campaignsList.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} (
+                      {c.status === "ACTIVE"
+                        ? "Đang chạy"
+                        : c.status === "SCHEDULED"
+                          ? "Sắp chạy"
+                          : "Đã xong"}
+                      )
+                    </option>
+                  ))}
+                </select>
               </div>
 
               {/* Discount Type Selector (Segmented buttons) */}

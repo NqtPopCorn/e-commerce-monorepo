@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +15,7 @@ import {
   UpdateDiscountDto,
 } from "@/types/discount";
 import { useCreateDiscount, useUpdateDiscount } from "@/hooks/useDiscounts";
+import { useGetCampaigns } from "@/hooks/useCampaigns";
 import { toast } from "sonner";
 import {
   Save,
@@ -23,6 +24,7 @@ import {
   Layers,
   Sparkles,
   Sliders,
+  Megaphone,
 } from "lucide-react";
 
 interface DiscountFormProps {
@@ -35,9 +37,17 @@ export function DiscountForm({
   isEdit = false,
 }: DiscountFormProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const queryCampaignId = searchParams.get("campaignId");
   const createMutation = useCreateDiscount();
   const updateMutation = useUpdateDiscount();
+  const { data: campaignsData } = useGetCampaigns({ limit: 100 });
+  const campaignsList = campaignsData?.data || [];
 
+  const [campaignId, setCampaignId] = useState<number | undefined>(
+    initialData?.campaignId ||
+      (queryCampaignId ? Number(queryCampaignId) : undefined),
+  );
   const [name, setName] = useState(initialData?.name || "");
   const [description, setDescription] = useState(
     initialData?.description || "",
@@ -128,6 +138,7 @@ export function DiscountForm({
     const payload: CreateDiscountDto = {
       name: name.trim(),
       description: description.trim() || undefined,
+      campaignId: campaignId ? Number(campaignId) : undefined,
       priority: Number(priority) || 0,
       budgetLimit: budgetLimit ? Number(budgetLimit) : undefined,
       maxUses: maxUses ? Number(maxUses) : undefined,
@@ -206,6 +217,39 @@ export function DiscountForm({
                 {errors.name && (
                   <p className="text-[11px] text-destructive">{errors.name}</p>
                 )}
+              </div>
+
+              <div className="space-y-1">
+                <Label
+                  htmlFor="discount-campaign"
+                  className="text-xs font-medium text-foreground flex items-center gap-1.5"
+                >
+                  <Megaphone className="w-3.5 h-3.5 text-primary" />
+                  Chiến dịch trực thuộc (tùy chọn)
+                </Label>
+                <select
+                  id="discount-campaign"
+                  value={campaignId ?? ""}
+                  onChange={(e) =>
+                    setCampaignId(
+                      e.target.value ? Number(e.target.value) : undefined,
+                    )
+                  }
+                  className="h-8 text-xs w-full rounded-md border border-input bg-card px-2.5 py-1 text-foreground shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                >
+                  <option value="">-- Không liên kết chiến dịch --</option>
+                  {campaignsList.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} (
+                      {c.status === "ACTIVE"
+                        ? "Đang chạy"
+                        : c.status === "SCHEDULED"
+                          ? "Sắp chạy"
+                          : "Đã xong"}
+                      )
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="space-y-1">

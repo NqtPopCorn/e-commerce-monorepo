@@ -1,21 +1,11 @@
+import { Campaign } from "./campaign";
+
 export type PromotionApplicationType = "AUTO" | "VOUCHER";
-export type CampaignStatus = "DRAFT" | "ACTIVE" | "PAUSED" | "ENDED";
 export type PromotionKind = "VOUCHER" | "ORDER_AUTO" | "CAMPAIGN" | "AUTO";
 export type DiscountType = "PERCENT" | "FIXED";
 export type PromotionApplicationScope = "LINE" | "ORDER" | "VOUCHER";
 
-export interface Campaign {
-  id: number;
-  name: string;
-  description?: string | null;
-  startsAt: string;
-  endsAt?: string | null;
-  budgetLimit?: number | null;
-  spentAmount: number;
-  status: CampaignStatus;
-  createdAt: string;
-  updatedAt: string;
-}
+export * from "./campaign";
 
 export interface Voucher {
   id: number;

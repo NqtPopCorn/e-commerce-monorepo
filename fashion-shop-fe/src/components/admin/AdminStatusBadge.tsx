@@ -98,10 +98,12 @@ const statusMap: Record<string, StatusConfig> = {
   GOLD: { label: "Hạng Vàng", variant: "warning" },
   DIAMOND: { label: "Kim Cương", variant: "primary" },
 
-  // Promotions
+  // Promotions & Campaigns
   VOUCHER: { label: "Mã giảm giá", variant: "primary" },
   CAMPAIGN: { label: "Chiến dịch", variant: "info" },
   ORDER_AUTO: { label: "Tự động đơn hàng", variant: "info" },
+  SCHEDULED: { label: "Sắp diễn ra", variant: "warning" },
+  ENDED: { label: "Đã kết thúc", variant: "neutral" },
 
   // Stock
   IN_STOCK: { label: "Còn hàng", variant: "success" },
