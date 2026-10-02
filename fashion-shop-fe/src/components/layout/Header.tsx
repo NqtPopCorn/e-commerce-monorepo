@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
@@ -25,6 +25,7 @@ import { NotificationItem } from "@/types/notification";
 
 export default function Header() {
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const [hoveredCategory, setHoveredCategory] = useState<number | null>(null);
   const dropdownMenuRef = useRef<HTMLDivElement>(null);
@@ -32,6 +33,29 @@ export default function Header() {
   const { items } = useCartStore();
   const user = useAuthStore((state) => state.user);
   const hasHydrated = useAuthStore((state) => state.hasHydrated);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const isAuthenticated = (mounted || hasHydrated) && Boolean(user);
+
+  const userDisplayName = useMemo(() => {
+    if (!isAuthenticated || !user) return "Tài khoản";
+    // 1. Tên gọi riêng firstName
+    if (user.firstName?.trim()) return user.firstName.trim();
+    // 2. Họ và tên kết hợp nếu có
+    const full = [user.lastName, user.firstName]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+    if (full) return full;
+    // 3. Họ lastName
+    if (user.lastName?.trim()) return user.lastName.trim();
+    // 4. Tên từ email
+    if (user.email) return user.email.split("@")[0];
+    return "Tài khoản";
+  }, [isAuthenticated, user]);
 
   const [notifOpen, setNotifOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -213,7 +237,7 @@ export default function Header() {
               </Link>
 
               {/* Notification Bell (khi đã đăng nhập) */}
-              {hasHydrated && user && (
+              {isAuthenticated && (
                 <div ref={notifRef} className="relative">
                   <button
                     type="button"
@@ -333,14 +357,17 @@ export default function Header() {
               )}
 
               <Link
-                href={hasHydrated && user ? "/profile" : "/login"}
-                className="flex flex-col items-center hover:text-rose-600 transition-colors"
+                href={isAuthenticated ? "/profile" : "/login"}
+                className="flex flex-col items-center hover:text-rose-600 transition-colors max-w-[100px]"
+                title={
+                  isAuthenticated && user
+                    ? `${userDisplayName}${user.email ? ` (${user.email})` : ""}`
+                    : "Đăng nhập / Tài khoản"
+                }
               >
-                <UserCircle className="w-6 h-6" />
-                <span className="text-[11px] mt-1 hidden lg:block font-medium">
-                  {hasHydrated && user
-                    ? user.firstName || "Tài khoản"
-                    : "Tài khoản"}
+                <UserCircle className="w-6 h-6 shrink-0" />
+                <span className="text-[11px] mt-1 hidden lg:block font-medium truncate max-w-full">
+                  {userDisplayName}
                 </span>
               </Link>
             </div>
