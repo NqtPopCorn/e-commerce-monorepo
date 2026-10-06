@@ -13,6 +13,7 @@
     "lint:api": "npm run lint --workspace=fashion-shop-be",
     "lint:web": "npm run lint --workspace=fashion-shop-fe",
     "lint": "npm run lint:api && npm run lint:web",
+    "test:api": "npm run test --workspace=fashion-shop-be",
     "test:web": "npm run test --workspace=fashion-shop-fe",
     "typecheck:web": "npm run typecheck --workspace=fashion-shop-fe",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
@@ -21,6 +22,7 @@
     "prisma:generate": "npm run prisma:generate --workspace=fashion-shop-be",
     "prisma:migrate": "npm run prisma:migrate --workspace=fashion-shop-be",
     "prisma:seed": "npm run prisma:seed --workspace=fashion-shop-be",
+    "prisma:studio": "npm run prisma:studio --workspace=fashion-shop-be",
     "setup": "npm install && npm run db:up && npm run prisma:generate && npm run prisma:migrate"
   }
 }

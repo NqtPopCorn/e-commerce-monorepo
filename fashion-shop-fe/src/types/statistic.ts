@@ -1,7 +1,8 @@
 export interface OverviewStatistic {
   orders: number;
   revenue: number;
-  booksSold: number;
+  productsSold?: number;
+  booksSold?: number;
 }
 
 export interface RevenueStatistic {

@@ -1,13 +1,56 @@
+import "dotenv/config";
 import { PrismaClient, Prisma } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { Pool } from "pg";
 import { fakerVI as faker } from "@faker-js/faker";
+import * as bcrypt from "bcrypt";
 
-const prisma = new PrismaClient();
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
+
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)+/g, "");
+}
 
 async function main() {
-  console.log("Seeding sample data (mock)...");
+  console.log("Seeding fashion sample data (mock)...");
 
-  // 1. Create Mock Users
-  const users = [];
+  // 1. Create Default Admin & Customer Users
+  const adminPassword = await bcrypt.hash("admin123", 10);
+  await prisma.user.upsert({
+    where: { email: "admin@fashionshop.com" },
+    update: { password: adminPassword, role: "ADMIN" },
+    create: {
+      email: "admin@fashionshop.com",
+      password: adminPassword,
+      firstName: "Admin",
+      lastName: "System",
+      role: "ADMIN",
+    },
+  });
+
+  const demoUserPassword = await bcrypt.hash("user123", 10);
+  const demoCustomer = await prisma.user.upsert({
+    where: { email: "user@fashionshop.com" },
+    update: { password: demoUserPassword, role: "CUSTOMER" },
+    create: {
+      email: "user@fashionshop.com",
+      password: demoUserPassword,
+      firstName: "Khách",
+      lastName: "Hàng Mẫu",
+      role: "CUSTOMER",
+    },
+  });
+
+  const users = [demoCustomer];
   for (let i = 0; i < 9; i++) {
     const email = faker.internet.email();
     const user = await prisma.user.upsert({
@@ -23,134 +66,469 @@ async function main() {
     });
     users.push(user);
   }
-  console.log("Created 9 mock customer users");
+  console.log("Created admin, demo customer, and 9 mock customer users");
 
-  // 2. Create Categories
-  const categories = [];
-  const categoryNames = [
-    "Văn học",
-    "Kinh tế",
-    "Tâm lý - Kỹ năng sống",
-    "Thiếu nhi",
-    "Giáo khoa",
-    "Ngoại ngữ",
+  // 2. Create Brands
+  const brandData = [
+    {
+      name: "Uniqlo",
+      slug: "uniqlo",
+      logo: "https://images.unsplash.com/photo-1544441893-675973e31985?w=100&q=80",
+    },
+    {
+      name: "Zara",
+      slug: "zara",
+      logo: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=100&q=80",
+    },
+    {
+      name: "H&M",
+      slug: "hm",
+      logo: "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=100&q=80",
+    },
+    {
+      name: "Nike",
+      slug: "nike",
+      logo: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=100&q=80",
+    },
+    {
+      name: "Adidas",
+      slug: "adidas",
+      logo: "https://images.unsplash.com/photo-1518002171953-a080ee817e1f?w=100&q=80",
+    },
   ];
-  for (const name of categoryNames) {
-    const category = await prisma.category.upsert({
-      where: { name },
+  const brands = [];
+  for (const b of brandData) {
+    const brand = await prisma.brand.upsert({
+      where: { slug: b.slug },
       update: {},
-      create: { name },
+      create: b,
     });
-    categories.push(category);
+    brands.push(brand);
   }
-  console.log("Created categories");
+  console.log("Created brands");
 
-  // 4. Create Books
-  const books = [];
-  let variants = []; // Keep track of all variants for order seeding
-  for (let i = 0; i < 30; i++) {
-    const formatCount = faker.helpers.arrayElement([1, 2]); // Some books have 1 format, some have 2
-    const formats = ["Bìa mềm", "Bìa cứng"];
+  // 3. Create Categories (Tree)
+  const categoryTree = [
+    {
+      name: "Áo nam & nữ",
+      children: ["Áo thun", "Áo polo", "Áo sơ mi", "Áo khoác"],
+    },
+    {
+      name: "Quần nam & nữ",
+      children: ["Quần jeans", "Quần kaki", "Quần short", "Quần âu"],
+    },
+    {
+      name: "Váy & Đầm",
+      children: ["Váy liền", "Chân váy", "Đầm dạ hội"],
+    },
+    {
+      name: "Phụ kiện thời trang",
+      children: ["Mũ nón", "Thắt lưng", "Túi xách"],
+    },
+  ];
 
-    const bookVariantsData = [];
-    for (let j = 0; j < formatCount; j++) {
-      bookVariantsData.push({
-        sku: faker.string.alphanumeric(8).toUpperCase(),
-        isbn: faker.string.uuid(),
-        format: formats[j],
-        listPrice: faker.number.int({ min: 50, max: 300 }) * 1000,
-        sellingPrice: faker.number.int({ min: 30, max: 250 }) * 1000,
-        stock: faker.number.int({ min: 10, max: 200 }),
-        weight: faker.number.int({ min: 100, max: 1000 }),
-        dimensions: faker.helpers.arrayElement([
-          "14 x 20 cm",
-          "16 x 24 cm",
-          "13 x 19 cm",
-        ]),
-        pages: faker.number.int({ min: 100, max: 500 }),
-        imageUrl: `https://picsum.photos/seed/${faker.string.alphanumeric(4)}/300/400`,
+  const subCategories: any[] = [];
+  for (const parent of categoryTree) {
+    const parentCat = await prisma.category.upsert({
+      where: { name: parent.name },
+      update: {},
+      create: { name: parent.name },
+    });
+
+    for (const childName of parent.children) {
+      const childCat = await prisma.category.upsert({
+        where: { name: childName },
+        update: { parentId: parentCat.id },
+        create: { name: childName, parentId: parentCat.id },
       });
+      subCategories.push(childCat);
+    }
+  }
+  console.log("Created categories tree");
+
+  // 4. Sample Fashion Product Templates
+  const productTemplates = [
+    {
+      name: "Áo Thun Cotton Compact Cổ Tròn",
+      cat: "Áo thun",
+      mat: "100% Cotton Compact",
+      care: "Giặt máy nhẹ, không dùng thuốc tẩy",
+      season: "Xuân Hè",
+    },
+    {
+      name: "Áo Polo Thể Thao Pique Co Giãn",
+      cat: "Áo polo",
+      mat: "95% Cotton, 5% Spandex",
+      care: "Giặt nước lạnh, sấy nhiệt độ thấp",
+      season: "Bốn mùa",
+    },
+    {
+      name: "Áo Sơ Mi Oxford Dài Tay Regular",
+      cat: "Áo sơ mi",
+      mat: "Cotton Oxford cao cấp",
+      care: "Ủi ở nhiệt độ trung bình",
+      season: "Bốn mùa",
+    },
+    {
+      name: "Áo Khoác Gió Chống Nước Thể Thao",
+      cat: "Áo khoác",
+      mat: "Polyester tráng PU",
+      care: "Không vắt mạnh, phơi bóng râm",
+      season: "Thu Đông",
+    },
+    {
+      name: "Áo Khoác Blazer Hàn Quốc Casual",
+      cat: "Áo khoác",
+      mat: "Kaki tuyết mưa",
+      care: "Nên giặt hấp",
+      season: "Thu Đông",
+    },
+    {
+      name: "Quần Jeans Slim Fit Co Giãn 4 Chiều",
+      cat: "Quần jeans",
+      mat: "Denim 12oz, 2% Elastane",
+      care: "Giặt mặt trái, tránh ánh nắng gắt",
+      season: "Bốn mùa",
+    },
+    {
+      name: "Quần Kaki Ống Đứng Lịch Lãm",
+      cat: "Quần kaki",
+      mat: "Kaki co giãn nhẹ",
+      care: "Giặt máy bình thường",
+      season: "Bốn mùa",
+    },
+    {
+      name: "Quần Short Thể Thao Thoáng Khí",
+      cat: "Quần short",
+      mat: "Polyester Quick-Dry",
+      care: "Giặt nhanh, mau khô",
+      season: "Mùa hè",
+    },
+    {
+      name: "Quần Tây Âu Xếp Ly Thanh Lịch",
+      cat: "Quần âu",
+      mat: "Wool blend cao cấp",
+      care: "Giặt khô hoặc giặt tay",
+      season: "Bốn mùa",
+    },
+    {
+      name: "Váy Suông Hoa Nhí Cổ Vuông Dáng Dài",
+      cat: "Váy liền",
+      mat: "Voan lụa mềm mại",
+      care: "Giặt tay nhẹ nhàng",
+      season: "Xuân Hè",
+    },
+    {
+      name: "Đầm Xòe Công Sở Thắt Nơ Eo",
+      cat: "Váy liền",
+      mat: "Cotton lụa",
+      care: "Ủi hơi nước",
+      season: "Xuân Hè",
+    },
+    {
+      name: "Chân Váy Chữ A Xếp Ly Tầng",
+      cat: "Chân váy",
+      mat: "Vải tuyết mưa",
+      care: "Treo thẳng khi phơi",
+      season: "Bốn mùa",
+    },
+    {
+      name: "Mũ Lưỡi Trai Classic Canvas",
+      cat: "Mũ nón",
+      mat: "100% Canvas",
+      care: "Giặt tay bằng bàn chải mềm",
+      season: "Bốn mùa",
+    },
+    {
+      name: "Thắt Lưng Da Bò Khóa Kim Loại",
+      cat: "Thắt lưng",
+      mat: "100% Da bò thật",
+      care: "Bảo quản nơi khô ráo, tránh ẩm",
+      season: "Bốn mùa",
+    },
+    {
+      name: "Áo Thun Oversize Unisex In Họa Tiết",
+      cat: "Áo thun",
+      mat: "Cotton 2 chiều 250gsm",
+      care: "Không ủi trực tiếp lên hình in",
+      season: "Hè",
+    },
+    {
+      name: "Áo Sơ Mi Linen Cổ Tàu Thoáng Mát",
+      cat: "Áo sơ mi",
+      mat: "100% Linen tự nhiên",
+      care: "Giặt nước mát, không vắt xoắn",
+      season: "Mùa hè",
+    },
+    {
+      name: "Áo Khoác Bomber Lót Bông Giữ Ấm",
+      cat: "Áo khoác",
+      mat: "Nylon dù chống gió",
+      care: "Giặt hấp hoặc giặt tay",
+      season: "Mùa đông",
+    },
+    {
+      name: "Quần Jeans Ống Rộng Phong Cách Retro",
+      cat: "Quần jeans",
+      mat: "Cotton Denim 100%",
+      care: "Giặt riêng lần đầu",
+      season: "Bốn mùa",
+    },
+    {
+      name: "Quần Short Kaki Túi Hộp Chino",
+      cat: "Quần short",
+      mat: "Cotton Chino dày dặn",
+      care: "Giặt máy bình thường",
+      season: "Mùa hè",
+    },
+    {
+      name: "Váy Len Dệt Kim Ôm Body Cổ Lọ",
+      cat: "Váy liền",
+      mat: "Len Acrylic dệt mềm",
+      care: "Phơi nằm ngang tránh dão",
+      season: "Mùa đông",
+    },
+    {
+      name: "Áo Polo Phối Bo Cổ Cổ Điển",
+      cat: "Áo polo",
+      mat: "Cotton Spandex",
+      care: "Giặt nhẹ với nước lạnh",
+      season: "Bốn mùa",
+    },
+    {
+      name: "Chân Váy Jean Midi Xẻ Tà Trước",
+      cat: "Chân váy",
+      mat: "Denim co giãn nhẹ",
+      care: "Giặt mặt trái",
+      season: "Bốn mùa",
+    },
+    {
+      name: "Áo Thun Graphic Vintage Streetwear",
+      cat: "Áo thun",
+      mat: "100% Cotton 220gsm",
+      care: "Lộn trái khi phơi",
+      season: "Bốn mùa",
+    },
+    {
+      name: "Áo Khoác Denim Rách Gấu Phủi Bụi",
+      cat: "Áo khoác",
+      mat: "Denim cotton wash mềm",
+      care: "Giặt riêng đồ sáng màu",
+      season: "Bốn mùa",
+    },
+    {
+      name: "Quần Kaki Jogger Bo Gấu Thể Thao",
+      cat: "Quần kaki",
+      mat: "Kaki chun năng động",
+      care: "Giặt máy nhiệt độ thường",
+      season: "Bốn mùa",
+    },
+    {
+      name: "Áo Sơ Mi Họa Tiết Hawaii Đi Biển",
+      cat: "Áo sơ mi",
+      mat: "Vải Rayon mát rượi",
+      care: "Ủi nhẹ mặt trái",
+      season: "Mùa hè",
+    },
+    {
+      name: "Đầm Dạ Hội Ren Thêu Hoa Cao Cấp",
+      cat: "Đầm dạ hội",
+      mat: "Ren thêu thủ công",
+      care: "Giặt khô chuyên dụng",
+      season: "Bốn mùa",
+    },
+    {
+      name: "Mũ Bucket Vành Tròn Vải Dù",
+      cat: "Mũ nón",
+      mat: "Polyester chống nước",
+      care: "Lau sạch bằng khăn ẩm",
+      season: "Bốn mùa",
+    },
+    {
+      name: "Túi Tote Canvas Đựng Laptop",
+      cat: "Túi xách",
+      mat: "Canvas dày dặn 12oz",
+      care: "Giặt tay nhẹ nhàng",
+      season: "Bốn mùa",
+    },
+    {
+      name: "Áo Hoodie Nỉ Bông Có Mũ Dày Dặn",
+      cat: "Áo khoác",
+      mat: "Nỉ bông Cotton 320gsm",
+      care: "Giặt mặt trái, tránh sấy nóng",
+      season: "Mùa đông",
+    },
+  ];
+
+  const fashionImages = [
+    "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=800&q=80",
+    "https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?w=800&q=80",
+    "https://images.unsplash.com/photo-1576995853123-5a10305d93c0?w=800&q=80",
+    "https://images.unsplash.com/photo-1618354691373-d851c5c3a990?w=800&q=80",
+    "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=800&q=80",
+    "https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?w=800&q=80",
+    "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?w=800&q=80",
+    "https://images.unsplash.com/photo-1551028719-00167b16eac5?w=800&q=80",
+    "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=800&q=80",
+    "https://images.unsplash.com/photo-1562157873-818bc0726f68?w=800&q=80",
+  ];
+
+  const colors = [
+    { name: "Đen", hex: "#1A1A1A" },
+    { name: "Trắng", hex: "#FFFFFF" },
+    { name: "Xanh navy", hex: "#1B2A4A" },
+    { name: "Xám tiêu", hex: "#8A8D8F" },
+    { name: "Be sữa", hex: "#F3EDE2" },
+  ];
+
+  const sizes = ["S", "M", "L", "XL", "XXL"];
+
+  const products = [];
+  const variants: any[] = [];
+
+  for (let i = 0; i < productTemplates.length; i++) {
+    const tpl = productTemplates[i];
+    const brand = faker.helpers.arrayElement(brands);
+    const category =
+      subCategories.find((c) => c.name === tpl.cat) ||
+      faker.helpers.arrayElement(subCategories);
+    const slug = `${slugify(tpl.name)}-${faker.string.alphanumeric(5).toLowerCase()}`;
+
+    // Variants: 2 to 4 combinations of size and color
+    const pickedSizes = faker.helpers.arrayElements(sizes, { min: 2, max: 4 });
+    const pickedColors = faker.helpers.arrayElements(colors, {
+      min: 1,
+      max: 2,
+    });
+    const variantData = [];
+
+    const baseListPrice = faker.number.int({ min: 199, max: 899 }) * 1000;
+    const baseDiscount = faker.helpers.arrayElement([0, 0.1, 0.15, 0.2, 0.3]);
+    const baseSellingPrice = Math.round(baseListPrice * (1 - baseDiscount));
+
+    for (const size of pickedSizes) {
+      for (const col of pickedColors) {
+        variantData.push({
+          sku: `${slugify(tpl.name).substring(0, 6).toUpperCase()}-${size}-${col.name.substring(0, 2).toUpperCase()}-${faker.string.alphanumeric(3).toUpperCase()}`,
+          barcode: faker.string.numeric(13),
+          size: size,
+          color: col.name,
+          colorHex: col.hex,
+          imageUrl: faker.helpers.arrayElement(fashionImages),
+          listPrice: baseListPrice,
+          sellingPrice: baseSellingPrice,
+          stock: faker.number.int({ min: 15, max: 150 }),
+          weight: faker.number.int({ min: 150, max: 600 }),
+        });
+      }
     }
 
-    const book = await prisma.book.create({
+    // Images for product
+    const prodImages = faker.helpers
+      .arrayElements(fashionImages, { min: 2, max: 4 })
+      .map((url, idx) => ({
+        url,
+        altText: `${tpl.name} - Ảnh ${idx + 1}`,
+        sortOrder: idx,
+      }));
+
+    const product = await prisma.product.create({
       data: {
-        title: faker.lorem.sentence({ min: 3, max: 7 }),
-        description: faker.lorem.paragraphs(2),
-        categoryId: faker.helpers.arrayElement(categories).id,
-        authors: [faker.person.fullName()],
-        publisher: faker.helpers.arrayElement([
-          "NXB Trẻ",
-          "NXB Kim Đồng",
-          "Nhã Nam",
-          "Alphabooks",
-          "NXB Tổng hợp",
-        ]),
-        translators: faker.helpers.arrayElement([
-          null,
-          [faker.person.fullName()],
-        ]) as Prisma.InputJsonValue,
-        provider: faker.helpers.arrayElement([
-          "FAHASA",
-          "Tiki Trading",
-          "NXB Trẻ",
-        ]),
-        publishYear: faker.number.int({ min: 2010, max: 2024 }),
-        language: faker.helpers.arrayElement(["Tiếng Việt", "Tiếng Anh"]),
+        name: tpl.name,
+        slug: slug,
+        description: `${tpl.name} được thiết kế với chất liệu ${tpl.mat}, mang lại cảm giác thoải mái tối đa cho người mặc. Kiểu dáng hiện đại, thanh lịch, phù hợp cho mọi hoàn cảnh từ đi làm đến dạo phố.`,
+        brandId: brand.id,
+        categoryId: category.id,
+        material: tpl.mat,
+        careInstructions: tpl.care,
+        season: tpl.season,
+        provider: "Fashion Shop Official",
         variants: {
-          create: bookVariantsData,
+          create: variantData,
+        },
+        images: {
+          create: prodImages,
         },
       },
       include: {
         variants: true,
+        images: true,
       },
     });
-    books.push(book);
-    variants.push(...book.variants);
 
-    // Create a batch for each variant
-    for (const variant of book.variants) {
-      await prisma.batch.create({
+    products.push(product);
+    variants.push(...product.variants);
+
+    // Create a purchase receipt for the product's variants
+    if (product.variants.length > 0) {
+      const receiptItems = product.variants.map((variant) => ({
+        variantId: variant.id,
+        quantity: variant.stock,
+        costPrice: Math.round(Number(variant.sellingPrice) * 0.6),
+      }));
+      const totalAmount = receiptItems.reduce(
+        (sum, item) => sum + item.quantity * item.costPrice,
+        0,
+      );
+
+      await prisma.purchaseReceipt.create({
         data: {
-          code: `BATCH-${faker.string.alphanumeric(6).toUpperCase()}`,
-          quantity: variant.stock,
-          variantId: variant.id,
+          code: `PN-${faker.string.alphanumeric(8).toUpperCase()}`,
+          supplier: product.provider || "Fashion Shop Official",
+          note: `Nhập kho ban đầu cho ${product.name}`,
+          totalAmount,
+          status: "COMPLETED",
+          items: {
+            create: receiptItems,
+          },
         },
       });
     }
   }
-  console.log("Created 30 books with batches");
 
-  // 5. Create Promotions
-  console.log("Creating promotions...");
-  await prisma.promotionGroup.deleteMany();
-  await prisma.promotionApplication.deleteMany();
-  await prisma.promotion.deleteMany();
+  console.log(
+    `Created ${products.length} fashion products with variants, images, and purchase receipts`,
+  );
 
-  const campaign = await prisma.promotion.create({
+  // 5. Create Discounts & Vouchers
+  console.log("Creating discounts and vouchers...");
+  await prisma.discountVariant.deleteMany();
+  await prisma.discountGroup.deleteMany();
+  await prisma.discountApplication.deleteMany();
+  await prisma.voucherApplication.deleteMany();
+  await prisma.voucher.deleteMany();
+  await prisma.discount.deleteMany();
+  await prisma.campaign.deleteMany();
+
+  const summerCampaign = await prisma.campaign.create({
     data: {
-      name: "Chiến dịch hè rực rỡ",
-      kind: "CAMPAIGN",
+      name: "Chiến dịch Hè Rực Rỡ 2026",
+      description: "Chiến dịch trợ giá lớn mùa hè 2026",
+      budgetLimit: 50000000,
+      spentAmount: 0,
+      startsAt: new Date("2026-01-01"),
+    },
+  });
+
+  await prisma.discount.create({
+    data: {
+      campaignId: summerCampaign.id,
+      name: "Flash Sale 20% BST Áo Hè",
+      description: "Giảm 20% cho các sản phẩm áo chọn lọc",
       priority: 10,
+      budgetLimit: 15000000,
       startsAt: new Date("2026-01-01"),
       active: true,
       groups: {
         create: [
           {
-            name: "Giảm 15% sách hot",
+            name: "Giảm 20% tối đa 100k",
             sortOrder: 1,
             discountType: "PERCENT",
-            discountValue: 15,
+            discountValue: 20,
+            maxDiscountValue: 100000,
             variants: {
-              create: variants.slice(0, 5).map((v) => ({ variantId: v.id })),
-            },
-          },
-          {
-            name: "Giảm 20k sách chọn lọc",
-            sortOrder: 2,
-            discountType: "FIXED",
-            discountValue: 20000,
-            variants: {
-              create: variants.slice(5, 10).map((v) => ({ variantId: v.id })),
+              create: variants.slice(0, 6).map((v) => ({ variantId: v.id })),
             },
           },
         ],
@@ -158,60 +536,66 @@ async function main() {
     },
   });
 
-  await prisma.promotion.create({
+  await prisma.discount.create({
     data: {
-      name: "Giảm 50k cho đơn từ 300k",
-      kind: "ORDER_AUTO",
-      discountType: "FIXED",
-      discountValue: 50000,
-      minOrderAmount: 300000,
+      name: "Xả Kho Giảm 50.000đ Quần & Váy",
+      description: "Giảm trực tiếp 50k cho mỗi sản phẩm quần và váy",
       priority: 5,
+      budgetLimit: 10000000,
       startsAt: new Date("2026-01-01"),
       active: true,
+      groups: {
+        create: [
+          {
+            name: "Giảm 50k",
+            sortOrder: 1,
+            discountType: "FIXED",
+            discountValue: 50000,
+            maxDiscountValue: 50000,
+            variants: {
+              create: variants.slice(6, 12).map((v) => ({ variantId: v.id })),
+            },
+          },
+        ],
+      },
     },
   });
 
-  await prisma.promotion.create({
+  await prisma.voucher.create({
     data: {
-      name: "Giảm 10% cho đơn từ 500k",
-      kind: "ORDER_AUTO",
+      campaignId: summerCampaign.id,
+      code: "SUMMER2026",
+      name: "Voucher Hè - Giảm 10% đơn từ 300k",
+      description: "Giảm 10% tối đa 80k cho đơn từ 300k",
       discountType: "PERCENT",
       discountValue: 10,
-      minOrderAmount: 500000,
-      priority: 10,
+      maxDiscountValue: 80000,
+      minOrderAmount: 300000,
+      maxUses: 200,
+      maxUsesPerCustomer: 1,
+      budgetLimit: 10000000,
       startsAt: new Date("2026-01-01"),
       active: true,
     },
   });
 
-  await prisma.promotion.create({
+  await prisma.voucher.create({
     data: {
-      name: "Voucher tri ân khách hàng - Giảm 30k",
-      kind: "VOUCHER",
-      code: "TRIAN30K",
+      code: "FASHION50K",
+      name: "Voucher VIP - Giảm 50k đơn từ 250k",
+      description: "Giảm ngay 50k tiền mặt cho đơn hàng đạt tối thiểu 250k",
       discountType: "FIXED",
-      discountValue: 30000,
-      minOrderAmount: 100000,
+      discountValue: 50000,
+      minOrderAmount: 250000,
       maxUses: 100,
+      maxUsesPerCustomer: 1,
+      budgetLimit: 5000000,
       startsAt: new Date("2026-01-01"),
       active: true,
     },
   });
 
-  await prisma.promotion.create({
-    data: {
-      name: "Voucher bạn mới - Giảm 20%",
-      kind: "VOUCHER",
-      code: "WELCOME20",
-      discountType: "PERCENT",
-      discountValue: 20,
-      minOrderAmount: 200000,
-      maxUses: 500,
-      startsAt: new Date("2026-01-01"),
-      active: true,
-    },
-  });
-  console.log("Created 1 campaign, 2 auto promotions, and 2 vouchers");
+  console.log("Created 1 campaign, 2 item discounts, and 2 order vouchers");
 
   // 6. Create Mock Orders
   const orders = [];
@@ -241,7 +625,6 @@ async function main() {
         status: status as any,
         subtotal: subtotal,
         productDiscount: 0,
-        orderDiscount: 0,
         voucherDiscount: 0,
         total: total,
         items: {
@@ -269,7 +652,6 @@ async function main() {
     orders.push(order);
   }
   console.log("Created 10 mock orders");
-
   console.log("Sample seeding complete!");
 }
 
@@ -280,4 +662,5 @@ main()
   })
   .finally(async () => {
     await prisma.$disconnect();
+    await pool.end();
   });

@@ -18,7 +18,7 @@ export default function LoginPage() {
     try {
       const result = await authService.login({ email, password });
       setAuth(result.accessToken, result.user);
-      router.push("/books");
+      router.push("/products");
     } catch {
       setError("Email hoặc mật khẩu không đúng.");
     } finally {
@@ -33,7 +33,9 @@ export default function LoginPage() {
       >
         <div>
           <h1 className="text-2xl font-bold">Đăng nhập</h1>
-          <p className="mt-1 text-sm text-slate-500">Đăng nhập vào Book Shop</p>
+          <p className="mt-1 text-sm text-slate-500">
+            Đăng nhập vào Fashion Shop
+          </p>
         </div>
         {error && (
           <p className="rounded-md bg-red-50 p-3 text-sm text-red-600">

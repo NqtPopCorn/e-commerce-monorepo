@@ -1,6 +1,16 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-type User = { id: number; email: string; role: string };
+type User = {
+  id: number;
+  email: string;
+  role: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  phone?: string | null;
+  status?: string;
+  tier?: string;
+  avatarUrl?: string | null;
+};
 type AuthState = {
   token: string | null;
   user: User | null;
@@ -17,18 +27,19 @@ export const useAuthStore = create<AuthState>()(
       hasHydrated: false,
       setAuth: (token, user) => {
         localStorage.setItem("accessToken", token);
-        set({ token, user });
+        set({ token, user, hasHydrated: true });
       },
       setHasHydrated: (hasHydrated) => set({ hasHydrated }),
       logout: () => {
         localStorage.removeItem("accessToken");
-        set({ token: null, user: null });
+        set({ token: null, user: null, hasHydrated: true });
       },
     }),
     {
-      name: "book-shop-auth",
-      onRehydrateStorage: () => (state) => {
-        state?.setHasHydrated(true);
+      name: "fashion-shop-auth",
+      partialize: (state) => ({ token: state.token, user: state.user }),
+      onRehydrateStorage: () => () => {
+        useAuthStore.setState({ hasHydrated: true });
       },
     },
   ),

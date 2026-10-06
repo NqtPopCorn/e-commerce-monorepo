@@ -6,7 +6,7 @@
 
 | Layer | Technology |
 |---|---|
-| **Backend** | NestJS v11, TypeScript, Prisma v6, PostgreSQL |
+| **Backend** | NestJS v11, TypeScript, Prisma v7, PostgreSQL |
 | **Frontend** | Next.js v15 (App Router), React 19, Tailwind CSS, shadcn/ui |
 | **Auth** | JWT + Passport (BE), NextAuth.js (FE) |
 | **State** | Zustand (client), React Query (server) |

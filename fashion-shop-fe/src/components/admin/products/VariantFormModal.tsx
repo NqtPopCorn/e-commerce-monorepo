@@ -3,6 +3,7 @@ import {
   Dialog,
   DialogContent,
   DialogHeader,
+  DialogBody,
   DialogTitle,
   DialogFooter,
   DialogDescription,
@@ -10,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ImageUpload } from "@/components/common/ImageUpload";
 
 interface VariantFormModalProps {
   isOpen: boolean;
@@ -25,16 +27,16 @@ export function VariantFormModal({
   initialData,
 }: VariantFormModalProps) {
   const [formData, setFormData] = useState<any>({
-    format: "",
     sku: "",
+    barcode: "",
+    size: "M",
+    color: "Đen",
+    colorHex: "#000000",
     listPrice: "",
     sellingPrice: "",
     stock: "",
     weight: "",
-    dimensions: "",
-    pages: "",
     imageUrl: "",
-    isbn: "",
   });
 
   useEffect(() => {
@@ -42,21 +44,23 @@ export function VariantFormModal({
       setFormData(initialData);
     } else {
       setFormData({
-        format: "",
         sku: "",
+        barcode: "",
+        size: "M",
+        color: "Đen",
+        colorHex: "#000000",
         listPrice: "",
         sellingPrice: "",
         stock: "",
         weight: "",
-        dimensions: "",
-        pages: "",
         imageUrl: "",
-        isbn: "",
       });
     }
   }, [initialData, isOpen]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
+  ) => {
     const { name, value } = e.target;
     setFormData((prev: any) => ({ ...prev, [name]: value }));
   };
@@ -69,148 +73,199 @@ export function VariantFormModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
-            {initialData ? "Chỉnh sửa phiên bản" : "Thêm phiên bản mới"}
+      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden sm:rounded-2xl border-border bg-card text-card-foreground">
+        {/* Header cố định */}
+        <DialogHeader className="px-6 py-4 border-b border-border shrink-0">
+          <DialogTitle className="text-lg font-bold">
+            {initialData ? "Chỉnh sửa phiên bản sản phẩm" : "Thêm biến thể mới"}
           </DialogTitle>
-          <DialogDescription>
-            Điền các thông số vật lý và giá bán cho phiên bản sách này.
+          <DialogDescription className="text-xs text-muted-foreground mt-1">
+            Điền kích cỡ (Size), màu sắc (Color), giá bán và tồn kho cho biến
+            thể thời trang này.
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6 mt-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="space-y-2 lg:col-span-2">
-              <Label>
-                Mã SKU <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                required
-                name="sku"
-                placeholder="Mã hàng hóa (VD: 8935244886676)"
-                value={formData.sku}
-                onChange={handleChange}
-              />
-            </div>
-            <div className="space-y-2 lg:col-span-2">
-              <Label>
-                Hình thức (Bìa) <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                required
-                name="format"
-                placeholder="Bìa mềm, Bìa cứng..."
-                value={formData.format}
-                onChange={handleChange}
-              />
-            </div>
+        {/* Form với Body cuộn riêng biệt */}
+        <form
+          id="variant-form"
+          onSubmit={handleSubmit}
+          className="flex flex-col flex-1 min-h-0"
+        >
+          <DialogBody className="space-y-4 px-6 py-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">
+                  Mã SKU <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  required
+                  name="sku"
+                  placeholder="VD: SHIRT-M-BLK-01"
+                  value={formData.sku}
+                  onChange={handleChange}
+                  className="text-xs h-9"
+                />
+              </div>
 
-            <div className="space-y-2">
-              <Label>
-                Giá gốc (VNĐ) <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                required
-                type="number"
-                name="listPrice"
-                placeholder="Giá niêm yết"
-                value={formData.listPrice}
-                onChange={handleChange}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>
-                Giá bán (VNĐ) <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                required
-                type="number"
-                name="sellingPrice"
-                placeholder="Giá thực bán"
-                value={formData.sellingPrice}
-                onChange={handleChange}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>
-                Tồn kho <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                required
-                type="number"
-                name="stock"
-                placeholder="Số lượng"
-                value={formData.stock}
-                onChange={handleChange}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Mã ISBN</Label>
-              <Input
-                name="isbn"
-                placeholder="Mã ISBN"
-                value={formData.isbn || ""}
-                onChange={handleChange}
-              />
-            </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Mã Barcode</Label>
+                <Input
+                  name="barcode"
+                  placeholder="VD: 8935244886676"
+                  value={formData.barcode || ""}
+                  onChange={handleChange}
+                  className="text-xs h-9"
+                />
+              </div>
 
-            <div className="space-y-2">
-              <Label>Trọng lượng (gr)</Label>
-              <Input
-                type="number"
-                name="weight"
-                placeholder="Ví dụ: 300"
-                value={formData.weight || ""}
-                onChange={handleChange}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Kích thước</Label>
-              <Input
-                name="dimensions"
-                placeholder="14 x 20 cm"
-                value={formData.dimensions || ""}
-                onChange={handleChange}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Số trang</Label>
-              <Input
-                type="number"
-                name="pages"
-                placeholder="Ví dụ: 250"
-                value={formData.pages || ""}
-                onChange={handleChange}
-              />
-            </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">
+                  Kích cỡ (Size) <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  required
+                  name="size"
+                  placeholder="VD: S, M, L, XL, XXL..."
+                  value={formData.size || ""}
+                  onChange={handleChange}
+                  className="text-xs h-9"
+                />
+              </div>
 
-            <div className="space-y-2 lg:col-span-4">
-              <Label>Link ảnh sản phẩm</Label>
-              <Input
-                name="imageUrl"
-                placeholder="https://..."
-                value={formData.imageUrl || ""}
-                onChange={handleChange}
-              />
-              {formData.imageUrl && (
-                <div className="mt-4 border rounded-lg p-2 w-32 h-40 flex items-center justify-center bg-gray-50 overflow-hidden">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={formData.imageUrl}
-                    alt="Preview"
-                    className="w-full h-full object-cover"
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">
+                  Màu sắc <span className="text-destructive">*</span>
+                </Label>
+                <div className="flex gap-2 items-center">
+                  <Input
+                    required
+                    name="color"
+                    placeholder="VD: Đen, Trắng, Xanh navy..."
+                    value={formData.color || ""}
+                    onChange={handleChange}
+                    className="flex-1 text-xs h-9"
+                  />
+                  <input
+                    type="color"
+                    name="colorHex"
+                    value={formData.colorHex || "#000000"}
+                    onChange={handleChange}
+                    className="w-9 h-9 p-0 border border-border rounded-lg cursor-pointer shrink-0 bg-transparent"
                   />
                 </div>
-              )}
-            </div>
-          </div>
+              </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
-              Hủy bỏ
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">
+                  Giá niêm yết (đ) <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  required
+                  type="number"
+                  min="0"
+                  step="1000"
+                  name="listPrice"
+                  placeholder="VD: 350000"
+                  value={formData.listPrice}
+                  onChange={handleChange}
+                  className="text-xs h-9"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">
+                  Giá bán thực tế (đ){" "}
+                  <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  required
+                  type="number"
+                  min="0"
+                  step="1000"
+                  name="sellingPrice"
+                  placeholder="VD: 290000"
+                  value={formData.sellingPrice}
+                  onChange={handleChange}
+                  className="text-xs h-9"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">
+                  Tồn kho ban đầu <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  required
+                  type="number"
+                  min="0"
+                  name="stock"
+                  placeholder="VD: 50"
+                  value={formData.stock}
+                  onChange={handleChange}
+                  className="text-xs h-9"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Khối lượng (gram)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  name="weight"
+                  placeholder="VD: 250"
+                  value={formData.weight || ""}
+                  onChange={handleChange}
+                  className="text-xs h-9"
+                />
+              </div>
+
+              <div className="space-y-2 md:col-span-2 border-t pt-3">
+                <Label className="text-xs font-medium">
+                  Ảnh riêng cho biến thể
+                </Label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+                  <ImageUpload
+                    folder="products"
+                    value={formData.imageUrl || ""}
+                    onChange={(url) => {
+                      setFormData((prev: any) => ({ ...prev, imageUrl: url }));
+                    }}
+                    hint="Tải ảnh riêng cho màu/mẫu biến thể này"
+                  />
+                  <div className="space-y-1">
+                    <Label className="text-[11px] text-muted-foreground">
+                      Hoặc nhập liên kết ảnh trực tiếp:
+                    </Label>
+                    <Input
+                      name="imageUrl"
+                      placeholder="https://..."
+                      value={formData.imageUrl || ""}
+                      onChange={handleChange}
+                      className="text-xs h-9"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </DialogBody>
+
+          {/* Footer cố định ở đáy */}
+          <DialogFooter className="px-6 py-3.5 border-t border-border bg-muted/20 shrink-0 flex items-center justify-end gap-2.5">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              className="text-xs h-9 px-4"
+            >
+              Hủy
             </Button>
-            <Button type="submit">Xác nhận</Button>
+            <Button
+              type="submit"
+              form="variant-form"
+              className="text-xs h-9 px-4 font-semibold shadow-xs"
+            >
+              {initialData ? "Lưu thay đổi" : "Thêm biến thể"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

@@ -6,6 +6,7 @@ import {
   ParseIntPipe,
   Patch,
   Query,
+  Req,
   UseGuards,
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
@@ -24,10 +25,20 @@ export class AdminOrdersController {
   @Get() findAll(@Query("status") status?: string) {
     return this.service.findAll(status);
   }
+  @Get(":id") findOne(@Param("id", ParseIntPipe) id: number) {
+    return this.service.findOne(id);
+  }
   @Patch(":id/status") updateStatus(
     @Param("id", ParseIntPipe) id: number,
     @Body() dto: UpdateOrderStatusDto,
+    @Req() req: any,
   ) {
-    return this.service.updateStatus(id, dto.status);
+    return this.service.updateStatus(
+      id,
+      dto.status,
+      dto.paymentStatus,
+      req?.user,
+      req,
+    );
   }
 }

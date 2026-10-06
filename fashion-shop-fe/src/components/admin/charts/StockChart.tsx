@@ -18,14 +18,46 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useGetStockStats } from "@/hooks/useStatistics";
 
-const colors = ["#ef4444", "#f97316", "#eab308", "#22c55e", "#3b82f6"];
+const colors = [
+  "hsl(var(--primary))",
+  "hsl(var(--info))",
+  "hsl(var(--warning))",
+  "hsl(var(--success))",
+  "hsl(var(--destructive))",
+];
 
 export function StockChart() {
-  const { data: stockData, isLoading } = useGetStockStats();
+  const { data: stockData, isLoading, isError } = useGetStockStats();
 
-  if (isLoading || !stockData) return <div>Đang tải biểu đồ tồn kho...</div>;
+  if (isLoading || !stockData) {
+    return (
+      <Card className="w-full">
+        <CardHeader>
+          <div className="space-y-1">
+            <Skeleton className="h-5 w-32" />
+            <Skeleton className="h-4 w-44" />
+          </div>
+        </CardHeader>
+        <CardContent>
+          <Skeleton className="h-[300px] w-full mt-4 rounded-xl" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (isError) {
+    return (
+      <Card className="w-full">
+        <CardContent className="h-[300px] flex items-center justify-center text-sm text-muted-foreground">
+          Không thể tải dữ liệu biểu đồ tồn kho.
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="w-full">
       <CardHeader>
@@ -47,20 +79,31 @@ export function StockChart() {
               <CartesianGrid
                 strokeDasharray="3 3"
                 vertical={false}
-                stroke="#eee"
+                stroke="hsl(var(--border))"
               />
               <XAxis
                 dataKey="name"
                 axisLine={false}
                 tickLine={false}
                 tickMargin={10}
+                stroke="hsl(var(--muted-foreground))"
+                fontSize={12}
               />
-              <YAxis axisLine={false} tickLine={false} />
+              <YAxis
+                axisLine={false}
+                tickLine={false}
+                stroke="hsl(var(--muted-foreground))"
+                fontSize={12}
+              />
               <Tooltip
-                cursor={{ fill: "transparent" }}
+                cursor={{ fill: "hsl(var(--muted) / 0.4)" }}
                 contentStyle={{
+                  backgroundColor: "hsl(var(--popover))",
+                  color: "hsl(var(--popover-foreground))",
                   borderRadius: "8px",
-                  border: "1px solid #eaeaea",
+                  border: "1px solid hsl(var(--border))",
+                  boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+                  fontSize: "12px",
                 }}
               />
               <Bar dataKey="stock" name="Số lượng" radius={[4, 4, 0, 0]}>

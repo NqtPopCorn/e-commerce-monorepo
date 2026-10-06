@@ -1,0 +1,51 @@
+"use client";
+
+import React from "react";
+import { Package, AlertCircle, Sparkles, DollarSign } from "lucide-react";
+import { ProductStats } from "@/types/product";
+import { AdminStatCard, AdminStatSkeleton } from "@/components/admin";
+import { formatCurrency, formatNumber } from "@/lib/format";
+
+interface ProductStatCardsProps {
+  stats?: ProductStats;
+  isLoading?: boolean;
+}
+
+export function ProductStatCards({ stats, isLoading }: ProductStatCardsProps) {
+  if (isLoading) {
+    return <AdminStatSkeleton count={4} />;
+  }
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <AdminStatCard
+        title="Tổng Sản Phẩm"
+        value={formatNumber(stats?.totalProducts ?? 0)}
+        subtitle="Tổng số mẫu trong kho"
+        icon={Package}
+        color="indigo"
+      />
+      <AdminStatCard
+        title="Hết Hàng"
+        value={formatNumber(stats?.outOfStock ?? 0)}
+        subtitle="Cần nhập thêm đợt mới"
+        icon={AlertCircle}
+        color="amber"
+      />
+      <AdminStatCard
+        title="Sản Phẩm Mới"
+        value={formatNumber(stats?.newThisWeek ?? 0)}
+        subtitle="Tạo trong 7 ngày qua"
+        icon={Sparkles}
+        color="rose"
+      />
+      <AdminStatCard
+        title="Giá Trị Tồn Kho"
+        value={formatCurrency(stats?.totalStockValue ?? 0)}
+        subtitle="Theo giá bán niêm yết"
+        icon={DollarSign}
+        color="emerald"
+      />
+    </div>
+  );
+}

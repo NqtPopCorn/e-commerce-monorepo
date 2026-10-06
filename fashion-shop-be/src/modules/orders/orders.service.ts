@@ -3,21 +3,27 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
+import { EventEmitter2 } from "@nestjs/event-emitter";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CreateOrderDto } from "./dto/create-order.dto";
-import { PromotionPricingService } from "../promotions/promotion-pricing.service";
+import { PricingService } from "../pricing/pricing.service";
+import {
+  OrderCancelledEvent,
+  OrderCreatedEvent,
+} from "../notifications/events/order.events";
 
 @Injectable()
 export class OrdersService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly pricingService: PromotionPricingService,
+    private readonly pricingService: PricingService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async create(userId: number, dto: CreateOrderDto) {
-    return this.prisma.$transaction(async (tx) => {
+    const createdOrder = await this.prisma.$transaction(async (tx) => {
       const variantIds = Array.from(new Set(dto.items.map((i) => i.variantId)));
-      const variants = await tx.bookVariant.findMany({
+      const variants = await tx.productVariant.findMany({
         where: { id: { in: variantIds } },
       });
       const variantMap = new Map(variants.map((v) => [v.id, v]));
@@ -47,16 +53,15 @@ export class OrdersService {
       }
 
       for (const item of dto.items) {
-        await tx.bookVariant.update({
+        await tx.productVariant.update({
           where: { id: item.variantId },
           data: { stock: { decrement: item.quantity } },
         });
       }
 
-      const voucherApp = quote.applied.find((a) => a.scope === "VOUCHER");
-      if (voucherApp) {
-        const voucher = await tx.promotion.findUnique({
-          where: { id: voucherApp.id },
+      if (quote.appliedVoucher) {
+        const voucher = await tx.voucher.findUnique({
+          where: { id: quote.appliedVoucher.voucherId },
         });
         if (
           !voucher ||
@@ -67,18 +72,20 @@ export class OrdersService {
             "Voucher đã hết lượt sử dụng hoặc không khả dụng",
           );
         }
-        await tx.promotion.update({
-          where: { id: voucherApp.id },
-          data: { usedCount: { increment: 1 } },
-        });
       }
 
       const order = await tx.order.create({
         data: {
           userId,
+          status: "PENDING",
+          paymentMethod: (dto.paymentMethod as any) || "COD",
+          paymentStatus: "UNPAID",
+          recipientName: dto.recipientName,
+          recipientPhone: dto.recipientPhone,
+          shippingAddress: dto.shippingAddress,
+          shippingNote: dto.shippingNote,
           subtotal: quote.subtotal,
           productDiscount: quote.productDiscount,
-          orderDiscount: quote.orderDiscount,
           voucherDiscount: quote.voucherDiscount,
           total: quote.total,
           items: {
@@ -98,60 +105,145 @@ export class OrdersService {
       });
 
       const itemMapByVariant = new Map(
-        order.items.map((item) => [item.variantId, item.id]),
+        (order?.items || []).map((item) => [item.variantId, item.id]),
       );
 
-      for (const app of quote.applied) {
-        let orderItemId: number | null = null;
-        if (app.scope === "LINE") {
-          const line = quote.lines.find(
-            (l) => l.campaign?.id === app.id && app.discountAmount === l.productDiscount,
-          );
-          if (line) {
-            orderItemId = itemMapByVariant.get(line.variantId) || null;
+      // Lưu các discount dòng sản phẩm (ITEM-level)
+      for (const app of quote.appliedDiscounts) {
+        const orderItemId = itemMapByVariant.get(app.variantId);
+        if (orderItemId) {
+          await tx.discountApplication.create({
+            data: {
+              orderId: order.id,
+              orderItemId,
+              discountId: app.discountId,
+              discountName: app.discountName,
+              discountAmount: app.discountAmount,
+            },
+          });
+
+          const disc = await tx.discount.findUnique({
+            where: { id: app.discountId },
+            select: { campaignId: true },
+          });
+
+          await tx.discount.update({
+            where: { id: app.discountId },
+            data: {
+              spentAmount: { increment: app.discountAmount },
+              usedCount: { increment: 1 },
+            },
+          });
+
+          if (disc?.campaignId) {
+            await tx.campaign.update({
+              where: { id: disc.campaignId },
+              data: {
+                spentAmount: { increment: app.discountAmount },
+              },
+            });
           }
         }
+      }
 
-        await tx.promotionApplication.create({
+      // Lưu voucher giảm giá đơn hàng (ORDER-level)
+      if (quote.appliedVoucher) {
+        await tx.voucherApplication.create({
           data: {
             orderId: order.id,
-            orderItemId: orderItemId,
-            promotionId: app.id,
-            scope: app.scope,
-            promotionName: app.name,
-            promotionCode: app.code || null,
-            discountAmount: app.discountAmount,
+            voucherId: quote.appliedVoucher.voucherId,
+            voucherCode: quote.appliedVoucher.voucherCode,
+            voucherName: quote.appliedVoucher.voucherName,
+            discountAmount: quote.appliedVoucher.discountAmount,
           },
         });
+
+        const v = await tx.voucher.findUnique({
+          where: { id: quote.appliedVoucher.voucherId },
+          select: { campaignId: true },
+        });
+
+        await tx.voucher.update({
+          where: { id: quote.appliedVoucher.voucherId },
+          data: {
+            spentAmount: { increment: quote.appliedVoucher.discountAmount },
+            usedCount: { increment: 1 },
+          },
+        });
+
+        if (v?.campaignId) {
+          await tx.campaign.update({
+            where: { id: v.campaignId },
+            data: {
+              spentAmount: { increment: quote.appliedVoucher.discountAmount },
+            },
+          });
+        }
       }
 
       return tx.order.findUnique({
         where: { id: order.id },
         include: {
           user: {
-            select: { id: true, email: true, firstName: true, lastName: true },
+            select: {
+              id: true,
+              email: true,
+              firstName: true,
+              lastName: true,
+              phone: true,
+            },
           },
           items: {
             include: {
               variant: {
-                include: { book: true },
+                include: { product: true },
               },
             },
           },
-          promotionApplications: true,
+          discountApplications: true,
+          voucherApplications: true,
         },
       });
     });
+
+    // Phát sinh sự kiện bất đồng bộ - không block phản hồi tạo đơn của khách
+    if (createdOrder) {
+      this.eventEmitter.emit(
+        "order.created",
+        new OrderCreatedEvent(createdOrder, userId, dto.items),
+      );
+    }
+
+    return createdOrder;
   }
 
   async findMine(userId: number) {
-    return this.prisma.order.findMany({
+    const orders = await this.prisma.order.findMany({
       where: { userId },
       include: {
-        items: { include: { variant: { include: { book: true } } } },
-        promotionApplications: true,
+        items: { include: { variant: { include: { product: true } } } },
+        discountApplications: true,
+        voucherApplications: true,
+        transactions: {
+          orderBy: { createdAt: "desc" },
+        },
       },
       orderBy: { createdAt: "desc" },
+    });
+
+    return orders.map((order) => {
+      const paidAmount = (order.transactions || [])
+        .filter((tx) => tx.status === "SUCCESS")
+        .reduce((sum, tx) => sum + Number(tx.amount), 0);
+      const orderTotal = Math.round(Number(order.total));
+      const remainingAmount = Math.max(0, orderTotal - paidAmount);
+      const isPartialPaid = paidAmount > 0 && remainingAmount > 0;
+      return {
+        ...order,
+        paidAmount,
+        remainingAmount,
+        isPartialPaid,
+      };
     });
   }
 
@@ -159,13 +251,39 @@ export class OrdersService {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
       include: {
-        items: { include: { variant: { include: { book: true } } } },
-        promotionApplications: true,
+        user: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            phone: true,
+          },
+        },
+        items: { include: { variant: { include: { product: true } } } },
+        discountApplications: true,
+        voucherApplications: true,
+        transactions: {
+          orderBy: { createdAt: "desc" },
+        },
       },
     });
     if (!order || order.userId !== userId)
       throw new NotFoundException("Đơn hàng không tồn tại");
-    return order;
+
+    const paidAmount = (order.transactions || [])
+      .filter((tx) => tx.status === "SUCCESS")
+      .reduce((sum, tx) => sum + Number(tx.amount), 0);
+    const orderTotal = Math.round(Number(order.total));
+    const remainingAmount = Math.max(0, orderTotal - paidAmount);
+    const isPartialPaid = paidAmount > 0 && remainingAmount > 0;
+
+    return {
+      ...order,
+      paidAmount,
+      remainingAmount,
+      isPartialPaid,
+    };
   }
 
   async cancel(userId: number, orderId: number) {
@@ -173,21 +291,83 @@ export class OrdersService {
     if (order.status !== "PENDING")
       throw new BadRequestException("Không thể hủy đơn hàng này");
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       for (const item of order.items) {
-        await tx.bookVariant.update({
+        await tx.productVariant.update({
           where: { id: item.variantId },
           data: { stock: { increment: item.quantity } },
         });
       }
+
+      // Hoàn trả ngân sách và lượt dùng của các Discounts
+      for (const app of order.discountApplications || []) {
+        const disc = await tx.discount.findUnique({
+          where: { id: app.discountId },
+          select: { campaignId: true },
+        });
+
+        await tx.discount.update({
+          where: { id: app.discountId },
+          data: {
+            spentAmount: { decrement: app.discountAmount },
+            usedCount: { decrement: 1 },
+          },
+        });
+
+        if (disc?.campaignId) {
+          await tx.campaign.update({
+            where: { id: disc.campaignId },
+            data: {
+              spentAmount: { decrement: app.discountAmount },
+            },
+          });
+        }
+      }
+
+      // Hoàn trả ngân sách và lượt dùng của Voucher
+      for (const app of order.voucherApplications || []) {
+        const v = await tx.voucher.findUnique({
+          where: { id: app.voucherId },
+          select: { campaignId: true },
+        });
+
+        await tx.voucher.update({
+          where: { id: app.voucherId },
+          data: {
+            spentAmount: { decrement: app.discountAmount },
+            usedCount: { decrement: 1 },
+          },
+        });
+
+        if (v?.campaignId) {
+          await tx.campaign.update({
+            where: { id: v.campaignId },
+            data: {
+              spentAmount: { decrement: app.discountAmount },
+            },
+          });
+        }
+      }
+
       return tx.order.update({
         where: { id: orderId },
         data: { status: "CANCELLED" },
         include: {
-          items: { include: { variant: { include: { book: true } } } },
-          promotionApplications: true,
+          items: { include: { variant: { include: { product: true } } } },
+          discountApplications: true,
+          voucherApplications: true,
         },
       });
     });
+
+    // Phát sinh sự kiện hủy đơn bất đồng bộ
+    if (result) {
+      this.eventEmitter.emit(
+        "order.cancelled",
+        new OrderCancelledEvent(order, userId),
+      );
+    }
+
+    return result;
   }
 }

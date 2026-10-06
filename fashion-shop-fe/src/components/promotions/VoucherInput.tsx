@@ -21,8 +21,10 @@ export function VoucherInput({
 }: VoucherInputProps) {
   const [inputCode, setInputCode] = useState(appliedCode);
 
-  const handleApply = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleApply = (
+    e?: React.FormEvent | React.KeyboardEvent | React.MouseEvent,
+  ) => {
+    if (e) e.preventDefault();
     if (inputCode.trim()) {
       onApply(inputCode.trim());
     }
@@ -37,7 +39,10 @@ export function VoucherInput({
 
   return (
     <div className="space-y-2 py-2">
-      <Label htmlFor="voucherCode" className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
+      <Label
+        htmlFor="voucherCode"
+        className="text-sm font-medium text-slate-700 flex items-center gap-1.5"
+      >
         <Ticket className="w-4 h-4 text-purple-600" /> Voucher / mã giảm giá
       </Label>
 
@@ -46,7 +51,9 @@ export function VoucherInput({
           <div className="flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-purple-600" />
             <div>
-              <span className="font-mono font-bold text-purple-900">{appliedCode}</span>
+              <span className="font-mono font-bold text-purple-900">
+                {appliedCode}
+              </span>
               <span className="text-xs text-purple-700 ml-2">
                 (-{voucherDiscount.toLocaleString()}đ)
               </span>
@@ -63,23 +70,30 @@ export function VoucherInput({
           </Button>
         </div>
       ) : (
-        <form onSubmit={handleApply} className="flex gap-2">
+        <div className="flex gap-2">
           <Input
             id="voucherCode"
             placeholder="Nhập mã voucher..."
             value={inputCode}
             onChange={(e) => setInputCode(e.target.value.toUpperCase())}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                handleApply(e);
+              }
+            }}
             className="font-mono uppercase bg-white"
           />
           <Button
-            type="submit"
+            type="button"
             variant="outline"
             disabled={!inputCode.trim()}
+            onClick={handleApply}
             className="shrink-0 border-purple-600 text-purple-700 hover:bg-purple-50"
           >
             Áp dụng
           </Button>
-        </form>
+        </div>
       )}
 
       {voucherError && (

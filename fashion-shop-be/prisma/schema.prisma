@@ -4,26 +4,38 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 model User {
-  id        Int        @id @default(autoincrement())
-  email     String     @unique
-  password  String
-  firstName String?    @map("first_name")
-  lastName  String?    @map("last_name")
-  role      Role       @default(CUSTOMER)
-  status    UserStatus @default(ACTIVE)
-  createdAt DateTime   @default(now()) @map("created_at")
-  updatedAt DateTime   @updatedAt @map("updated_at")
-  orders    Order[]
+  id          Int          @id @default(autoincrement())
+  email       String       @unique
+  password    String
+  firstName   String?      @map("first_name")
+  lastName    String?      @map("last_name")
+  phone       String?      @unique
+  avatarUrl   String?      @map("avatar_url")
+  gender      Gender?
+  dateOfBirth DateTime?    @map("date_of_birth")
+  role        Role         @default(CUSTOMER)
+  status      UserStatus   @default(ACTIVE)
+  tier        CustomerTier @default(STANDARD)
+  notes       String?
+  lastLoginAt DateTime?    @map("last_login_at")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+  orders        Order[]
+  addresses     Address[]
+  auditLogs     AuditLog[]
+  notifications Notification[]
 
+  @@index([role, status])
+  @@index([phone])
   @@map("users")
 }
 
 enum Role {
   CUSTOMER
+  STAFF
   ADMIN
 }
 
@@ -32,72 +44,145 @@ enum UserStatus {
   BLOCKED
 }
 
-model Category {
-  id    Int    @id @default(autoincrement())
-  name  String @unique
-  books Book[]
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
 
+enum CustomerTier {
+  STANDARD
+  SILVER
+  GOLD
+  DIAMOND
+}
+
+model Address {
+  id            Int      @id @default(autoincrement())
+  userId        Int      @map("user_id")
+  recipientName String   @map("recipient_name")
+  phone         String
+  street        String
+  ward          String?
+  district      String?
+  city          String
+  isDefault     Boolean  @default(false) @map("is_default")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("addresses")
+}
+
+model Brand {
+  id       Int       @id @default(autoincrement())
+  name     String    @unique
+  slug     String    @unique
+  logo     String?
+  products Product[]
+
+  @@map("brands")
+}
+
+model Category {
+  id       Int        @id @default(autoincrement())
+  name     String     @unique
+  parentId Int?       @map("parent_id")
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children Category[] @relation("CategoryTree")
+  products Product[]
+
+  @@index([parentId])
   @@map("categories")
 }
 
-model Batch {
-  id        Int         @id @default(autoincrement())
-  code      String      @unique
-  quantity  Int         @default(0)
-  variantId Int         @map("variant_id")
-  variant   BookVariant @relation(fields: [variantId], references: [id])
-  createdAt DateTime    @default(now()) @map("created_at")
+model Product {
+  id               Int              @id @default(autoincrement())
+  name             String
+  slug             String           @unique
+  description      String?
+  brandId          Int?             @map("brand_id")
+  categoryId       Int?             @map("category_id")
+  material         String?
+  careInstructions String?          @map("care_instructions")
+  season           String?
+  provider         String?
+  brand            Brand?           @relation(fields: [brandId], references: [id])
+  category         Category?        @relation(fields: [categoryId], references: [id])
+  variants         ProductVariant[]
+  images           ProductImage[]
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
 
-  @@index([variantId])
-  @@map("batches")
-}
-
-model Book {
-  id           Int           @id @default(autoincrement())
-  title        String
-  description  String?
-  authors      Json?
-  categoryId   Int?          @map("category_id")
-  publisher    String?
-  translators  Json?
-  provider     String?
-  publishYear  Int?          @map("publish_year")
-  language     String?
-  category     Category?     @relation(fields: [categoryId], references: [id])
-  variants     BookVariant[]
-  createdAt    DateTime      @default(now()) @map("created_at")
-  updatedAt    DateTime      @updatedAt @map("updated_at")
-
+  @@index([brandId])
   @@index([categoryId])
-  @@map("books")
+  @@map("products")
 }
 
-model BookVariant {
-  id                Int                @id @default(autoincrement())
-  bookId            Int                @map("book_id")
-  sku               String             @unique
-  isbn              String?            @unique
-  format            String?            // e.g., "Bìa cứng", "Bìa mềm"
-  imageUrl          String?            @map("image_url")
-  listPrice         Decimal            @db.Decimal(12, 2) @map("list_price")
-  sellingPrice      Decimal            @db.Decimal(12, 2) @map("selling_price")
-  stock             Int                @default(0)
+model ProductImage {
+  id        Int     @id @default(autoincrement())
+  productId Int     @map("product_id")
+  url       String
+  altText   String? @map("alt_text")
+  sortOrder Int     @default(0) @map("sort_order")
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@map("product_images")
+}
+
+model ProductVariant {
+  id                Int                   @id @default(autoincrement())
+  productId         Int                   @map("product_id")
+  sku               String                @unique
+  barcode           String?               @unique
+  size              String?
+  color             String?
+  colorHex          String?               @map("color_hex")
+  imageUrl          String?               @map("image_url")
+  listPrice         Decimal               @map("list_price") @db.Decimal(12, 2)
+  sellingPrice      Decimal               @map("selling_price") @db.Decimal(12, 2)
+  stock             Int                   @default(0)
   weight            Int?
-  dimensions        String?
-  pages             Int?
-  book              Book               @relation(fields: [bookId], references: [id], onDelete: Cascade)
-  batches           Batch[]
+  product           Product               @relation(fields: [productId], references: [id], onDelete: Cascade)
+  purchaseItems     PurchaseReceiptItem[]
   orderItems        OrderItem[]
-  promotionVariants PromotionVariant[]
+  discountVariants  DiscountVariant[]
 
-  @@index([bookId])
-  @@map("book_variants")
+  @@index([productId])
+  @@map("product_variants")
 }
 
-enum PromotionKind {
-  VOUCHER
-  ORDER_AUTO
-  CAMPAIGN
+model PurchaseReceipt {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique
+  supplier    String   @default("Fashion Shop Official")
+  note        String?
+  totalAmount Decimal  @default(0) @map("total_amount") @db.Decimal(12, 2)
+  status      String   @default("COMPLETED")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  items PurchaseReceiptItem[]
+
+  @@map("purchase_receipts")
+}
+
+model PurchaseReceiptItem {
+  id        Int     @id @default(autoincrement())
+  receiptId Int     @map("receipt_id")
+  variantId Int     @map("variant_id")
+  quantity  Int     @default(0)
+  costPrice Decimal @default(0) @map("cost_price") @db.Decimal(12, 2)
+
+  receipt PurchaseReceipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  variant ProductVariant  @relation(fields: [variantId], references: [id])
+
+  @@index([receiptId])
+  @@index([variantId])
+  @@map("purchase_receipt_items")
 }
 
 enum DiscountType {
@@ -105,95 +190,164 @@ enum DiscountType {
   FIXED
 }
 
-enum PromotionApplicationScope {
-  LINE
-  ORDER
-  VOUCHER
+model Campaign {
+  id          Int       @id @default(autoincrement())
+  name        String
+  description String?
+  startsAt    DateTime  @map("starts_at")
+  endsAt      DateTime? @map("ends_at")
+  budgetLimit Decimal?  @map("budget_limit") @db.Decimal(12, 2)
+  spentAmount Decimal   @default(0) @map("spent_amount") @db.Decimal(12, 2)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  discounts   Discount[]
+  vouchers    Voucher[]
+
+  @@index([startsAt, endsAt])
+  @@map("campaigns")
 }
 
-model Promotion {
-  id             Int                    @id @default(autoincrement())
-  name           String
-  kind           PromotionKind
-  code           String?                @unique
-  discountType   DiscountType?
-  discountValue  Decimal?               @db.Decimal(12, 2)
-  minOrderAmount Decimal?               @map("min_order_amount") @db.Decimal(12, 2)
-  priority       Int                    @default(0)
-  maxUses        Int?                   @map("max_uses")
-  usedCount      Int                    @default(0) @map("used_count")
-  startsAt       DateTime               @map("starts_at")
-  endsAt         DateTime?              @map("ends_at")
-  active         Boolean                @default(true)
-  groups         PromotionGroup[]
-  applications   PromotionApplication[]
-  createdAt      DateTime               @default(now()) @map("created_at")
-  updatedAt      DateTime               @updatedAt @map("updated_at")
+model Discount {
+  id          Int                   @id @default(autoincrement())
+  campaignId  Int?                  @map("campaign_id")
+  name        String
+  description String?
+  priority    Int                   @default(0)
+  budgetLimit Decimal?              @map("budget_limit") @db.Decimal(12, 2)
+  spentAmount Decimal               @default(0) @map("spent_amount") @db.Decimal(12, 2)
+  maxUses     Int?                  @map("max_uses")
+  usedCount   Int                   @default(0) @map("used_count")
+  startsAt    DateTime              @map("starts_at")
+  endsAt      DateTime?             @map("ends_at")
+  active      Boolean               @default(true)
+  createdAt   DateTime              @default(now()) @map("created_at")
+  updatedAt   DateTime              @updatedAt @map("updated_at")
 
-  @@index([kind, active, startsAt, endsAt])
-  @@index([kind, priority])
-  @@map("promotions")
+  campaign     Campaign?             @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  groups       DiscountGroup[]
+  applications DiscountApplication[]
+
+  @@index([campaignId])
+  @@index([active, startsAt, endsAt])
+  @@index([priority])
+  @@map("discounts")
 }
 
-model PromotionGroup {
-  id            Int                @id @default(autoincrement())
-  promotionId   Int                @map("promotion_id")
-  name          String
-  sortOrder     Int                @default(0) @map("sort_order")
-  discountType  DiscountType       @map("discount_type")
-  discountValue Decimal            @map("discount_value") @db.Decimal(12, 2)
-  promotion     Promotion          @relation(fields: [promotionId], references: [id], onDelete: Cascade)
-  variants      PromotionVariant[]
+model DiscountGroup {
+  id               Int               @id @default(autoincrement())
+  discountId       Int               @map("discount_id")
+  name             String
+  sortOrder        Int               @default(0) @map("sort_order")
+  discountType     DiscountType      @map("discount_type")
+  discountValue    Decimal           @map("discount_value") @db.Decimal(12, 2)
+  maxDiscountValue Decimal?          @map("max_discount_value") @db.Decimal(12, 2)
 
-  @@index([promotionId, sortOrder])
-  @@map("promotion_groups")
+  discount         Discount          @relation(fields: [discountId], references: [id], onDelete: Cascade)
+  variants         DiscountVariant[]
+
+  @@index([discountId, sortOrder])
+  @@map("discount_groups")
 }
 
-model PromotionVariant {
+model DiscountVariant {
   groupId   Int            @map("group_id")
   variantId Int            @map("variant_id")
-  group     PromotionGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  variant   BookVariant    @relation(fields: [variantId], references: [id])
+
+  group     DiscountGroup  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  variant   ProductVariant @relation(fields: [variantId], references: [id])
 
   @@id([groupId, variantId])
   @@index([variantId])
-  @@map("promotion_variants")
+  @@map("discount_variants")
 }
 
-model PromotionApplication {
-  id             Int                       @id @default(autoincrement())
-  orderId        Int                       @map("order_id")
-  orderItemId    Int?                      @map("order_item_id")
-  promotionId    Int                       @map("promotion_id")
-  scope          PromotionApplicationScope
-  promotionName  String                    @map("promotion_name")
-  promotionCode  String?                   @map("promotion_code")
-  discountAmount Decimal                   @map("discount_amount") @db.Decimal(12, 2)
-  order          Order                     @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  orderItem      OrderItem?                @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
-  promotion      Promotion                 @relation(fields: [promotionId], references: [id])
+model DiscountApplication {
+  id             Int            @id @default(autoincrement())
+  orderId        Int            @map("order_id")
+  orderItemId    Int            @map("order_item_id")
+  discountId     Int            @map("discount_id")
+  discountName   String         @map("discount_name")
+  discountAmount Decimal        @map("discount_amount") @db.Decimal(12, 2)
+
+  order          Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderItem      OrderItem      @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  discount       Discount       @relation(fields: [discountId], references: [id])
 
   @@index([orderId])
-  @@index([promotionId])
-  @@map("promotion_applications")
+  @@index([discountId])
+  @@map("discount_applications")
+}
+
+model Voucher {
+  id                 Int                  @id @default(autoincrement())
+  campaignId         Int?                 @map("campaign_id")
+  code               String               @unique
+  name               String
+  description        String?
+  discountType       DiscountType         @map("discount_type")
+  discountValue      Decimal              @map("discount_value") @db.Decimal(12, 2)
+  maxDiscountValue   Decimal?             @map("max_discount_value") @db.Decimal(12, 2)
+  minOrderAmount     Decimal?             @map("min_order_amount") @db.Decimal(12, 2)
+  maxUses            Int?                 @map("max_uses")
+  usedCount          Int                  @default(0) @map("used_count")
+  maxUsesPerCustomer Int?                 @default(1) @map("max_uses_per_customer")
+  budgetLimit        Decimal?             @map("budget_limit") @db.Decimal(12, 2)
+  spentAmount        Decimal              @default(0) @map("spent_amount") @db.Decimal(12, 2)
+  startsAt           DateTime             @map("starts_at")
+  endsAt             DateTime?            @map("ends_at")
+  active             Boolean              @default(true)
+  createdAt          DateTime             @default(now()) @map("created_at")
+  updatedAt          DateTime             @updatedAt @map("updated_at")
+
+  campaign           Campaign?            @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  applications       VoucherApplication[]
+
+  @@index([code])
+  @@index([campaignId, active])
+  @@map("vouchers")
+}
+
+model VoucherApplication {
+  id             Int      @id @default(autoincrement())
+  orderId        Int      @map("order_id")
+  voucherId      Int      @map("voucher_id")
+  voucherCode    String   @map("voucher_code")
+  voucherName    String   @map("voucher_name")
+  discountAmount Decimal  @map("discount_amount") @db.Decimal(12, 2)
+
+  order          Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  voucher        Voucher  @relation(fields: [voucherId], references: [id])
+
+  @@index([orderId])
+  @@index([voucherId])
+  @@map("voucher_applications")
 }
 
 model Order {
   id                    Int                    @id @default(autoincrement())
   userId                Int                    @map("user_id")
   status                OrderStatus            @default(PENDING)
+  paymentMethod         PaymentMethod          @default(COD) @map("payment_method")
+  paymentStatus         PaymentStatus          @default(UNPAID) @map("payment_status")
+  recipientName         String?                @map("recipient_name")
+  recipientPhone        String?                @map("recipient_phone")
+  shippingAddress       String?                @map("shipping_address")
+  shippingNote          String?                @map("shipping_note")
   subtotal              Decimal                @default(0) @db.Decimal(12, 2)
   productDiscount       Decimal                @default(0) @map("product_discount") @db.Decimal(12, 2)
-  orderDiscount         Decimal                @default(0) @map("order_discount") @db.Decimal(12, 2)
   voucherDiscount       Decimal                @default(0) @map("voucher_discount") @db.Decimal(12, 2)
   total                 Decimal                @db.Decimal(12, 2)
   user                  User                   @relation(fields: [userId], references: [id])
   items                 OrderItem[]
-  promotionApplications PromotionApplication[]
+  discountApplications  DiscountApplication[]
+  voucherApplications   VoucherApplication[]
+  transactions          PaymentTransaction[]
   createdAt             DateTime               @default(now()) @map("created_at")
   updatedAt             DateTime               @updatedAt @map("updated_at")
 
   @@index([userId, status])
+  @@index([paymentStatus])
   @@map("orders")
 }
 
@@ -203,6 +357,66 @@ enum OrderStatus {
   SHIPPING
   COMPLETED
   CANCELLED
+}
+
+enum PaymentMethod {
+  COD
+  VIETQR
+  BANK_TRANSFER
+}
+
+enum PaymentStatus {
+  UNPAID
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum PaymentProvider {
+  COD
+  VIETQR
+  BANK_TRANSFER
+}
+
+enum PaymentTransactionStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  CANCELLED
+}
+
+model PaymentTransaction {
+  id              Int                      @id @default(autoincrement())
+  orderId         Int                      @map("order_id")
+  provider        PaymentProvider
+  amount          Decimal                  @db.Decimal(12, 2)
+  currency        String                   @default("VND")
+  status          PaymentTransactionStatus @default(PENDING)
+  transactionCode String?                  @map("transaction_code")
+  providerTxnId   String?                  @map("provider_txn_id")
+  metadata        Json?
+  paidAt          DateTime?                @map("paid_at")
+  createdAt       DateTime                 @default(now()) @map("created_at")
+  updatedAt       DateTime                 @updatedAt @map("updated_at")
+
+  order           Order                    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([orderId, status])
+  @@index([transactionCode])
+  @@index([providerTxnId])
+  @@map("payment_transactions")
+}
+
+model PaymentEvent {
+  id        Int      @id @default(autoincrement())
+  source    String
+  eventId   String   @map("event_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([source, eventId])
+  @@map("payment_events")
 }
 
 model OrderItem {
@@ -215,9 +429,91 @@ model OrderItem {
   finalUnitPrice        Decimal                @default(0) @map("final_unit_price") @db.Decimal(12, 2)
   unitPrice             Decimal                @default(0) @map("unit_price") @db.Decimal(12, 2)
   order                 Order                  @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  variant               BookVariant            @relation(fields: [variantId], references: [id])
-  promotionApplications PromotionApplication[]
+  variant               ProductVariant         @relation(fields: [variantId], references: [id])
+  discountApplications  DiscountApplication[]
 
   @@unique([orderId, variantId])
   @@map("order_items")
+}
+
+model AuditLog {
+  id           Int      @id @default(autoincrement())
+  userId       Int?     @map("user_id")
+  userEmail    String?  @map("user_email")
+  userRole     String?  @map("user_role")
+  action       String
+  entityType   String   @map("entity_type")
+  entityId     String?  @map("entity_id")
+  description  String?
+  oldValue     Json?    @map("old_value")
+  newValue     Json?    @map("new_value")
+  ipAddress    String?  @map("ip_address")
+  userAgent    String?  @map("user_agent")
+  status       String   @default("SUCCESS")
+  errorMessage String?  @map("error_message")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([action])
+  @@index([status])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+enum NotificationType {
+  ORDER
+  INVENTORY
+  SYSTEM
+}
+
+enum NotificationLevel {
+  INFO
+  SUCCESS
+  WARNING
+  ERROR
+}
+
+model Notification {
+  id        Int               @id @default(autoincrement())
+  userId    Int               @map("user_id")
+  title     String
+  message   String
+  type      NotificationType  @default(SYSTEM)
+  level     NotificationLevel @default(INFO)
+  link      String?
+  isRead    Boolean           @default(false) @map("is_read")
+  readAt    DateTime?         @map("read_at")
+  data      Json?
+  createdAt DateTime          @default(now()) @map("created_at")
+  updatedAt DateTime          @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
+  @@map("notifications")
+}
+
+enum OtpType {
+  FORGOT_PASSWORD
+  PHONE_VERIFICATION
+  ORDER_CONFIRMATION
+  LOGIN
+}
+
+model OtpVerification {
+  id        Int      @id @default(autoincrement())
+  target    String   // Email hoặc số điện thoại
+  code      String   // Mã OTP 6 chữ số
+  type      OtpType  @default(FORGOT_PASSWORD)
+  expiresAt DateTime @map("expires_at")
+  used      Boolean  @default(false)
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([target, type, used])
+  @@map("otp_verifications")
 }
