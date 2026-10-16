@@ -67,6 +67,8 @@ export interface Product {
   provider?: string | null;
   variants?: ProductVariant[];
   images?: ProductImage[];
+  ratingAverage?: number;
+  reviewCount?: number;
   createdAt?: string | Date;
   updatedAt?: string | Date;
   title?: string;

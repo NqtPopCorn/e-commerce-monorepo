@@ -22,6 +22,7 @@ import { AnalyticsModule } from "./modules/analytics/analytics.module";
 import { MailModule } from "./modules/mail/mail.module";
 import { SmsModule } from "./modules/sms/sms.module";
 import { PaymentsModule } from "./modules/payments/payments.module";
+import { ReviewsModule } from "./modules/reviews/reviews.module";
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { PaymentsModule } from "./modules/payments/payments.module";
     BrandsModule,
     OrdersModule,
     PaymentsModule,
+    ReviewsModule,
     StatisticsModule,
     AnalyticsModule,
     CampaignsModule,

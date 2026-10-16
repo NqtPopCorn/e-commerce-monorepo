@@ -27,7 +27,9 @@ import {
   RotateCcw,
   Headphones,
   Mail,
+  Star,
 } from "lucide-react";
+import { ReviewFormModal } from "@/components/reviews/ReviewFormModal";
 import { OrderProgressPipeline } from "@/components/orders/OrderProgressPipeline";
 import { VietQRModal } from "@/components/payments/VietQRModal";
 import {
@@ -60,6 +62,13 @@ export default function OrderDetailPage() {
     "Sản phẩm không vừa size / muốn đổi mẫu",
   );
   const [returnNote, setReturnNote] = useState<string>("");
+  const [selectedReviewItem, setSelectedReviewItem] = useState<{
+    orderItemId: number;
+    productName: string;
+    variantText?: string;
+    productImageUrl?: string;
+    review?: any;
+  } | null>(null);
 
   const getStatusConfig = (status?: OrderStatus | string) => {
     switch (status) {
@@ -462,7 +471,7 @@ export default function OrderDetailPage() {
                     <strong>{item.quantity}</strong>
                   </p>
                 </div>
-                <div className="text-right shrink-0">
+                <div className="text-right shrink-0 flex flex-col items-end gap-1.5">
                   {prodDisc > 0 && (
                     <div className="text-xs text-muted-foreground line-through">
                       {formatCurrency(origPrice * item.quantity)}
@@ -471,6 +480,31 @@ export default function OrderDetailPage() {
                   <div className="font-bold text-primary text-sm sm:text-base font-mono">
                     {formatCurrency(itemTotal)}
                   </div>
+
+                  {order.status === "COMPLETED" && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={item.review ? "outline" : "default"}
+                      onClick={() =>
+                        setSelectedReviewItem({
+                          orderItemId: item.id,
+                          productName: productTitle,
+                          variantText: variantInfo,
+                          productImageUrl: item.variant?.imageUrl || undefined,
+                          review: item.review,
+                        })
+                      }
+                      className={`h-7 px-2.5 text-[11px] rounded-lg gap-1 ${
+                        item.review
+                          ? "border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-800 dark:text-amber-300 dark:hover:bg-amber-950/40"
+                          : "bg-rose-600 hover:bg-rose-700 text-white font-semibold shadow-xs"
+                      }`}
+                    >
+                      <Star className={`w-3 h-3 ${item.review ? "fill-amber-400 text-amber-400" : ""}`} />
+                      <span>{item.review ? "Xem / Sửa đánh giá" : "Đánh giá"}</span>
+                    </Button>
+                  )}
                 </div>
               </div>
             );
@@ -772,6 +806,22 @@ export default function OrderDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Review Modal */}
+      {selectedReviewItem && (
+        <ReviewFormModal
+          isOpen={Boolean(selectedReviewItem)}
+          onClose={() => {
+            setSelectedReviewItem(null);
+            refetch();
+          }}
+          orderItemId={selectedReviewItem.orderItemId}
+          productName={selectedReviewItem.productName}
+          variantText={selectedReviewItem.variantText}
+          productImageUrl={selectedReviewItem.productImageUrl}
+          initialReview={selectedReviewItem.review}
+        />
+      )}
     </div>
   );
 }

@@ -62,6 +62,8 @@ export interface OrderItemVariant {
   };
 }
 
+import { Review } from "./review";
+
 export interface OrderItem {
   id: number;
   orderId: number;
@@ -73,6 +75,7 @@ export interface OrderItem {
   unitPrice: number | string;
   variant?: OrderItemVariant;
   title?: string;
+  review?: Review | null;
 }
 
 export interface OrderUser {

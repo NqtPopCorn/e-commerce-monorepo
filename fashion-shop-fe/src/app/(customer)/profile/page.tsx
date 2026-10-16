@@ -48,8 +48,13 @@ import { GenderType } from "@/types/account";
 function ProfileContent() {
   const { user: authUser, logout } = useAuthStore();
   const hasHydrated = useAuthStore((state) => state.hasHydrated);
+  const [mounted, setMounted] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const [activeTab, setActiveTab] = useState<
     "profile" | "addresses" | "password" | "orders"
@@ -224,7 +229,7 @@ function ProfileContent() {
     }
   };
 
-  if (!hasHydrated) {
+  if (!mounted && !hasHydrated) {
     return (
       <div className="py-24 text-center text-muted-foreground text-sm">
         Đang tải thông tin tài khoản...
