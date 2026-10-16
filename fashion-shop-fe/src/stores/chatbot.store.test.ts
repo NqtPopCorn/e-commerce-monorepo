@@ -4,6 +4,7 @@ import { chatbotService } from "@/services/chatbot.service";
 
 describe("chatbot store", () => {
   beforeEach(() => {
+    vi.restoreAllMocks();
     useChatbotStore.getState().clearHistory();
     useChatbotStore.getState().setOpen(false);
   });
@@ -74,5 +75,69 @@ describe("chatbot store", () => {
     expect(state.messages[2].content).toBe(mockReply);
     expect(state.messages[2].products?.length).toBe(1);
     expect(state.isLoading).toBe(false);
+  });
+
+  it("handles streaming message tokens progressively", async () => {
+    vi.spyOn(chatbotService, "streamMessage").mockImplementationOnce(
+      async (_req, onToken, onDone) => {
+        onToken("Chào ");
+        onToken("bạn!");
+        onDone({
+          reply: "Chào bạn!",
+          conversationId: "stream-conv",
+          products: [],
+          quickReplies: ["Tư vấn size"],
+        });
+      },
+    );
+
+    await useChatbotStore.getState().sendMessage("Xin chào stylist");
+
+    const state = useChatbotStore.getState();
+    expect(state.messages.length).toBe(3);
+    expect(state.messages[1].content).toBe("Xin chào stylist");
+    expect(state.messages[2].content).toBe("Chào bạn!");
+    expect(state.messages[2].quickReplies).toEqual(["Tư vấn size"]);
+    expect(state.messages[2].isStreaming).toBe(false);
+  });
+
+  it("retries last user message on failure", async () => {
+    useChatbotStore.setState({
+      messages: [
+        {
+          id: "m-user-1",
+          role: "user",
+          content: "Áo polo size M còn không?",
+          createdAt: new Date().toISOString(),
+          status: "sent",
+        },
+        {
+          id: "m-bot-err",
+          role: "assistant",
+          content: "Lỗi kết nối",
+          createdAt: new Date().toISOString(),
+          status: "error",
+        },
+      ],
+    });
+
+    vi.spyOn(chatbotService, "streamMessage").mockImplementationOnce(
+      async (_req, _onToken, onDone) => {
+        onDone({
+          reply: "Áo polo size M hiện còn 15 chiếc ạ!",
+          conversationId: "retry-conv",
+          products: [],
+          quickReplies: [],
+        });
+      },
+    );
+
+    await useChatbotStore.getState().retryLastMessage();
+
+    const state = useChatbotStore.getState();
+    const assistantMsgs = state.messages.filter((m) => m.role === "assistant");
+    const lastAssistant = assistantMsgs[assistantMsgs.length - 1];
+    expect(lastAssistant.content).toBe("Áo polo size M hiện còn 15 chiếc ạ!");
+    expect(lastAssistant.status).toBe("sent");
   });
 });

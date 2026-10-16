@@ -74,6 +74,8 @@ export const ChatProductCard: React.FC<ChatProductCardProps> = ({ product }) => 
 
           <Link
             href={productUrl}
+            target="_blank"
+            rel="noopener noreferrer"
             className="mt-2 w-full inline-flex items-center justify-center gap-1 bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white font-medium text-[11px] py-1 px-2 rounded-lg transition-colors"
           >
             <span>Xem ngay</span>

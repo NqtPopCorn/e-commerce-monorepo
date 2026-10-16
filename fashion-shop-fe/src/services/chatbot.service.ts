@@ -235,45 +235,167 @@ function generateMockResponse(
 
 export const chatbotService = {
   /**
-   * Send message to FastAPI agent backend or fallback smoothly if not yet running
+   * Send message to FastAPI agent backend (blocking request)
    */
   async sendMessage(request: ChatbotRequest): Promise<ChatbotResponse> {
-    const fastApiUrl = `${FASTAPI_BASE_URL.replace(/\/+$/, "")}/api/chat`;
+    const fastApiUrl = `${FASTAPI_BASE_URL.replace(/\/+$/, "")}/api/v1/chat`;
 
     try {
-      // Create axios request with timeout
-      const response = await axios.post<ChatbotResponse>(
+      const response = await axios.post<any>(
         fastApiUrl,
         {
           message: request.message,
+          session_id: request.conversationId,
           conversation_id: request.conversationId,
           history: request.history || [],
+          user_profile: request.userProfile,
+          clarification_mode:
+            request.clarificationMode || "MINIMAL_CLARIFICATION",
         },
         {
           headers: { "Content-Type": "application/json" },
-          timeout: 4000,
+          timeout: 45000,
         },
       );
 
-      return response.data;
+      const data = response.data;
+      return {
+        reply: data.reply,
+        conversationId: data.session_id || request.conversationId,
+        products: data.products || [],
+        quickReplies: data.quick_replies || data.quickReplies || [],
+      };
     } catch {
-      // FastAPI backend is not yet available or returned an error.
-      // Use fallback mock intelligence with shop products.
+      // Fallback mock intelligence when FastAPI backend is offline
       let liveProducts: any[] = [];
       try {
         const shopRes = await axios.get(
-          `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api"}/products`,
-          { params: { limit: 6 }, timeout: 2000 },
+          `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api"}/products`,
+          { params: { limit: 6 }, timeout: 3000 },
         );
         liveProducts = shopRes.data?.data || shopRes.data || [];
       } catch {
         // Shop BE may also be offline, FALLBACK_PRODUCTS will be used
       }
 
-      // Small delay to simulate natural AI generation response time
-      await new Promise((resolve) => setTimeout(resolve, 600));
-
+      await new Promise((resolve) => setTimeout(resolve, 500));
       return generateMockResponse(request, liveProducts);
+    }
+  },
+
+  /**
+   * Stream message token-by-token from FastAPI SSE endpoint with typewriter effect
+   */
+  async streamMessage(
+    request: ChatbotRequest,
+    onToken: (token: string) => void,
+    onDone: (result: ChatbotResponse) => void,
+    onError: (error: Error) => void,
+  ): Promise<void> {
+    const streamUrl = `${FASTAPI_BASE_URL.replace(/\/+$/, "")}/api/v1/chat/stream`;
+
+    try {
+      const response = await fetch(streamUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: request.message,
+          session_id: request.conversationId,
+          conversation_id: request.conversationId,
+          history: request.history || [],
+          user_profile: request.userProfile,
+          clarification_mode:
+            request.clarificationMode || "MINIMAL_CLARIFICATION",
+        }),
+      });
+
+      if (!response.ok || !response.body) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+      let buffer = "";
+      let accumulatedReply = "";
+      let finalResult: ChatbotResponse | null = null;
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith("data:")) continue;
+
+          const jsonStr = trimmed.slice(5).trim();
+          if (!jsonStr) continue;
+
+          try {
+            const parsed = JSON.parse(jsonStr);
+            if (parsed.type === "token" || parsed.type === "clarification") {
+              const text = String(parsed.content || "");
+              accumulatedReply += text;
+              onToken(text);
+            } else if (parsed.type === "done") {
+              finalResult = {
+                reply: parsed.reply || accumulatedReply,
+                conversationId: parsed.session_id || request.conversationId,
+                products: parsed.products || [],
+                quickReplies: parsed.quick_replies || [],
+              };
+            } else if (parsed.type === "error") {
+              throw new Error(parsed.content || "Lỗi tạo câu trả lời");
+            }
+          } catch (e: any) {
+            if (e?.message !== "Lỗi tạo câu trả lời") {
+              // Non-fatal parse warning
+            } else {
+              throw e;
+            }
+          }
+        }
+      }
+
+      if (finalResult) {
+        onDone(finalResult);
+      } else {
+        onDone({
+          reply: accumulatedReply || "Đã hoàn thành phản hồi.",
+          conversationId: request.conversationId,
+          products: [],
+          quickReplies: [],
+        });
+      }
+    } catch {
+      // Fallback: Use mock response with typewriter effect
+      try {
+        let liveProducts: any[] = [];
+        try {
+          const shopRes = await axios.get(
+            `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api"}/products`,
+            { params: { limit: 6 }, timeout: 2000 },
+          );
+          liveProducts = shopRes.data?.data || shopRes.data || [];
+        } catch {
+          // Shop BE offline, FALLBACK_PRODUCTS used
+        }
+
+        const mock = generateMockResponse(request, liveProducts);
+        // Simulate progressive typing for smooth UX even in fallback mode
+        const words = mock.reply.split(" ");
+        for (let i = 0; i < words.length; i++) {
+          const word = (i === 0 ? "" : " ") + words[i];
+          onToken(word);
+          await new Promise((r) => setTimeout(r, 20));
+        }
+        onDone(mock);
+      } catch (err: any) {
+        onError(err instanceof Error ? err : new Error(String(err)));
+      }
     }
   },
 };

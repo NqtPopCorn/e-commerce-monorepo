@@ -84,6 +84,14 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ onClose }) => {
       {/* Messages List Area */}
       <div className="flex-1 overflow-y-auto px-3.5 py-2 space-y-1 admin-scrollbar">
         {messages.map((message, index) => {
+          if (
+            message.role === "assistant" &&
+            !message.content &&
+            message.isStreaming
+          ) {
+            return null;
+          }
+
           const isLatestAssistant =
             message.role === "assistant" &&
             index === messages.findLastIndex((m) => m.role === "assistant");
@@ -98,24 +106,27 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ onClose }) => {
           );
         })}
 
-        {/* Loading Indicator */}
-        {isLoading && (
-          <div className="flex items-start gap-2.5 my-3 animate-in fade-in duration-200">
-            <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-rose-600 to-pink-500 text-white flex items-center justify-center shrink-0 shadow-2xs mt-0.5">
-              <Bot className="w-4 h-4" />
-            </div>
-            <div className="bg-white border border-gray-100 rounded-2xl rounded-tl-xs px-4 py-3 shadow-2xs">
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs text-gray-500 font-medium mr-1">
-                  Stylist đang tìm kiếm
-                </span>
-                <span className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
-                <span className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
-                <span className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-bounce"></span>
+        {/* Loading Indicator (before first token arrives) */}
+        {isLoading &&
+          (!messages.length ||
+            messages[messages.length - 1].role !== "assistant" ||
+            !messages[messages.length - 1].content) && (
+            <div className="flex items-start gap-2.5 my-3 animate-in fade-in duration-200">
+              <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-rose-600 to-pink-500 text-white flex items-center justify-center shrink-0 shadow-2xs mt-0.5">
+                <Bot className="w-4 h-4" />
+              </div>
+              <div className="bg-white border border-gray-100 rounded-2xl rounded-tl-xs px-4 py-3 shadow-2xs">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-gray-500 font-medium mr-1">
+                    Stylist đang tìm kiếm
+                  </span>
+                  <span className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                  <span className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+                  <span className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-bounce"></span>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
         <div ref={messagesEndRef} />
       </div>

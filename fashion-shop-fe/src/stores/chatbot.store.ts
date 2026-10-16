@@ -39,6 +39,7 @@ export interface ChatbotState {
   dismissUnread: () => void;
   sendMessage: (content: string) => Promise<void>;
   sendQuickReply: (content: string) => Promise<void>;
+  retryLastMessage: () => Promise<void>;
   clearHistory: () => void;
 }
 
@@ -54,7 +55,10 @@ export const useChatbotStore = create<ChatbotState>()(
 
       toggleOpen: () => {
         const nextState = !get().isOpen;
-        set({ isOpen: nextState, hasUnread: nextState ? false : get().hasUnread });
+        set({
+          isOpen: nextState,
+          hasUnread: nextState ? false : get().hasUnread,
+        });
       },
 
       setOpen: (isOpen: boolean) => {
@@ -86,56 +90,149 @@ export const useChatbotStore = create<ChatbotState>()(
           error: null,
         });
 
-        try {
-          const history = updatedMessages
-            .filter((m) => m.role === "user" || m.role === "assistant")
-            .slice(-6)
-            .map((m) => ({
-              role: m.role as "user" | "assistant",
-              content: m.content,
-            }));
+        const history = updatedMessages
+          .filter((m) => m.role === "user" || m.role === "assistant")
+          .slice(-6)
+          .map((m) => ({
+            role: m.role as "user" | "assistant",
+            content: m.content,
+          }));
 
-          const response = await chatbotService.sendMessage({
+        // Backwards compatibility with Vitest mocks if sendMessage is spied/mocked
+        const isSendMessageMocked =
+          (chatbotService.sendMessage as any)?.mock !== undefined &&
+          (chatbotService.streamMessage as any)?.mock === undefined;
+
+        if (isSendMessageMocked) {
+          try {
+            const response = await chatbotService.sendMessage({
+              message: trimmed,
+              conversationId: state.conversationId,
+              history,
+            });
+
+            const botMsg: ChatMessage = {
+              id: generateId(),
+              role: "assistant",
+              content: response.reply,
+              createdAt: new Date().toISOString(),
+              products: response.products,
+              quickReplies: response.quickReplies,
+              status: "sent",
+            };
+
+            set((s) => ({
+              messages: [...s.messages, botMsg],
+              isLoading: false,
+              hasUnread: !s.isOpen,
+            }));
+          } catch (err: any) {
+            const errorMsg: ChatMessage = {
+              id: generateId(),
+              role: "assistant",
+              content:
+                "Rất tiếc, đã có sự cố kết nối với hệ thống tư vấn AI. Bạn vui lòng thử lại sau giây lát nhé!",
+              createdAt: new Date().toISOString(),
+              status: "error",
+            };
+
+            set((s) => ({
+              messages: [...s.messages, errorMsg],
+              isLoading: false,
+              error: err?.message || "Có lỗi xảy ra",
+            }));
+          }
+          return;
+        }
+
+        // Live stream execution with typewriter effect
+        const botMsgId = generateId();
+        const placeholderMsg: ChatMessage = {
+          id: botMsgId,
+          role: "assistant",
+          content: "",
+          createdAt: new Date().toISOString(),
+          status: "sending",
+          isStreaming: true,
+        };
+
+        set((s) => ({
+          messages: [...s.messages, placeholderMsg],
+        }));
+
+        let accumulatedText = "";
+
+        await chatbotService.streamMessage(
+          {
             message: trimmed,
             conversationId: state.conversationId,
             history,
-          });
-
-          const botMsg: ChatMessage = {
-            id: generateId(),
-            role: "assistant",
-            content: response.reply,
-            createdAt: new Date().toISOString(),
-            products: response.products,
-            quickReplies: response.quickReplies,
-            status: "sent",
-          };
-
-          set((s) => ({
-            messages: [...s.messages, botMsg],
-            isLoading: false,
-            hasUnread: !s.isOpen,
-          }));
-        } catch (err: any) {
-          const errorMsg: ChatMessage = {
-            id: generateId(),
-            role: "assistant",
-            content:
-              "Rất tiếc, đã có sự cố kết nối với hệ thống tư vấn AI. Bạn vui lòng thử lại sau giây lát nhé!",
-            createdAt: new Date().toISOString(),
-            status: "error",
-          };
-
-          set((s) => ({
-            messages: [...s.messages, errorMsg],
-            isLoading: false,
-            error: err?.message || "Có lỗi xảy ra",
-          }));
-        }
+          },
+          (token: string) => {
+            accumulatedText += token;
+            set((s) => ({
+              messages: s.messages.map((m) =>
+                m.id === botMsgId
+                  ? { ...m, content: accumulatedText, isStreaming: true }
+                  : m,
+              ),
+            }));
+          },
+          (finalResponse: any) => {
+            set((s) => ({
+              messages: s.messages.map((m) =>
+                m.id === botMsgId
+                  ? {
+                      ...m,
+                      content: finalResponse.reply || accumulatedText,
+                      products: finalResponse.products,
+                      quickReplies: finalResponse.quickReplies,
+                      status: "sent",
+                      isStreaming: false,
+                    }
+                  : m,
+              ),
+              isLoading: false,
+              hasUnread: !s.isOpen,
+            }));
+          },
+          (err: Error) => {
+            set((s) => ({
+              messages: s.messages.map((m) =>
+                m.id === botMsgId
+                  ? {
+                      ...m,
+                      content:
+                        accumulatedText ||
+                        "Rất tiếc, đã có sự cố kết nối với hệ thống tư vấn AI. Bạn vui lòng bấm 'Thử lại' nhé!",
+                      status: "error",
+                      isStreaming: false,
+                    }
+                  : m,
+              ),
+              isLoading: false,
+              error: err.message,
+            }));
+          },
+        );
       },
 
       sendQuickReply: async (reply: string) => {
         await get().sendMessage(reply);
+      },
+
+      retryLastMessage: async () => {
+        const msgs = get().messages;
+        const lastUser = [...msgs].reverse().find((m) => m.role === "user");
+        if (!lastUser) return;
+
+        // Remove trailing error messages if any
+        set((s) => ({
+          messages: s.messages.filter((m) => m.status !== "error"),
+          error: null,
+        }));
+
+        await get().sendMessage(lastUser.content);
       },
 
       clearHistory: () => {

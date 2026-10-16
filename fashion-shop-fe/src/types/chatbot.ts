@@ -20,6 +20,7 @@ export interface ChatMessage {
   products?: ChatRecommendedProduct[];
   quickReplies?: string[];
   status?: "sending" | "sent" | "error";
+  isStreaming?: boolean;
 }
 
 export interface ChatbotRequest {
@@ -29,6 +30,13 @@ export interface ChatbotRequest {
     role: "user" | "assistant";
     content: string;
   }>;
+  clarificationMode?: string;
+  userProfile?: {
+    height_cm?: number;
+    weight_kg?: number;
+    gender?: string;
+    fit_preference?: string;
+  };
 }
 
 export interface ChatbotResponse {
