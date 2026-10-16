@@ -35,9 +35,11 @@ export class ProductsController {
   @Get()
   findAll(
     @Query("search") search?: string,
+    @Query("mode") mode?: string,
     @Query("categoryId") categoryId?: string,
     @Query("category") category?: string,
     @Query("brandId") brandId?: string,
+    @Query("targetGender") targetGender?: string,
     @Query("minPrice") minPrice?: string,
     @Query("maxPrice") maxPrice?: string,
     @Query("page") page?: string,
@@ -45,9 +47,11 @@ export class ProductsController {
   ) {
     return this.service.findAll({
       search,
+      mode,
       categoryId: categoryId ? parseInt(categoryId, 10) : undefined,
       category,
       brandId: brandId ? parseInt(brandId, 10) : undefined,
+      targetGender: targetGender as any,
       minPrice: minPrice ? parseFloat(minPrice) : undefined,
       maxPrice: maxPrice ? parseFloat(maxPrice) : undefined,
       page: page ? parseInt(page, 10) : undefined,

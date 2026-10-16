@@ -52,6 +52,12 @@ enum Gender {
   OTHER
 }
 
+enum GenderTarget {
+  MALE
+  FEMALE
+  UNISEX
+}
+
 enum CustomerTier {
   STANDARD
   SILVER
@@ -105,6 +111,7 @@ model Product {
   name             String
   slug             String           @unique
   description      String?
+  targetGender     GenderTarget     @default(UNISEX) @map("target_gender")
   brandId          Int?             @map("brand_id")
   categoryId       Int?             @map("category_id")
   material         String?
@@ -118,9 +125,12 @@ model Product {
   ratingAverage    Decimal          @default(0) @map("rating_average") @db.Decimal(3, 2)
   reviewCount      Int              @default(0) @map("review_count")
   reviews          Review[]
+  embeddingText    String?          @map("embedding_text")
+  embedding        Unsupported("vector(768)")?
   createdAt        DateTime         @default(now()) @map("created_at")
   updatedAt        DateTime         @updatedAt @map("updated_at")
 
+  @@index([targetGender])
   @@index([brandId])
   @@index([categoryId])
   @@map("products")

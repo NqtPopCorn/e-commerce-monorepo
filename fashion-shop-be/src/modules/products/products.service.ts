@@ -3,10 +3,15 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
+import { GenderTarget } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { PricingService } from "../pricing/pricing.service";
 import { CreateProductDto } from "./dto/create-product.dto";
 import { UpdateProductDto } from "./dto/update-product.dto";
+import {
+  EmbeddingService,
+  buildProductEmbeddingText,
+} from "./embedding.service";
 
 function slugify(text: string): string {
   return text
@@ -24,6 +29,7 @@ export class ProductsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly pricingService: PricingService,
+    private readonly embeddingService: EmbeddingService,
   ) {}
 
   async create(dto: CreateProductDto) {
@@ -45,7 +51,7 @@ export class ProductsService {
 
     const { variants, images, slug, ...productData } = dto;
     const finalSlug = slug || `${slugify(productData.name)}-${Date.now()}`;
-    return this.prisma.product.create({
+    const product = await this.prisma.product.create({
       data: {
         ...productData,
         slug: finalSlug,
@@ -69,13 +75,18 @@ export class ProductsService {
         images: { orderBy: { sortOrder: "asc" } },
       },
     });
+
+    await this.syncProductEmbedding(product.id);
+    return product;
   }
 
   async findAll(query?: {
     search?: string;
+    mode?: string;
     categoryId?: number;
     category?: string;
     brandId?: number;
+    targetGender?: GenderTarget;
     minPrice?: number;
     maxPrice?: number;
     page?: number;
@@ -83,14 +94,33 @@ export class ProductsService {
   }) {
     const {
       search,
+      mode,
       categoryId,
       category,
       brandId,
+      targetGender,
       minPrice,
       maxPrice,
       page,
       limit,
     } = query || {};
+
+    if (mode === "semantic" && search?.trim()) {
+      const semanticResult = await this.findSemantic({
+        search: search.trim(),
+        categoryId,
+        category,
+        brandId,
+        targetGender,
+        minPrice,
+        maxPrice,
+        page,
+        limit,
+      });
+      if (semanticResult) {
+        return semanticResult;
+      }
+    }
 
     let categoryFilter: any = undefined;
     if (categoryId) {
@@ -133,6 +163,7 @@ export class ProductsService {
       ...(search ? { name: { contains: search, mode: "insensitive" } } : {}),
       ...(categoryFilter ? { categoryId: categoryFilter } : {}),
       ...(brandId ? { brandId } : {}),
+      ...(targetGender ? { targetGender } : {}),
     };
 
     if (minPrice !== undefined || maxPrice !== undefined) {
@@ -320,7 +351,7 @@ export class ProductsService {
     }
 
     const { variants, images, ...productData } = dto;
-    return this.prisma.$transaction(async (tx) => {
+    const updated = await this.prisma.$transaction(async (tx) => {
       if (variants) {
         // Lấy danh sách biến thể hiện tại của sản phẩm trong database
         const currentVariants = await tx.productVariant.findMany({
@@ -408,6 +439,9 @@ export class ProductsService {
         },
       });
     });
+
+    await this.syncProductEmbedding(id);
+    return updated;
   }
 
   async remove(id: number) {
@@ -425,4 +459,203 @@ export class ProductsService {
     }
     return this.prisma.product.delete({ where: { id } });
   }
+
+  async syncProductEmbedding(id: number): Promise<void> {
+    try {
+      const fullProduct = await this.prisma.product.findUnique({
+        where: { id },
+        include: {
+          category: { include: { parent: true } },
+          brand: true,
+          variants: true,
+        },
+      });
+      if (!fullProduct) return;
+      const text = buildProductEmbeddingText(fullProduct);
+      const vector = await this.embeddingService.generateEmbedding(text);
+      if (vector && vector.length === 768) {
+        const vectorString = `[${vector.join(",")}]`;
+        await this.prisma.$executeRawUnsafe(
+          `UPDATE products SET embedding = $1::vector, embedding_text = $2, updated_at = NOW() WHERE id = $3`,
+          vectorString,
+          text,
+          id,
+        );
+      }
+    } catch (err: any) {
+      console.warn(
+        `[ProductsService] syncProductEmbedding failed for #${id}:`,
+        err?.message || err,
+      );
+    }
+  }
+
+  private async findSemantic(query: {
+    search: string;
+    categoryId?: number;
+    category?: string;
+    brandId?: number;
+    targetGender?: GenderTarget;
+    minPrice?: number;
+    maxPrice?: number;
+    page?: number;
+    limit?: number;
+  }) {
+    const {
+      search,
+      categoryId,
+      category,
+      brandId,
+      targetGender,
+      minPrice,
+      maxPrice,
+      page,
+      limit,
+    } = query;
+
+    const vector = await this.embeddingService.generateEmbedding(search);
+    if (!vector || vector.length !== 768) {
+      return null;
+    }
+
+    let categoryIds: number[] | undefined = undefined;
+    if (categoryId) {
+      const targetCategory = await this.prisma.category.findUnique({
+        where: { id: categoryId },
+        include: { children: { select: { id: true } } },
+      });
+      if (targetCategory && targetCategory.children.length > 0) {
+        categoryIds = [
+          targetCategory.id,
+          ...targetCategory.children.map((c) => c.id),
+        ];
+      } else if (targetCategory) {
+        categoryIds = [targetCategory.id];
+      }
+    } else if (category) {
+      const targetCategory = await this.prisma.category.findFirst({
+        where: {
+          OR: [
+            { name: { equals: category, mode: "insensitive" } },
+            ...(isNaN(Number(category)) ? [] : [{ id: Number(category) }]),
+          ],
+        },
+        include: { children: { select: { id: true } } },
+      });
+      if (targetCategory && targetCategory.children.length > 0) {
+        categoryIds = [
+          targetCategory.id,
+          ...targetCategory.children.map((c) => c.id),
+        ];
+      } else if (targetCategory) {
+        categoryIds = [targetCategory.id];
+      }
+    }
+
+    const conditions: string[] = ["p.embedding IS NOT NULL"];
+    const params: any[] = [`[${vector.join(",")}]`];
+    let paramIndex = 2;
+
+    // Minimum similarity threshold (0.45 cosine similarity)
+    conditions.push(`(1 - (p.embedding <=> $1::vector)) >= 0.45`);
+
+    if (categoryIds && categoryIds.length > 0) {
+      conditions.push(`p.category_id = ANY($${paramIndex++}::int[])`);
+      params.push(categoryIds);
+    }
+    if (brandId) {
+      conditions.push(`p.brand_id = $${paramIndex++}`);
+      params.push(brandId);
+    }
+    if (targetGender) {
+      conditions.push(`p.target_gender = $${paramIndex++}::"GenderTarget"`);
+      params.push(targetGender);
+    }
+    if (minPrice !== undefined || maxPrice !== undefined) {
+      conditions.push(`EXISTS (
+        SELECT 1 FROM product_variants pv 
+        WHERE pv.product_id = p.id 
+          ${minPrice !== undefined ? `AND pv.selling_price >= ${Number(minPrice)}` : ""}
+          ${maxPrice !== undefined ? `AND pv.selling_price <= ${Number(maxPrice)}` : ""}
+      )`);
+    }
+
+    const whereClause = conditions.join(" AND ");
+
+    // Count total matches
+    const countSql = `SELECT count(*)::int AS count FROM products p WHERE ${whereClause}`;
+    const countResult = (await this.prisma.$queryRawUnsafe(
+      countSql,
+      ...params,
+    )) as Array<{ count: number }>;
+    const total = countResult[0]?.count || 0;
+
+    if (total === 0) {
+      return null;
+    }
+
+    const isPaginated = page !== undefined || limit !== undefined;
+    const pageNum = Math.max(1, Number(page) || 1);
+    const take = Math.max(1, Number(limit) || 10);
+    const skip = (pageNum - 1) * take;
+
+    const selectSql = `
+      SELECT p.id, round((1 - (p.embedding <=> $1::vector))::numeric, 4)::float AS similarity
+      FROM products p
+      WHERE ${whereClause}
+      ORDER BY p.embedding <=> $1::vector ASC
+      ${isPaginated ? `LIMIT ${take} OFFSET ${skip}` : ""}
+    `;
+
+    const matchedRows = (await this.prisma.$queryRawUnsafe(
+      selectSql,
+      ...params,
+    )) as Array<{ id: number; similarity: number }>;
+
+    if (!matchedRows || matchedRows.length === 0) {
+      return null;
+    }
+
+    const matchedIds = matchedRows.map((r) => r.id);
+    const similarityMap = new Map<number, number>(
+      matchedRows.map((r) => [r.id, r.similarity]),
+    );
+
+    const products = await this.prisma.product.findMany({
+      where: { id: { in: matchedIds } },
+      include: {
+        brand: true,
+        category: {
+          include: { parent: true },
+        },
+        variants: true,
+        images: { orderBy: { sortOrder: "asc" } },
+      },
+    });
+
+    const sortedProducts = products
+      .map((p) => ({
+        ...p,
+        similarity: similarityMap.get(p.id) ?? 0,
+      }))
+      .sort((a, b) => b.similarity - a.similarity);
+
+    const enrichedData =
+      await this.enrichProductsWithDiscountPrices(sortedProducts);
+
+    if (isPaginated) {
+      return {
+        data: enrichedData,
+        meta: {
+          total,
+          page: pageNum,
+          limit: take,
+          totalPages: Math.ceil(total / take) || 1,
+        },
+      };
+    }
+
+    return enrichedData;
+  }
 }
+
