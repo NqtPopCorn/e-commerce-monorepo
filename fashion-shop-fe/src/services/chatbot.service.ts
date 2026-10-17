@@ -1,4 +1,5 @@
 import axios from "axios";
+import { useAuthStore } from "@/stores/auth.store";
 import {
   ChatbotRequest,
   ChatbotResponse,
@@ -7,6 +8,21 @@ import {
 
 const FASTAPI_BASE_URL =
   process.env.NEXT_PUBLIC_AI_CHATBOT_URL || "http://localhost:8000";
+
+function getAuthHeaders(): Record<string, string> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (typeof window !== "undefined") {
+    try {
+      const token = useAuthStore.getState().token;
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+    } catch {
+      // ignore
+    }
+  }
+  return headers;
+}
 
 // Fallback catalog of products if API is offline
 const FALLBACK_PRODUCTS: ChatRecommendedProduct[] = [
@@ -253,7 +269,7 @@ export const chatbotService = {
             request.clarificationMode || "MINIMAL_CLARIFICATION",
         },
         {
-          headers: { "Content-Type": "application/json" },
+          headers: getAuthHeaders(),
           timeout: 45000,
         },
       );
@@ -297,7 +313,7 @@ export const chatbotService = {
     try {
       const response = await fetch(streamUrl, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           message: request.message,
           session_id: request.conversationId,

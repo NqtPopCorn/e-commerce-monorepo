@@ -29,6 +29,7 @@ model User {
   notifications Notification[]
   reviews       Review[]
   reviewLikes   ReviewLike[]
+  preference    UserPreference?
 
   @@index([role, status])
   @@index([phone])
@@ -594,5 +595,28 @@ model ReviewLike {
 
   @@unique([reviewId, userId])
   @@map("review_likes")
+}
+
+model UserPreference {
+  id                 Int       @id @default(autoincrement())
+  userId             Int       @unique @map("user_id")
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  heightCm           Float?    @map("height_cm")
+  weightKg           Float?    @map("weight_kg")
+  waistCm            Float?    @map("waist_cm")
+  chestCm            Float?    @map("chest_cm")
+  hipCm              Float?    @map("hip_cm")
+  preferredSizes     String[]  @default([]) @map("preferred_sizes")
+  fitPreference      String?   @map("fit_preference")
+  styles             String[]  @default([]) @map("styles")
+  favoriteColors     String[]  @default([]) @map("favorite_colors")
+  dislikedColors     String[]  @default([]) @map("disliked_colors")
+  pricePreferenceMin Float?    @map("price_preference_min")
+  pricePreferenceMax Float?    @map("price_preference_max")
+  frequentOccasions  String[]  @default([]) @map("frequent_occasions")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  @@map("user_preferences")
 }
 

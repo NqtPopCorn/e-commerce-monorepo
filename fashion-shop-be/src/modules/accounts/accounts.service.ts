@@ -11,6 +11,7 @@ import { CreateAccountDto } from "./dto/create-account.dto";
 import { UpdateAdminAccountDto } from "./dto/update-admin-account.dto";
 import { ChangePasswordDto } from "./dto/change-password.dto";
 import { UpdateAddressDto, CreateAddressDto } from "./dto/address.dto";
+import { UpdateUserPreferenceDto } from "./dto/user-preference.dto";
 import { AuditLogsService } from "../audit-logs/audit-logs.service";
 
 @Injectable()
@@ -590,6 +591,44 @@ export class AccountsService {
     return this.prisma.address.update({
       where: { id: addressId },
       data: { isDefault: true },
+    });
+  }
+
+  async getPreferences(userId: number) {
+    const pref = await this.prisma.userPreference.findUnique({
+      where: { userId },
+    });
+    if (!pref) {
+      return {
+        userId,
+        heightCm: null,
+        weightKg: null,
+        waistCm: null,
+        chestCm: null,
+        hipCm: null,
+        preferredSizes: [],
+        fitPreference: null,
+        styles: [],
+        favoriteColors: [],
+        dislikedColors: [],
+        pricePreferenceMin: null,
+        pricePreferenceMax: null,
+        frequentOccasions: [],
+      };
+    }
+    return pref;
+  }
+
+  async updatePreferences(userId: number, dto: UpdateUserPreferenceDto) {
+    return this.prisma.userPreference.upsert({
+      where: { userId },
+      create: {
+        userId,
+        ...dto,
+      },
+      update: {
+        ...dto,
+      },
     });
   }
 }
