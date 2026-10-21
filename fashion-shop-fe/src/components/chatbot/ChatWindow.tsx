@@ -12,6 +12,7 @@ import {
 import { useChatbotStore } from "@/stores/chatbot.store";
 import { ChatMessageItem } from "./ChatMessageItem";
 import { ChatInput } from "./ChatInput";
+import { ClarificationModeSelector } from "./ClarificationModeSelector";
 
 interface ChatWindowProps {
   onClose: () => void;
@@ -32,6 +33,17 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ onClose }) => {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isLoading]);
+
+  // Close on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
 
   return (
     <div
@@ -80,6 +92,11 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ onClose }) => {
           </button>
         </div>
       </div>
+
+      {/* Optional Mode Selector (for demo and research evaluation) */}
+      {process.env.NEXT_PUBLIC_SHOW_MODE_SELECTOR === "true" && (
+        <ClarificationModeSelector />
+      )}
 
       {/* Messages List Area */}
       <div className="flex-1 overflow-y-auto px-3.5 py-2 space-y-1 admin-scrollbar">

@@ -4,8 +4,11 @@ export interface ChatRecommendedProduct {
   slug?: string;
   price: number;
   originalPrice?: number;
+  original_price?: number;
   discountPercent?: number;
+  discount_percent?: number;
   imageUrl?: string;
+  image_url?: string;
   category?: string;
   brand?: string;
 }
@@ -23,6 +26,11 @@ export interface ChatMessage {
   isStreaming?: boolean;
 }
 
+export type ClarificationMode =
+  | "IMMEDIATE_ANSWER"
+  | "ALWAYS_CLARIFY"
+  | "CONDITIONAL_CLARIFICATION";
+
 export interface ChatbotRequest {
   message: string;
   conversationId: string;
@@ -30,7 +38,7 @@ export interface ChatbotRequest {
     role: "user" | "assistant";
     content: string;
   }>;
-  clarificationMode?: string;
+  clarificationMode?: ClarificationMode | null;
   userProfile?: {
     height_cm?: number;
     weight_kg?: number;

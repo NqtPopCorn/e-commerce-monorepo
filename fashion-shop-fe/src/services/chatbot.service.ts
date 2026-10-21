@@ -13,7 +13,10 @@ function getAuthHeaders(): Record<string, string> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (typeof window !== "undefined") {
     try {
-      const token = useAuthStore.getState().token;
+      const token =
+        useAuthStore.getState().token ||
+        localStorage.getItem("accessToken") ||
+        null;
       if (token) {
         headers["Authorization"] = `Bearer ${token}`;
       }
@@ -22,6 +25,75 @@ function getAuthHeaders(): Record<string, string> {
     }
   }
   return headers;
+}
+
+export function normalizeProduct(raw: any): ChatRecommendedProduct {
+  const minPrice =
+    raw.price !== undefined
+      ? Number(raw.price)
+      : raw.variants?.length > 0
+        ? Math.min(
+            ...raw.variants.map((v: any) =>
+              v.final_price !== undefined
+                ? Number(v.final_price)
+                : v.discountedPrice !== undefined
+                  ? Number(v.discountedPrice)
+                  : Number(v.sellingPrice || v.selling_price || 0),
+            ),
+          )
+        : 0;
+
+  const originalPrice =
+    raw.originalPrice !== undefined
+      ? Number(raw.originalPrice)
+      : raw.original_price !== undefined
+        ? Number(raw.original_price)
+        : raw.variants?.length > 0
+          ? Math.max(
+              ...raw.variants.map((v: any) =>
+                Number(v.listPrice || v.list_price || 0),
+              ),
+            )
+          : undefined;
+
+  const discountPercent =
+    raw.discountPercent !== undefined
+      ? Number(raw.discountPercent)
+      : raw.discount_percent !== undefined
+        ? Number(raw.discount_percent)
+        : originalPrice && originalPrice > minPrice
+          ? Math.round(((originalPrice - minPrice) / originalPrice) * 100)
+          : undefined;
+
+  const imageUrl =
+    raw.imageUrl ||
+    raw.image_url ||
+    raw.images?.[0]?.url ||
+    raw.variants?.[0]?.imageUrl ||
+    raw.variants?.[0]?.image_url ||
+    FALLBACK_PRODUCTS[0]?.imageUrl ||
+    undefined;
+
+  return {
+    id: Number(raw.id),
+    name: raw.name || raw.title || "Sản phẩm thời trang",
+    slug: raw.slug || undefined,
+    price: minPrice,
+    originalPrice: originalPrice && originalPrice > minPrice ? originalPrice : undefined,
+    original_price: originalPrice && originalPrice > minPrice ? originalPrice : undefined,
+    discountPercent: discountPercent && discountPercent > 0 ? discountPercent : undefined,
+    discount_percent: discountPercent && discountPercent > 0 ? discountPercent : undefined,
+    imageUrl,
+    image_url: imageUrl,
+    category:
+      typeof raw.category === "string"
+        ? raw.category
+        : raw.category?.name || undefined,
+    brand:
+      typeof raw.brand === "string"
+        ? raw.brand
+        : raw.brand?.name || undefined,
+  };
 }
 
 // Fallback catalog of products if API is offline
@@ -88,45 +160,7 @@ function generateMockResponse(
   // Map real live products if available, otherwise use FALLBACK_PRODUCTS
   let catalog: ChatRecommendedProduct[] = FALLBACK_PRODUCTS;
   if (Array.isArray(liveProducts) && liveProducts.length > 0) {
-    catalog = liveProducts.slice(0, 8).map((p: any) => {
-      const minPrice =
-        p.variants?.length > 0
-          ? Math.min(
-              ...p.variants.map((v: any) =>
-                v.discountedPrice !== undefined
-                  ? Number(v.discountedPrice)
-                  : Number(v.sellingPrice),
-              ),
-            )
-          : 350000;
-      const maxPrice =
-        p.variants?.length > 0
-          ? Math.max(
-              ...p.variants.map((v: any) =>
-                Math.max(Number(v.listPrice || 0), Number(v.sellingPrice || 0)),
-              ),
-            )
-          : minPrice;
-      const discount =
-        maxPrice > minPrice
-          ? Math.round(((maxPrice - minPrice) / maxPrice) * 100)
-          : 0;
-
-      return {
-        id: p.id,
-        name: p.name || p.title || "Sản phẩm thời trang",
-        slug: p.slug,
-        price: minPrice,
-        originalPrice: maxPrice > minPrice ? maxPrice : undefined,
-        discountPercent: discount > 0 ? discount : undefined,
-        imageUrl:
-          p.images?.[0]?.url ||
-          p.variants?.[0]?.imageUrl ||
-          FALLBACK_PRODUCTS[0].imageUrl,
-        category: p.category?.name || "Thời trang",
-        brand: p.brand?.name || "Fashion Shop",
-      };
-    });
+    catalog = liveProducts.slice(0, 8).map(normalizeProduct);
   }
 
   // 1. Phối đồ đi tiệc / dạ hội
@@ -265,8 +299,7 @@ export const chatbotService = {
           conversation_id: request.conversationId,
           history: request.history || [],
           user_profile: request.userProfile,
-          clarification_mode:
-            request.clarificationMode || "MINIMAL_CLARIFICATION",
+          clarification_mode: request.clarificationMode || undefined,
         },
         {
           headers: getAuthHeaders(),
@@ -278,7 +311,7 @@ export const chatbotService = {
       return {
         reply: data.reply,
         conversationId: data.session_id || request.conversationId,
-        products: data.products || [],
+        products: (data.products || []).map(normalizeProduct),
         quickReplies: data.quick_replies || data.quickReplies || [],
       };
     } catch {
@@ -286,7 +319,7 @@ export const chatbotService = {
       let liveProducts: any[] = [];
       try {
         const shopRes = await axios.get(
-          `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api"}/products`,
+          `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api"}/products`,
           { params: { limit: 6 }, timeout: 3000 },
         );
         liveProducts = shopRes.data?.data || shopRes.data || [];
@@ -320,8 +353,7 @@ export const chatbotService = {
           conversation_id: request.conversationId,
           history: request.history || [],
           user_profile: request.userProfile,
-          clarification_mode:
-            request.clarificationMode || "MINIMAL_CLARIFICATION",
+          clarification_mode: request.clarificationMode || undefined,
         }),
       });
 
@@ -360,7 +392,7 @@ export const chatbotService = {
               finalResult = {
                 reply: parsed.reply || accumulatedReply,
                 conversationId: parsed.session_id || request.conversationId,
-                products: parsed.products || [],
+                products: (parsed.products || []).map(normalizeProduct),
                 quickReplies: parsed.quick_replies || [],
               };
             } else if (parsed.type === "error") {
@@ -392,7 +424,7 @@ export const chatbotService = {
         let liveProducts: any[] = [];
         try {
           const shopRes = await axios.get(
-            `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api"}/products`,
+            `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api"}/products`,
             { params: { limit: 6 }, timeout: 2000 },
           );
           liveProducts = shopRes.data?.data || shopRes.data || [];

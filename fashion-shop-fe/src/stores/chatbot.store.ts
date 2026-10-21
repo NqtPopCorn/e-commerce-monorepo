@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { ChatMessage } from "@/types/chatbot";
+import { ChatMessage, ClarificationMode } from "@/types/chatbot";
 import { chatbotService } from "@/services/chatbot.service";
 
 function generateId(): string {
@@ -32,11 +32,13 @@ export interface ChatbotState {
   messages: ChatMessage[];
   isLoading: boolean;
   error: string | null;
+  clarificationMode: ClarificationMode | null;
 
   // Actions
   toggleOpen: () => void;
   setOpen: (isOpen: boolean) => void;
   dismissUnread: () => void;
+  setClarificationMode: (mode: ClarificationMode | null) => void;
   sendMessage: (content: string) => Promise<void>;
   sendQuickReply: (content: string) => Promise<void>;
   retryLastMessage: () => Promise<void>;
@@ -52,6 +54,7 @@ export const useChatbotStore = create<ChatbotState>()(
       messages: [INITIAL_MESSAGE],
       isLoading: false,
       error: null,
+      clarificationMode: null,
 
       toggleOpen: () => {
         const nextState = !get().isOpen;
@@ -67,6 +70,10 @@ export const useChatbotStore = create<ChatbotState>()(
 
       dismissUnread: () => {
         set({ hasUnread: false });
+      },
+
+      setClarificationMode: (mode: ClarificationMode | null) => {
+        set({ clarificationMode: mode });
       },
 
       sendMessage: async (content: string) => {
@@ -91,7 +98,11 @@ export const useChatbotStore = create<ChatbotState>()(
         });
 
         const history = updatedMessages
-          .filter((m) => m.role === "user" || m.role === "assistant")
+          .filter(
+            (m) =>
+              (m.role === "user" || m.role === "assistant") &&
+              Boolean(m.content?.trim()),
+          )
           .slice(-6)
           .map((m) => ({
             role: m.role as "user" | "assistant",
@@ -109,6 +120,7 @@ export const useChatbotStore = create<ChatbotState>()(
               message: trimmed,
               conversationId: state.conversationId,
               history,
+              clarificationMode: state.clarificationMode || undefined,
             });
 
             const botMsg: ChatMessage = {
@@ -167,6 +179,7 @@ export const useChatbotStore = create<ChatbotState>()(
             message: trimmed,
             conversationId: state.conversationId,
             history,
+            clarificationMode: state.clarificationMode || undefined,
           },
           (token: string) => {
             accumulatedText += token;
@@ -250,6 +263,7 @@ export const useChatbotStore = create<ChatbotState>()(
       partialize: (state) => ({
         conversationId: state.conversationId,
         messages: state.messages,
+        clarificationMode: state.clarificationMode,
       }),
     },
   ),

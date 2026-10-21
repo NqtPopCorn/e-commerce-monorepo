@@ -140,4 +140,26 @@ describe("chatbot store", () => {
     expect(lastAssistant.content).toBe("Áo polo size M hiện còn 15 chiếc ạ!");
     expect(lastAssistant.status).toBe("sent");
   });
+
+  it("updates clarificationMode via setClarificationMode and passes to service", async () => {
+    useChatbotStore.getState().setClarificationMode("ALWAYS_CLARIFY");
+    expect(useChatbotStore.getState().clarificationMode).toBe("ALWAYS_CLARIFY");
+
+    let capturedReq: any = null;
+    vi.spyOn(chatbotService, "sendMessage").mockImplementationOnce(
+      async (req) => {
+        capturedReq = req;
+        return {
+          reply: "Bạn muốn tìm trang phục phong cách nào?",
+          conversationId: "test-conv",
+          products: [],
+          quickReplies: [],
+        };
+      },
+    );
+
+    await useChatbotStore.getState().sendMessage("Tìm đầm dạ hội");
+    expect(capturedReq?.clarificationMode).toBe("ALWAYS_CLARIFY");
+  });
 });
+

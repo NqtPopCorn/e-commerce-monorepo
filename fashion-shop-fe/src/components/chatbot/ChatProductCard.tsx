@@ -13,16 +13,22 @@ interface ChatProductCardProps {
 
 export const ChatProductCard: React.FC<ChatProductCardProps> = ({ product }) => {
   const productUrl = `/products/${product.id}`;
+  const imgUrl =
+    product.imageUrl ||
+    product.image_url ||
+    "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=400&q=80";
+  const originalPrice = product.originalPrice ?? product.original_price;
+  const discountPercent = product.discountPercent ?? product.discount_percent;
 
   return (
     <div className="shrink-0 w-[170px] bg-white rounded-xl border border-gray-100 shadow-xs hover:shadow-md transition-all flex flex-col overflow-hidden group">
       {/* Product Image */}
-      <div className="relative aspect-[3/4] w-full bg-gray-50 overflow-hidden">
+      <Link
+        href={productUrl}
+        className="relative aspect-[3/4] w-full bg-gray-50 overflow-hidden block"
+      >
         <Image
-          src={
-            product.imageUrl ||
-            "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=400&q=80"
-          }
+          src={imgUrl}
           alt={product.name}
           fill
           unoptimized
@@ -30,11 +36,11 @@ export const ChatProductCard: React.FC<ChatProductCardProps> = ({ product }) => 
           className="object-cover object-center group-hover:scale-105 transition-transform duration-300"
         />
 
-        {product.discountPercent && product.discountPercent > 0 && (
+        {discountPercent && discountPercent > 0 ? (
           <span className="absolute top-2 left-2 bg-rose-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-xs">
-            -{product.discountPercent}%
+            -{discountPercent}%
           </span>
-        )}
+        ) : null}
 
         {product.category && (
           <span className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-xs text-white text-[9px] px-1.5 py-0.5 rounded font-medium flex items-center gap-0.5">
@@ -42,7 +48,7 @@ export const ChatProductCard: React.FC<ChatProductCardProps> = ({ product }) => 
             {product.category}
           </span>
         )}
-      </div>
+      </Link>
 
       {/* Details */}
       <div className="p-2.5 flex flex-col flex-1 justify-between gap-1.5">
@@ -52,12 +58,14 @@ export const ChatProductCard: React.FC<ChatProductCardProps> = ({ product }) => 
               {product.brand}
             </p>
           )}
-          <h4
-            className="text-xs font-semibold text-gray-800 line-clamp-2 leading-snug group-hover:text-rose-600 transition-colors"
-            title={product.name}
-          >
-            {product.name}
-          </h4>
+          <Link href={productUrl} className="block">
+            <h4
+              className="text-xs font-semibold text-gray-800 line-clamp-2 leading-snug group-hover:text-rose-600 transition-colors"
+              title={product.name}
+            >
+              {product.name}
+            </h4>
+          </Link>
         </div>
 
         <div className="pt-1 border-t border-gray-50">
@@ -65,17 +73,15 @@ export const ChatProductCard: React.FC<ChatProductCardProps> = ({ product }) => 
             <span className="text-xs font-bold text-rose-600">
               {formatCurrency(product.price)}
             </span>
-            {product.originalPrice && product.originalPrice > product.price && (
+            {originalPrice && originalPrice > product.price && (
               <span className="text-[10px] text-gray-400 line-through">
-                {formatCurrency(product.originalPrice)}
+                {formatCurrency(originalPrice)}
               </span>
             )}
           </div>
 
           <Link
             href={productUrl}
-            target="_blank"
-            rel="noopener noreferrer"
             className="mt-2 w-full inline-flex items-center justify-center gap-1 bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white font-medium text-[11px] py-1 px-2 rounded-lg transition-colors"
           >
             <span>Xem ngay</span>

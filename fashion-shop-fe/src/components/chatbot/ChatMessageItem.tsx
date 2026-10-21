@@ -17,9 +17,7 @@ interface ChatMessageItemProps {
  * Parse text segments for **bold** text and [file.md: Topic] citation badges
  */
 function parseInlineContent(text: string) {
-  const parts = text.split(
-    /(\*\*.*?\*\*|\[[a-zA-Z0-9_\-\.]+\.md:[^\]]+\])/g,
-  );
+  const parts = text.split(/(\*\*.*?\*\*|\[[^\]]+:\s*[^\]]+\]|\[\d+\])/g);
 
   return parts.map((part, pIdx) => {
     if (part.startsWith("**") && part.endsWith("**")) {
@@ -29,13 +27,23 @@ function parseInlineContent(text: string) {
         </strong>
       );
     }
-    if (part.startsWith("[") && part.endsWith("]") && part.includes(".md:")) {
+    if (part.startsWith("[") && part.endsWith("]") && part.includes(":")) {
       return (
         <span
           key={pIdx}
-          className="inline-flex items-center px-1.5 py-0.5 mx-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-700 border border-slate-200"
+          className="inline-flex items-center px-1.5 py-0.5 mx-0.5 rounded text-[10px] font-medium bg-rose-50 text-rose-700 border border-rose-200"
         >
           {part.slice(1, -1)}
+        </span>
+      );
+    }
+    if (/^\[\d+\]$/.test(part)) {
+      return (
+        <span
+          key={pIdx}
+          className="inline-flex items-center px-1.5 py-0.2 mx-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200 font-mono shadow-2xs"
+        >
+          {part}
         </span>
       );
     }
@@ -44,10 +52,13 @@ function parseInlineContent(text: string) {
 }
 
 /**
- * Format markdown text: tables, bullet lists, bold markers, and linebreaks
+ * Format markdown text: tables, bullet lists, bold markers, headers, and linebreaks
  */
 function formatMessageContent(content: string, isStreaming?: boolean) {
-  const lines = content.split("\n");
+  const normalized = content
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/\r\n/g, "\n");
+  const lines = normalized.split("\n");
   const elements: React.ReactNode[] = [];
   let tableLines: string[] = [];
 
@@ -119,8 +130,50 @@ function formatMessageContent(content: string, isStreaming?: boolean) {
     // Flush any pending table before regular lines
     flushTable(lineIdx);
 
-    const isBullet = trimmed.startsWith("•") || trimmed.startsWith("-");
-    const cleanLine = isBullet ? trimmed.replace(/^([•\-]\s*)/, "") : line;
+    // Markdown headers ###, ##, #
+    if (trimmed.startsWith("### ")) {
+      elements.push(
+        <h4
+          key={`h4-${lineIdx}`}
+          className="font-bold text-gray-900 text-xs md:text-sm mt-2.5 mb-1 text-rose-950"
+        >
+          {parseInlineContent(trimmed.replace(/^###\s+/, ""))}
+        </h4>,
+      );
+      return;
+    }
+
+    if (trimmed.startsWith("## ")) {
+      elements.push(
+        <h3
+          key={`h3-${lineIdx}`}
+          className="font-bold text-gray-900 text-sm md:text-base mt-3 mb-1.5 text-rose-950"
+        >
+          {parseInlineContent(trimmed.replace(/^##\s+/, ""))}
+        </h3>,
+      );
+      return;
+    }
+
+    if (trimmed.startsWith("# ")) {
+      elements.push(
+        <h2
+          key={`h2-${lineIdx}`}
+          className="font-bold text-gray-900 text-base mt-3.5 mb-2 text-rose-950"
+        >
+          {parseInlineContent(trimmed.replace(/^#\s+/, ""))}
+        </h2>,
+      );
+      return;
+    }
+
+    const isBullet =
+      trimmed.startsWith("•") ||
+      trimmed.startsWith("-") ||
+      trimmed.startsWith("* ");
+    const cleanLine = isBullet
+      ? trimmed.replace(/^([•\-\*]\s*)/, "")
+      : line;
 
     if (isBullet) {
       elements.push(
@@ -238,8 +291,9 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
           </div>
         )}
 
-        {/* Quick Replies (only show for the latest message) */}
+        {/* Quick Replies (only show for the latest message after streaming finishes) */}
         {isLatestAssistantMessage &&
+          !message.isStreaming &&
           message.quickReplies &&
           message.quickReplies.length > 0 &&
           onQuickReplySelect && (

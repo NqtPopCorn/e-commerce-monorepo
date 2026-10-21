@@ -89,6 +89,7 @@ export class ProductsService {
     targetGender?: GenderTarget;
     minPrice?: number;
     maxPrice?: number;
+    inStock?: boolean;
     page?: number;
     limit?: number;
   }) {
@@ -101,6 +102,7 @@ export class ProductsService {
       targetGender,
       minPrice,
       maxPrice,
+      inStock,
       page,
       limit,
     } = query || {};
@@ -114,6 +116,7 @@ export class ProductsService {
         targetGender,
         minPrice,
         maxPrice,
+        inStock,
         page,
         limit,
       });
@@ -173,6 +176,13 @@ export class ProductsService {
             ...(minPrice !== undefined ? { gte: minPrice } : {}),
             ...(maxPrice !== undefined ? { lte: maxPrice } : {}),
           },
+          ...(inStock ? { stock: { gt: 0 } } : {}),
+        },
+      };
+    } else if (inStock) {
+      where.variants = {
+        some: {
+          stock: { gt: 0 },
         },
       };
     }
@@ -498,6 +508,7 @@ export class ProductsService {
     targetGender?: GenderTarget;
     minPrice?: number;
     maxPrice?: number;
+    inStock?: boolean;
     page?: number;
     limit?: number;
   }) {
@@ -509,6 +520,7 @@ export class ProductsService {
       targetGender,
       minPrice,
       maxPrice,
+      inStock,
       page,
       limit,
     } = query;
@@ -577,6 +589,12 @@ export class ProductsService {
         WHERE pv.product_id = p.id 
           ${minPrice !== undefined ? `AND pv.selling_price >= ${Number(minPrice)}` : ""}
           ${maxPrice !== undefined ? `AND pv.selling_price <= ${Number(maxPrice)}` : ""}
+      )`);
+    }
+    if (inStock) {
+      conditions.push(`EXISTS (
+        SELECT 1 FROM product_variants pv 
+        WHERE pv.product_id = p.id AND pv.stock > 0
       )`);
     }
 

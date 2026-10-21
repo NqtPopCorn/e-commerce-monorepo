@@ -42,6 +42,7 @@ export class ProductsController {
     @Query("targetGender") targetGender?: string,
     @Query("minPrice") minPrice?: string,
     @Query("maxPrice") maxPrice?: string,
+    @Query("inStock") inStock?: string,
     @Query("page") page?: string,
     @Query("limit") limit?: string,
   ) {
@@ -54,6 +55,7 @@ export class ProductsController {
       targetGender: targetGender as any,
       minPrice: minPrice ? parseFloat(minPrice) : undefined,
       maxPrice: maxPrice ? parseFloat(maxPrice) : undefined,
+      inStock: inStock === "true" || inStock === "1",
       page: page ? parseInt(page, 10) : undefined,
       limit: limit ? parseInt(limit, 10) : undefined,
     });
