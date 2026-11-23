@@ -1,7 +1,18 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { ChatMessage, ClarificationMode } from "@/types/chatbot";
+import {
+  ChatMessage,
+  ChatbotResponse,
+  ClarificationMode,
+} from "@/types/chatbot";
 import { chatbotService } from "@/services/chatbot.service";
+
+export const DEFAULT_STARTER_PROMPTS: readonly string[] = [
+  "Gợi ý đồ đi tiệc cuối tuần 🥂",
+  "Tìm áo sơ mi công sở 👔",
+  "Săn sale hot giảm 50% 🔥",
+  "Bảng tư vấn size 📏",
+];
 
 function generateId(): string {
   return "msg-" + Date.now() + "-" + Math.random().toString(36).substring(2, 7);
@@ -17,30 +28,36 @@ const INITIAL_MESSAGE: ChatMessage = {
   content:
     "Xin chào! 👋 Mình là Stylist AI của Fashion Shop. Mình có thể giúp bạn tìm kiếm trang phục, gợi ý phối đồ theo dịp hoặc tư vấn chọn size chuẩn xác. Bạn đang quan tâm đến phong cách nào hôm nay?",
   createdAt: new Date().toISOString(),
-  quickReplies: [
-    "Gợi ý đồ đi tiệc cuối tuần 🥂",
-    "Tìm áo sơ mi công sở 👔",
-    "Săn sale hot giảm 50% 🔥",
-    "Bảng tư vấn size 📏",
-  ],
 };
 
 export interface ChatbotState {
   isOpen: boolean;
+  isExpanded: boolean;
   hasUnread: boolean;
   conversationId: string;
   messages: ChatMessage[];
   isLoading: boolean;
   error: string | null;
   clarificationMode: ClarificationMode | null;
+  isDebugOpen: boolean;
+  selectedDebugMessageId: string | null;
 
   // Actions
   toggleOpen: () => void;
   setOpen: (isOpen: boolean) => void;
+  toggleExpanded: () => void;
+  setExpanded: (isExpanded: boolean) => void;
+  toggleDebugOpen: () => void;
+  setDebugOpen: (isOpen: boolean) => void;
+  selectDebugMessage: (id: string | null) => void;
   dismissUnread: () => void;
   setClarificationMode: (mode: ClarificationMode | null) => void;
   sendMessage: (content: string) => Promise<void>;
-  sendQuickReply: (content: string) => Promise<void>;
+  submitClarificationForm: (
+    messageId: string,
+    answers: Record<string, string[]>,
+    formattedMessage: string,
+  ) => Promise<void>;
   retryLastMessage: () => Promise<void>;
   clearHistory: () => void;
 }
@@ -49,12 +66,15 @@ export const useChatbotStore = create<ChatbotState>()(
   persist(
     (set, get) => ({
       isOpen: false,
+      isExpanded: false,
       hasUnread: false,
       conversationId: generateConversationId(),
       messages: [INITIAL_MESSAGE],
       isLoading: false,
       error: null,
       clarificationMode: null,
+      isDebugOpen: false,
+      selectedDebugMessageId: null,
 
       toggleOpen: () => {
         const nextState = !get().isOpen;
@@ -66,6 +86,37 @@ export const useChatbotStore = create<ChatbotState>()(
 
       setOpen: (isOpen: boolean) => {
         set({ isOpen, hasUnread: isOpen ? false : get().hasUnread });
+      },
+
+      toggleExpanded: () => {
+        set({ isExpanded: !get().isExpanded });
+      },
+
+      setExpanded: (isExpanded: boolean) => {
+        set({ isExpanded });
+      },
+
+      toggleDebugOpen: () => {
+        const next = !get().isDebugOpen;
+        set({
+          isDebugOpen: next,
+          isExpanded: next ? true : get().isExpanded,
+        });
+      },
+
+      setDebugOpen: (isOpen: boolean) => {
+        set({
+          isDebugOpen: isOpen,
+          isExpanded: isOpen ? true : get().isExpanded,
+        });
+      },
+
+      selectDebugMessage: (id: string | null) => {
+        set({
+          selectedDebugMessageId: id,
+          isDebugOpen: true,
+          isExpanded: true,
+        });
       },
 
       dismissUnread: () => {
@@ -89,15 +140,8 @@ export const useChatbotStore = create<ChatbotState>()(
         };
 
         const state = get();
-        const updatedMessages = [...state.messages, userMsg];
-
-        set({
-          messages: updatedMessages,
-          isLoading: true,
-          error: null,
-        });
-
-        const history = updatedMessages
+        // Extract prior history before appending the new user message
+        const history = state.messages
           .filter(
             (m) =>
               (m.role === "user" || m.role === "assistant") &&
@@ -108,6 +152,14 @@ export const useChatbotStore = create<ChatbotState>()(
             role: m.role as "user" | "assistant",
             content: m.content,
           }));
+
+        const updatedMessages = [...state.messages, userMsg];
+
+        set({
+          messages: updatedMessages,
+          isLoading: true,
+          error: null,
+        });
 
         // Backwards compatibility with Vitest mocks if sendMessage is spied/mocked
         const isSendMessageMocked =
@@ -129,7 +181,9 @@ export const useChatbotStore = create<ChatbotState>()(
               content: response.reply,
               createdAt: new Date().toISOString(),
               products: response.products,
-              quickReplies: response.quickReplies,
+              clarificationForm: response.clarificationForm,
+              clarificationAsked: response.clarificationAsked,
+              debugMeta: response.debugMeta,
               status: "sent",
             };
 
@@ -191,7 +245,7 @@ export const useChatbotStore = create<ChatbotState>()(
               ),
             }));
           },
-          (finalResponse: any) => {
+          (finalResponse: ChatbotResponse) => {
             set((s) => ({
               messages: s.messages.map((m) =>
                 m.id === botMsgId
@@ -199,7 +253,9 @@ export const useChatbotStore = create<ChatbotState>()(
                       ...m,
                       content: finalResponse.reply || accumulatedText,
                       products: finalResponse.products,
-                      quickReplies: finalResponse.quickReplies,
+                      clarificationForm: finalResponse.clarificationForm,
+                      clarificationAsked: finalResponse.clarificationAsked,
+                      debugMeta: finalResponse.debugMeta,
                       status: "sent",
                       isStreaming: false,
                     }
@@ -230,8 +286,17 @@ export const useChatbotStore = create<ChatbotState>()(
         );
       },
 
-      sendQuickReply: async (reply: string) => {
-        await get().sendMessage(reply);
+      submitClarificationForm: async (
+        messageId: string,
+        answers: Record<string, string[]>,
+        formattedMessage: string,
+      ) => {
+        set((s) => ({
+          messages: s.messages.map((m) =>
+            m.id === messageId ? { ...m, submittedAnswers: answers } : m,
+          ),
+        }));
+        await get().sendMessage(formattedMessage);
       },
 
       retryLastMessage: async () => {
@@ -255,6 +320,7 @@ export const useChatbotStore = create<ChatbotState>()(
           isLoading: false,
           error: null,
           hasUnread: false,
+          selectedDebugMessageId: null,
         });
       },
     }),
@@ -264,6 +330,7 @@ export const useChatbotStore = create<ChatbotState>()(
         conversationId: state.conversationId,
         messages: state.messages,
         clarificationMode: state.clarificationMode,
+        isExpanded: state.isExpanded,
       }),
     },
   ),

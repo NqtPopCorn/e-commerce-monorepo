@@ -1,16 +1,21 @@
 "use client";
 
 import React from "react";
-import { Bot, User, AlertCircle, RotateCcw } from "lucide-react";
+import { Bot, User, AlertCircle, RotateCcw, Bug } from "lucide-react";
 import { ChatMessage } from "@/types/chatbot";
 import { useChatbotStore } from "@/stores/chatbot.store";
 import { ChatProductCard } from "./ChatProductCard";
-import { ChatQuickReplies } from "./ChatQuickReplies";
+import { ChatClarificationCard } from "./ChatClarificationCard";
 
 interface ChatMessageItemProps {
   message: ChatMessage;
-  onQuickReplySelect?: (reply: string) => void;
+  onClarificationSubmit?: (
+    messageId: string,
+    answers: Record<string, string[]>,
+    formattedMessage: string,
+  ) => void;
   isLatestAssistantMessage?: boolean;
+  isExpanded?: boolean;
 }
 
 /**
@@ -55,7 +60,8 @@ function parseInlineContent(text: string) {
  * Format markdown text: tables, bullet lists, bold markers, headers, and linebreaks
  */
 function formatMessageContent(content: string, isStreaming?: boolean) {
-  const normalized = content
+  const sanitized = (content || "").trim();
+  const normalized = sanitized
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/\r\n/g, "\n");
   const lines = normalized.split("\n");
@@ -212,19 +218,21 @@ function formatMessageContent(content: string, isStreaming?: boolean) {
 
 export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
   message,
-  onQuickReplySelect,
+  onClarificationSubmit,
   isLatestAssistantMessage,
+  isExpanded = false,
 }) => {
   const isUser = message.role === "user";
   const isError = message.status === "error";
   const retryLastMessage = useChatbotStore((s) => s.retryLastMessage);
   const isLoading = useChatbotStore((s) => s.isLoading);
+  const selectDebugMessage = useChatbotStore((s) => s.selectDebugMessage);
 
   if (isUser) {
     return (
       <div className="flex justify-end items-end gap-2 my-2.5">
         <div className="max-w-[82%] bg-gradient-to-r from-rose-600 to-rose-500 text-white rounded-2xl rounded-br-xs px-4 py-2.5 shadow-xs text-xs md:text-sm">
-          <p className="leading-relaxed break-words">{message.content}</p>
+          <p className="leading-relaxed break-words whitespace-pre-wrap">{message.content}</p>
         </div>
         <div className="w-6 h-6 rounded-full bg-rose-100 text-rose-700 flex items-center justify-center shrink-0 mb-0.5">
           <User className="w-3.5 h-3.5" />
@@ -241,7 +249,7 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
         <Bot className="w-4 h-4" />
       </div>
 
-      <div className="flex-1 max-w-[88%] space-y-2.5 overflow-hidden">
+      <div className="flex-1 max-w-[92%] space-y-2.5 overflow-hidden">
         {/* Message Bubble */}
         <div
           className={`rounded-2xl rounded-tl-xs px-4 py-3 text-xs md:text-sm ${
@@ -276,33 +284,84 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
           )}
         </div>
 
-        {/* Recommended Products Horizontal Carousel */}
+        {/* Inline Clarification Form Card */}
+        {message.clarificationForm &&
+          message.clarificationForm.questions &&
+          message.clarificationForm.questions.length > 0 && (
+            <ChatClarificationCard
+              form={message.clarificationForm}
+              submittedAnswers={message.submittedAnswers}
+              onSubmit={(answers, formattedMsg) => {
+                if (onClarificationSubmit) {
+                  onClarificationSubmit(message.id, answers, formattedMsg);
+                }
+              }}
+              disabled={isLoading || !isLatestAssistantMessage}
+            />
+          )}
+
+        {/* Recommended Products Carousel / Grid */}
         {message.products && message.products.length > 0 && (
           <div className="space-y-1.5">
             <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1">
               <span>Sản phẩm gợi ý cho bạn</span>
               <span className="text-rose-500">({message.products.length})</span>
             </p>
-            <div className="flex gap-2.5 overflow-x-auto pb-2 pt-1 no-scrollbar -mx-1 px-1">
-              {message.products.map((product) => (
-                <ChatProductCard key={product.id} product={product} />
-              ))}
-            </div>
+            {isExpanded ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 pt-1">
+                {message.products.map((product) => (
+                  <ChatProductCard key={product.id} product={product} />
+                ))}
+              </div>
+            ) : (
+              <div className="flex gap-2.5 overflow-x-auto pb-2 pt-1 no-scrollbar -mx-1 px-1">
+                {message.products.map((product) => (
+                  <ChatProductCard key={product.id} product={product} />
+                ))}
+              </div>
+            )}
           </div>
         )}
 
-        {/* Quick Replies (only show for the latest message after streaming finishes) */}
-        {isLatestAssistantMessage &&
-          !message.isStreaming &&
-          message.quickReplies &&
-          message.quickReplies.length > 0 &&
-          onQuickReplySelect && (
-            <ChatQuickReplies
-              replies={message.quickReplies}
-              onSelect={onQuickReplySelect}
-              disabled={isLoading}
-            />
-          )}
+        {/* Research Telemetry Badge (for Clarification Strategy & LangChain Runs) */}
+        {message.debugMeta && (
+          <button
+            type="button"
+            onClick={() => selectDebugMessage(message.id)}
+            className="flex flex-wrap items-center gap-1.5 text-[10px] text-gray-500 bg-gray-50 hover:bg-gray-100 hover:text-gray-800 border border-gray-200/80 hover:border-rose-300 rounded-md px-2 py-0.5 select-none w-fit transition-all cursor-pointer text-left group"
+            title="Nhấn để mở LangChain Debug Inspector chi tiết cho lượt này"
+          >
+            <span className="font-semibold text-rose-600 flex items-center gap-1">
+              <Bug className="w-2.5 h-2.5" />
+              Mode: {message.debugMeta.mode || "AUTO"}
+            </span>
+            <span>•</span>
+            <span>Phase: {message.debugMeta.phase || "OPEN"}</span>
+            {message.debugMeta.latency_ms !== undefined && (
+              <>
+                <span>•</span>
+                <span className="font-mono">{message.debugMeta.latency_ms}ms</span>
+              </>
+            )}
+            {message.debugMeta.usage_metadata && (
+              <>
+                <span>•</span>
+                <span className="font-mono text-purple-600">
+                  {message.debugMeta.usage_metadata.total_tokens}t
+                </span>
+              </>
+            )}
+            {message.clarificationAsked && (
+              <>
+                <span>•</span>
+                <span className="text-amber-600 font-medium">Hỏi làm rõ</span>
+              </>
+            )}
+            <span className="text-rose-500 font-medium opacity-0 group-hover:opacity-100 ml-1 transition-opacity">
+              Debug ↗
+            </span>
+          </button>
+        )}
       </div>
     </div>
   );

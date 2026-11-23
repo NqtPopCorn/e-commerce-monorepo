@@ -65,6 +65,7 @@ export interface Product {
   careInstructions?: string | null;
   season?: string | null;
   provider?: string | null;
+  targetGender?: "MALE" | "FEMALE" | "UNISEX" | null;
   variants?: ProductVariant[];
   images?: ProductImage[];
   ratingAverage?: number;

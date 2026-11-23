@@ -1,4 +1,4 @@
-# Book Shop Backend
+# Fashion Shop Backend
 
 NestJS + TypeScript + Prisma + PostgreSQL backend.
 

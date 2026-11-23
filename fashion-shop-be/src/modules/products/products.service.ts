@@ -159,6 +159,38 @@ export class ProductsService {
         } else {
           categoryFilter = targetCategory.id;
         }
+      } else {
+        if (mode === "semantic" && !search?.trim() && this.embeddingService) {
+          const semanticFallback = await this.findSemantic({
+            search: category.trim(),
+            brandId,
+            targetGender,
+            minPrice,
+            maxPrice,
+            inStock,
+            page,
+            limit,
+          });
+          if (semanticFallback) {
+            return semanticFallback;
+          }
+        }
+        if (!search?.trim()) {
+          if (page !== undefined || limit !== undefined) {
+            const pageNum = Math.max(1, Number(page) || 1);
+            const take = Math.max(1, Number(limit) || 10);
+            return {
+              data: [],
+              meta: {
+                total: 0,
+                page: pageNum,
+                limit: take,
+                totalPages: 1,
+              },
+            };
+          }
+          return [];
+        }
       }
     }
 

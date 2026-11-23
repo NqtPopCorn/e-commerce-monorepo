@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { useChatbotStore } from "./chatbot.store";
+import { DEFAULT_STARTER_PROMPTS, useChatbotStore } from "./chatbot.store";
 import { chatbotService } from "@/services/chatbot.service";
 
 describe("chatbot store", () => {
@@ -13,8 +13,10 @@ describe("chatbot store", () => {
     const state = useChatbotStore.getState();
     expect(state.isOpen).toBe(false);
     expect(state.messages.length).toBe(1);
+    expect(state.messages[0].id).toBe("welcome-msg");
     expect(state.messages[0].role).toBe("assistant");
     expect(state.messages[0].content).toContain("Stylist AI");
+    expect(DEFAULT_STARTER_PROMPTS).toHaveLength(4);
   });
 
   it("toggles open state and dismisses unread indicator", () => {
@@ -62,7 +64,6 @@ describe("chatbot store", () => {
           price: 250000,
         },
       ],
-      quickReplies: ["Xem thêm", "Bảng size"],
     });
 
     await useChatbotStore.getState().sendMessage("Tôi muốn mua sơ mi");
@@ -86,7 +87,6 @@ describe("chatbot store", () => {
           reply: "Chào bạn!",
           conversationId: "stream-conv",
           products: [],
-          quickReplies: ["Tư vấn size"],
         });
       },
     );
@@ -97,7 +97,6 @@ describe("chatbot store", () => {
     expect(state.messages.length).toBe(3);
     expect(state.messages[1].content).toBe("Xin chào stylist");
     expect(state.messages[2].content).toBe("Chào bạn!");
-    expect(state.messages[2].quickReplies).toEqual(["Tư vấn size"]);
     expect(state.messages[2].isStreaming).toBe(false);
   });
 
@@ -127,7 +126,6 @@ describe("chatbot store", () => {
           reply: "Áo polo size M hiện còn 15 chiếc ạ!",
           conversationId: "retry-conv",
           products: [],
-          quickReplies: [],
         });
       },
     );
@@ -153,13 +151,86 @@ describe("chatbot store", () => {
           reply: "Bạn muốn tìm trang phục phong cách nào?",
           conversationId: "test-conv",
           products: [],
-          quickReplies: [],
         };
       },
     );
 
     await useChatbotStore.getState().sendMessage("Tìm đầm dạ hội");
     expect(capturedReq?.clarificationMode).toBe("ALWAYS_CLARIFY");
+  });
+
+  it("toggles expanded state", () => {
+    expect(useChatbotStore.getState().isExpanded).toBe(false);
+    useChatbotStore.getState().toggleExpanded();
+    expect(useChatbotStore.getState().isExpanded).toBe(true);
+    useChatbotStore.getState().setExpanded(false);
+    expect(useChatbotStore.getState().isExpanded).toBe(false);
+  });
+
+  it("submits clarification form answers and sends formatted message", async () => {
+    useChatbotStore.setState({
+      messages: [
+        {
+          id: "m-clarify-1",
+          role: "assistant",
+          content: "Vui lòng chọn thông tin",
+          createdAt: new Date().toISOString(),
+          clarificationForm: {
+            title: "Khảo sát",
+            submit_label: "Xác nhận",
+            questions: [
+              {
+                id: "occasion",
+                question: "1. Dịp mặc?",
+                type: "single",
+                options: ["Đi chơi", "Đi làm"],
+              },
+            ],
+          },
+        },
+      ],
+    });
+
+    vi.spyOn(chatbotService, "streamMessage").mockImplementationOnce(
+      async (_req, _onToken, onDone) => {
+        onDone({
+          reply: "Gợi ý mẫu đầm đi chơi",
+          conversationId: "test-conv",
+          products: [],
+        });
+      },
+    );
+
+    await useChatbotStore.getState().submitClarificationForm(
+      "m-clarify-1",
+      { occasion: ["Đi chơi"] },
+      "Mình chọn: 1. Đi chơi",
+    );
+
+    const state = useChatbotStore.getState();
+    const clarifyMsg = state.messages.find((m) => m.id === "m-clarify-1");
+    expect(clarifyMsg?.submittedAnswers).toEqual({ occasion: ["Đi chơi"] });
+
+    const userMsg = state.messages.find((m) => m.role === "user");
+    expect(userMsg?.content).toBe("Mình chọn: 1. Đi chơi");
+  });
+
+  it("handles debug panel toggle and message selection", () => {
+    expect(useChatbotStore.getState().isDebugOpen).toBe(false);
+
+    useChatbotStore.getState().toggleDebugOpen();
+    expect(useChatbotStore.getState().isDebugOpen).toBe(true);
+    expect(useChatbotStore.getState().isExpanded).toBe(true);
+
+    useChatbotStore.getState().toggleDebugOpen();
+    expect(useChatbotStore.getState().isDebugOpen).toBe(false);
+
+    useChatbotStore.getState().selectDebugMessage("msg-debug-target");
+    expect(useChatbotStore.getState().isDebugOpen).toBe(true);
+    expect(useChatbotStore.getState().isExpanded).toBe(true);
+    expect(useChatbotStore.getState().selectedDebugMessageId).toBe(
+      "msg-debug-target",
+    );
   });
 });
 
