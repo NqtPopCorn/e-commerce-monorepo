@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { paymentsService } from "@/services/payments.service";
+import { SimulatePaymentParams } from "@/types/payment";
 
 export const useGetVietQRInfo = (orderId?: number | null, enabled = true) => {
   return useQuery({
@@ -36,6 +37,25 @@ export const useConfirmVietQRAdmin = () => {
       queryClient.invalidateQueries({
         queryKey: ["order-payment-status", orderId],
       });
+    },
+  });
+};
+
+export const useSimulatePayment = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (params: SimulatePaymentParams) =>
+      paymentsService.simulatePayment(params),
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({
+        queryKey: ["order-payment-status", vars.orderId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["vietqr-info", vars.orderId],
+      });
+      queryClient.invalidateQueries({ queryKey: ["order", vars.orderId] });
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
     },
   });
 };

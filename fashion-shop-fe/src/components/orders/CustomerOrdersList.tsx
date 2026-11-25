@@ -114,7 +114,17 @@ export function CustomerOrdersList() {
     }
   };
 
-  const getPaymentStatusConfig = (status?: PaymentStatus | string) => {
+  const getPaymentStatusConfig = (
+    status?: PaymentStatus | string,
+    isPartial?: boolean,
+  ) => {
+    if (isPartial || status === "PENDING") {
+      return {
+        label: "Thanh toán một phần",
+        color:
+          "text-amber-700 bg-amber-50 border-amber-300 dark:text-amber-400 dark:bg-amber-950/40 dark:border-amber-800",
+      };
+    }
     switch (status) {
       case "PAID":
         return {
@@ -271,8 +281,14 @@ export function CustomerOrdersList() {
       ) : (
         <div className="space-y-4 w-full">
           {filteredOrders.map((order) => {
+            const isPartialPaid =
+              order.isPartialPaid ||
+              (Number(order.paidAmount || 0) > 0 && order.paymentStatus !== "PAID");
             const statusConfig = getStatusConfig(order.status);
-            const paymentConfig = getPaymentStatusConfig(order.paymentStatus);
+            const paymentConfig = getPaymentStatusConfig(
+              order.paymentStatus,
+              isPartialPaid,
+            );
 
             return (
               <div
@@ -363,24 +379,23 @@ export function CustomerOrdersList() {
                 </div>
 
                 {/* 5. Total Price Row */}
-                <div className="px-4 sm:px-5 py-2 flex items-center justify-between text-xs sm:text-sm text-foreground">
-                  <div>
-                    {order.status === "COMPLETED" && (
-                      <Link
-                        href={`/orders/${order.id}`}
-                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 dark:bg-rose-950/30 px-2.5 py-1 rounded-lg border border-rose-200 dark:border-rose-900/50 hover:bg-rose-100 transition-colors"
-                      >
-                        <Star className="w-3.5 h-3.5 fill-rose-500 text-rose-500" />
-                        <span>Đánh giá đơn hàng</span>
-                      </Link>
-                    )}
-                  </div>
+                <div className="px-4 sm:px-5 py-2.5 text-right text-xs sm:text-sm text-foreground space-y-1">
                   <div>
                     <span className="text-muted-foreground">Tổng đơn hàng: </span>
                     <span className="font-bold text-sm sm:text-base text-foreground font-mono">
                       {formatCurrency(Number(order.total))}
                     </span>
                   </div>
+                  {Number(order.paidAmount || 0) > 0 && order.paymentStatus !== "PAID" && (
+                    <div className="text-xs flex items-center justify-end gap-3 pt-0.5">
+                      <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                        Đã chuyển: {formatCurrency(Number(order.paidAmount))}
+                      </span>
+                      <span className="text-amber-700 dark:text-amber-400 font-bold">
+                        Còn thiếu: {formatCurrency(Number(order.remainingAmount ?? order.total))}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {/* 6. Bottom Action Bar (3-column layout) */}
@@ -399,14 +414,16 @@ export function CustomerOrdersList() {
                   >
                     Liên hệ
                   </button>
-                  {order.paymentStatus === "UNPAID" &&
-                  order.paymentMethod === "VIETQR" &&
+                  {order.paymentMethod === "VIETQR" &&
+                  order.paymentStatus !== "PAID" &&
                   order.status !== "CANCELLED" ? (
                     <Link
                       href={`/orders/${order.id}/payment`}
                       className="py-3 px-2 text-center text-xs sm:text-sm font-bold text-primary hover:bg-primary/10 transition-colors flex items-center justify-center gap-1 cursor-pointer select-none"
                     >
-                      Thanh toán VietQR
+                      {isPartialPaid
+                        ? `Thanh toán nốt`
+                        : "Thanh toán VietQR"}
                     </Link>
                   ) : (
                     <button

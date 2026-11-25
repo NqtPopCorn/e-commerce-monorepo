@@ -16,19 +16,81 @@ export class AdminOrdersService {
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
-  findAll(status?: string) {
-    return this.prisma.order.findMany({
+  async findAll(status?: string) {
+    const orders = await this.prisma.order.findMany({
       where: status ? { status: status as any } : undefined,
       include: {
         user: {
-          select: { id: true, email: true, firstName: true, lastName: true },
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            phone: true,
+          },
         },
         items: { include: { variant: { include: { product: true } } } },
         discountApplications: true,
         voucherApplications: true,
+        transactions: {
+          orderBy: { createdAt: "desc" },
+        },
       },
       orderBy: { createdAt: "desc" },
     });
+
+    return orders.map((order) => {
+      const paidAmount = (order.transactions || [])
+        .filter((tx) => tx.status === "SUCCESS")
+        .reduce((sum, tx) => sum + Number(tx.amount), 0);
+      const orderTotal = Math.round(Number(order.total));
+      const remainingAmount = Math.max(0, orderTotal - paidAmount);
+      const isPartialPaid = paidAmount > 0 && remainingAmount > 0;
+      return {
+        ...order,
+        paidAmount,
+        remainingAmount,
+        isPartialPaid,
+      };
+    });
+  }
+
+  async findOne(id: number) {
+    const order = await this.prisma.order.findUnique({
+      where: { id },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            phone: true,
+          },
+        },
+        items: { include: { variant: { include: { product: true } } } },
+        discountApplications: true,
+        voucherApplications: true,
+        transactions: {
+          orderBy: { createdAt: "desc" },
+        },
+      },
+    });
+    if (!order) throw new NotFoundException("Đơn hàng không tồn tại");
+
+    const paidAmount = (order.transactions || [])
+      .filter((tx) => tx.status === "SUCCESS")
+      .reduce((sum, tx) => sum + Number(tx.amount), 0);
+    const orderTotal = Math.round(Number(order.total));
+    const remainingAmount = Math.max(0, orderTotal - paidAmount);
+    const isPartialPaid = paidAmount > 0 && remainingAmount > 0;
+
+    return {
+      ...order,
+      paidAmount,
+      remainingAmount,
+      isPartialPaid,
+    };
   }
 
   async updateStatus(

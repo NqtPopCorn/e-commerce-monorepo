@@ -16,7 +16,7 @@ describe("chatbot store", () => {
     expect(state.messages[0].id).toBe("welcome-msg");
     expect(state.messages[0].role).toBe("assistant");
     expect(state.messages[0].content).toContain("Stylist AI");
-    expect(DEFAULT_STARTER_PROMPTS).toHaveLength(4);
+    expect(DEFAULT_STARTER_PROMPTS).toHaveLength(2);
   });
 
   it("toggles open state and dismisses unread indicator", () => {
