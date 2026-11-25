@@ -20,5 +20,18 @@ services:
       - "1025:1025"
       - "8025:8025"
 
+  neo4j:
+    image: neo4j:5-community
+    container_name: fashion-shop-neo4j
+    restart: unless-stopped
+    environment:
+      NEO4J_AUTH: neo4j/fashion_kg_password
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    volumes:
+      - neo4j_data:/data
+
 volumes:
   postgres_data:
+  neo4j_data:
