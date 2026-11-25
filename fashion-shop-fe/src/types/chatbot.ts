@@ -53,6 +53,21 @@ export interface LangChainMessageDump {
   response_metadata?: Record<string, any>;
 }
 
+export interface SystemPromptSectionDebug {
+  id: string;
+  name: string;
+  included: boolean;
+  char_count: number;
+  content: string;
+}
+
+export interface SystemPromptDebug {
+  version: string;
+  formula: string;
+  total_chars: number;
+  sections: SystemPromptSectionDebug[];
+}
+
 export interface LangChainRunTrace {
   run_id: string;
   parent_run_id?: string | null;
@@ -61,6 +76,7 @@ export interface LangChainRunTrace {
   inputs: Record<string, any>;
   outputs: Record<string, any>;
   metadata?: Record<string, any>;
+  system_prompt?: SystemPromptDebug | null;
   usage_metadata?: LangChainUsageMetadata | null;
   latency_ms: number;
   error?: string | null;

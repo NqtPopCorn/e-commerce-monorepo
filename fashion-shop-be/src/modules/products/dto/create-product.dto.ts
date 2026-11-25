@@ -40,6 +40,9 @@ export class CreateProductDto {
   @IsOptional() @IsString() careInstructions?: string;
   @IsOptional() @IsString() season?: string;
   @IsOptional() @IsString() provider?: string;
+  @IsOptional() @IsString() pattern?: string;
+  @IsOptional() @IsString() fit?: string;
+  @IsOptional() @IsString() occasion?: string;
   @IsOptional() @IsEnum(GenderTarget) targetGender?: GenderTarget;
 
   @IsOptional()

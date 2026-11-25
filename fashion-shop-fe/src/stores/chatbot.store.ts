@@ -9,9 +9,7 @@ import { chatbotService } from "@/services/chatbot.service";
 
 export const DEFAULT_STARTER_PROMPTS: readonly string[] = [
   "Gợi ý đồ đi tiệc cuối tuần 🥂",
-  "Tìm áo sơ mi công sở 👔",
-  "Săn sale hot giảm 50% 🔥",
-  "Bảng tư vấn size 📏",
+  "Tìm áo sơ mi công sở 👔"
 ];
 
 function generateId(): string {

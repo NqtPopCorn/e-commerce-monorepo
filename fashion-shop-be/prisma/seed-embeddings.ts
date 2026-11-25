@@ -2,7 +2,10 @@ import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
-import { buildProductEmbeddingText } from "../src/modules/products/embedding.service";
+import {
+  buildProductEmbeddingText,
+  buildProductSearchText,
+} from "../src/modules/products/embedding.service";
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const adapter = new PrismaPg(pool);
@@ -12,7 +15,8 @@ const OLLAMA_BASE_URL = (
   process.env.OLLAMA_BASE_URL || "http://localhost:11434"
 ).replace(/\/+$/, "");
 const OLLAMA_EMBEDDING_MODEL =
-  process.env.OLLAMA_EMBEDDING_MODEL || "nomic-embed-text";
+  process.env.OLLAMA_EMBEDDING_MODEL || "bge-m3";
+const CONCURRENCY = 8;
 
 async function fetchEmbedding(text: string): Promise<number[]> {
   const res = await fetch(`${OLLAMA_BASE_URL}/api/embeddings`, {
@@ -22,6 +26,7 @@ async function fetchEmbedding(text: string): Promise<number[]> {
       model: OLLAMA_EMBEDDING_MODEL,
       prompt: text,
     }),
+    signal: AbortSignal.timeout(30000),
   });
 
   if (!res.ok) {
@@ -36,9 +41,9 @@ async function fetchEmbedding(text: string): Promise<number[]> {
 }
 
 async function main() {
-  console.log("=== BẮT ĐẦU INDEX EMBEDDING CHO SẢN PHẨM ===");
+  console.log("=== BẮT ĐẦU INDEX EMBEDDING & SEARCH VECTOR CHO SẢN PHẨM ===");
   console.log(`Ollama URL: ${OLLAMA_BASE_URL}`);
-  console.log(`Model: ${OLLAMA_EMBEDDING_MODEL}`);
+  console.log(`Model: ${OLLAMA_EMBEDDING_MODEL} (Concurrency: ${CONCURRENCY})`);
 
   const products = await prisma.product.findMany({
     include: {
@@ -54,36 +59,68 @@ async function main() {
   let successCount = 0;
   let failCount = 0;
 
-  for (let i = 0; i < products.length; i++) {
-    const product = products[i];
-    const text = buildProductEmbeddingText(product);
+  for (let i = 0; i < products.length; i += CONCURRENCY) {
+    const batch = products.slice(i, i + CONCURRENCY);
+    await Promise.all(
+      batch.map(async (product) => {
+        const embeddingText = buildProductEmbeddingText(product);
+        const searchText = buildProductSearchText(product);
 
-    try {
-      const vector = await fetchEmbedding(text);
-      const vectorString = `[${vector.join(",")}]`;
+        try {
+          const vector = await fetchEmbedding(embeddingText);
+          const vectorString = `[${vector.join(",")}]`;
 
-      await prisma.$executeRawUnsafe(
-        `UPDATE products SET embedding = $1::vector, embedding_text = $2, updated_at = NOW() WHERE id = $3`,
-        vectorString,
-        text,
-        product.id,
-      );
+          await prisma.$executeRawUnsafe(
+            `UPDATE products
+             SET embedding = $1::vector,
+                 embedding_text = $2,
+                 embedding_model = $3,
+                 search_vector = to_tsvector('simple', unaccent($4)),
+                 updated_at = NOW()
+             WHERE id = $5`,
+            vectorString,
+            embeddingText,
+            OLLAMA_EMBEDDING_MODEL,
+            searchText,
+            product.id,
+          );
 
-      successCount++;
+          successCount++;
+        } catch (err: any) {
+          failCount++;
+          console.error(
+            `[FAIL] #${product.id} - ${product.name}: ${err?.message || err}`,
+          );
+        }
+      }),
+    );
+
+    const processed = Math.min(i + CONCURRENCY, products.length);
+    if (processed % 80 === 0 || processed === products.length) {
       console.log(
-        `[${i + 1}/${products.length}] [OK] #${product.id} - ${product.name} (vector dims: ${vector.length})`,
-      );
-    } catch (err: any) {
-      failCount++;
-      console.error(
-        `[${i + 1}/${products.length}] [FAIL] #${product.id} - ${product.name}: ${err?.message || err}`,
+        `[${processed}/${products.length}] Thành công: ${successCount}, Thất bại: ${failCount}`,
       );
     }
   }
 
+  const stats = await pool.query<{
+    embedding_model: string | null;
+    total: number;
+    has_embedding: number;
+    has_search_vector: number;
+  }>(
+    `SELECT embedding_model,
+            count(*)::int AS total,
+            count(embedding)::int AS has_embedding,
+            count(search_vector)::int AS has_search_vector
+     FROM products
+     GROUP BY embedding_model`,
+  );
+
   console.log("\n=== KẾT QUẢ INDEX HOÀN TẤT ===");
   console.log(`- Thành công: ${successCount}`);
   console.log(`- Thất bại: ${failCount}`);
+  console.table(stats.rows);
 }
 
 main()

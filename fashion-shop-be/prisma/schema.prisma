@@ -119,6 +119,9 @@ model Product {
   careInstructions String?          @map("care_instructions")
   season           String?
   provider         String?
+  pattern          String?
+  fit              String?
+  occasion         String?
   brand            Brand?           @relation(fields: [brandId], references: [id])
   category         Category?        @relation(fields: [categoryId], references: [id])
   variants         ProductVariant[]
@@ -127,7 +130,9 @@ model Product {
   reviewCount      Int              @default(0) @map("review_count")
   reviews          Review[]
   embeddingText    String?          @map("embedding_text")
-  embedding        Unsupported("vector(768)")?
+  embeddingModel   String?          @map("embedding_model")
+  embedding        Unsupported("vector(1024)")?
+  searchVector     Unsupported("tsvector")? @map("search_vector")
   createdAt        DateTime         @default(now()) @map("created_at")
   updatedAt        DateTime         @updatedAt @map("updated_at")
 

@@ -4,7 +4,10 @@ import * as path from "path";
 import { PrismaClient, GenderTarget, ProductFit } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
-import { buildProductEmbeddingText } from "../src/modules/products/embedding.service";
+import {
+  buildProductEmbeddingText,
+  buildProductSearchText,
+} from "../src/modules/products/embedding.service";
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const adapter = new PrismaPg(pool);
@@ -14,7 +17,7 @@ const OLLAMA_BASE_URL = (
   process.env.OLLAMA_BASE_URL || "http://localhost:11434"
 ).replace(/\/+$/, "");
 const OLLAMA_EMBEDDING_MODEL =
-  process.env.OLLAMA_EMBEDDING_MODEL || "nomic-embed-text";
+  process.env.OLLAMA_EMBEDDING_MODEL || "bge-m3";
 
 const HM_SEED_JSON_PATH = path.resolve(
   "H:/Code/PET/customer-shop-assistant/data/hm_seed_1000.json",
@@ -405,13 +408,22 @@ async function main() {
     await Promise.all(
       batch.map(async (product) => {
         const text = buildProductEmbeddingText(product);
+        const searchText = buildProductSearchText(product);
         try {
           const vector = await fetchEmbedding(text);
           const vectorString = `[${vector.join(",")}]`;
           await prisma.$executeRawUnsafe(
-            `UPDATE products SET embedding = $1::vector, embedding_text = $2, updated_at = NOW() WHERE id = $3`,
+            `UPDATE products
+             SET embedding = $1::vector,
+                 embedding_text = $2,
+                 embedding_model = $3,
+                 search_vector = to_tsvector('simple', unaccent($4)),
+                 updated_at = NOW()
+             WHERE id = $5`,
             vectorString,
             text,
+            OLLAMA_EMBEDDING_MODEL,
+            searchText,
             product.id,
           );
           embeddedSuccess++;

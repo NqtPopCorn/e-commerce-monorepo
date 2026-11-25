@@ -3,6 +3,8 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseIntPipe,
   Patch,
@@ -12,8 +14,10 @@ import {
 } from "@nestjs/common";
 import { ApiTags, ApiBearerAuth } from "@nestjs/swagger";
 import { ProductsService } from "./products.service";
+import { ProductSearchService } from "./product-search.service";
 import { CreateProductDto } from "./dto/create-product.dto";
 import { UpdateProductDto } from "./dto/update-product.dto";
+import { SearchProductsDto } from "./dto/search-products.dto";
 import { JwtAuthGuard } from "../auth/jwt.guard";
 import { RolesGuard } from "../auth/roles.guard";
 import { Roles } from "../auth/roles.decorator";
@@ -22,7 +26,10 @@ import { Role } from "@prisma/client";
 @ApiTags("products")
 @Controller("products")
 export class ProductsController {
-  constructor(private readonly service: ProductsService) {}
+  constructor(
+    private readonly service: ProductsService,
+    private readonly productSearchService: ProductSearchService,
+  ) {}
 
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -59,6 +66,12 @@ export class ProductsController {
       page: page ? parseInt(page, 10) : undefined,
       limit: limit ? parseInt(limit, 10) : undefined,
     });
+  }
+
+  @Post("search")
+  @HttpCode(HttpStatus.OK)
+  search(@Body() dto: SearchProductsDto) {
+    return this.productSearchService.searchForAssistant(dto);
   }
 
   @Get("stats")

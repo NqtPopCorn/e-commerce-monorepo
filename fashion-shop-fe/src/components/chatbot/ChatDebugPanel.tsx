@@ -19,13 +19,63 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useChatbotStore } from "@/stores/chatbot.store";
-import { ChatMessage, LangChainRunTrace } from "@/types/chatbot";
+import {
+  ChatMessage,
+  LangChainRunTrace,
+  SystemPromptSectionDebug,
+} from "@/types/chatbot";
 
 interface ChatDebugPanelProps {
   onClose?: () => void;
 }
 
 type TabType = "runs" | "state" | "json";
+
+const SECTION_BADGE_MAP: Record<
+  string,
+  { short: string; badgeClass: string; chipClass: string }
+> = {
+  base: {
+    short: "BASE",
+    badgeClass: "bg-indigo-950/80 text-indigo-300 border-indigo-800/70",
+    chipClass: "bg-indigo-950/70 text-indigo-200 border-indigo-700/70",
+  },
+  profile: {
+    short: "PROFILE",
+    badgeClass: "bg-violet-950/80 text-violet-300 border-violet-800/70",
+    chipClass: "bg-violet-950/70 text-violet-200 border-violet-700/70",
+  },
+  policy: {
+    short: "POLICY",
+    badgeClass: "bg-amber-950/80 text-amber-300 border-amber-800/70",
+    chipClass: "bg-amber-950/70 text-amber-200 border-amber-700/70",
+  },
+  product_rules: {
+    short: "PRODUCT",
+    badgeClass: "bg-emerald-950/80 text-emerald-300 border-emerald-800/70",
+    chipClass: "bg-emerald-950/70 text-emerald-200 border-emerald-700/70",
+  },
+  support_rules: {
+    short: "SUPPORT",
+    badgeClass: "bg-cyan-950/80 text-cyan-300 border-cyan-800/70",
+    chipClass: "bg-cyan-950/70 text-cyan-200 border-cyan-700/70",
+  },
+  slot_summary: {
+    short: "SLOTS",
+    badgeClass: "bg-sky-950/80 text-sky-300 border-sky-800/70",
+    chipClass: "bg-sky-950/70 text-sky-200 border-sky-700/70",
+  },
+};
+
+function getSectionStyle(section: SystemPromptSectionDebug) {
+  return (
+    SECTION_BADGE_MAP[section.id] || {
+      short: section.id.toUpperCase(),
+      badgeClass: "bg-slate-800 text-slate-300 border-slate-700",
+      chipClass: "bg-slate-800 text-slate-200 border-slate-700",
+    }
+  );
+}
 
 export const ChatDebugPanel: React.FC<ChatDebugPanelProps> = ({ onClose }) => {
   const { messages, selectedDebugMessageId, selectDebugMessage } =
@@ -34,6 +84,9 @@ export const ChatDebugPanel: React.FC<ChatDebugPanelProps> = ({ onClose }) => {
   const [expandedRunIds, setExpandedRunIds] = useState<Record<string, boolean>>(
     {},
   );
+  const [expandedPromptSections, setExpandedPromptSections] = useState<
+    Record<string, boolean>
+  >({});
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   // Filter messages that have debug telemetry or are assistant replies
@@ -51,6 +104,13 @@ export const ChatDebugPanel: React.FC<ChatDebugPanelProps> = ({ onClose }) => {
     setExpandedRunIds((prev) => ({
       ...prev,
       [runId]: !prev[runId],
+    }));
+  };
+
+  const togglePromptSection = (sectionKey: string) => {
+    setExpandedPromptSections((prev) => ({
+      ...prev,
+      [sectionKey]: !prev[sectionKey],
     }));
   };
 
@@ -308,9 +368,16 @@ export const ChatDebugPanel: React.FC<ChatDebugPanelProps> = ({ onClose }) => {
                             >
                               {r.run_type}
                             </span>
-                            <span className="font-mono text-slate-200 truncate">
-                              {r.name}
-                            </span>
+                            <div className="min-w-0">
+                              <span className="font-mono text-slate-200 truncate block">
+                                {r.name}
+                              </span>
+                              {r.system_prompt?.formula && (
+                                <span className="font-mono text-[9px] text-indigo-300/90 truncate block">
+                                  {r.system_prompt.formula}
+                                </span>
+                              )}
+                            </div>
                           </div>
 
                           <div className="flex items-center gap-2 text-[10px] text-slate-400 shrink-0">
@@ -355,6 +422,159 @@ export const ChatDebugPanel: React.FC<ChatDebugPanelProps> = ({ onClose }) => {
                           {r.error && (
                             <div className="p-2 rounded bg-rose-950/60 border border-rose-800/70 text-rose-300">
                               <span className="font-bold">Error:</span> {r.error}
+                            </div>
+                          )}
+
+                          {/* System Message Structure */}
+                          {r.system_prompt && (
+                            <div className="rounded-md border border-indigo-800/60 bg-slate-900/90 p-2 space-y-2">
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <span className="text-indigo-300 font-semibold font-sans text-[10px]">
+                                    System Message Structure
+                                  </span>
+                                  <span className="px-1 py-0.5 rounded bg-indigo-950/80 border border-indigo-800/70 text-[9px] text-indigo-300">
+                                    {r.system_prompt.version}
+                                  </span>
+                                  <span className="text-[9px] text-slate-400">
+                                    {r.system_prompt.total_chars} chars
+                                  </span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const sysMsg = (
+                                      r.inputs?.messages as
+                                        | Array<{ type?: string; content?: unknown }>
+                                        | undefined
+                                    )?.find((m) => m.type === "system");
+                                    const fullText =
+                                      typeof sysMsg?.content === "string"
+                                        ? sysMsg.content
+                                        : r.system_prompt!.sections
+                                            .filter((s) => s.included)
+                                            .map((s) => s.content)
+                                            .join("\n\n");
+                                    copyToClipboard(`sys-full:${runKey}`, fullText);
+                                  }}
+                                  className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-950 hover:bg-slate-800 border border-slate-700 text-[9px] text-slate-300 transition-colors shrink-0"
+                                  title="Copy toàn bộ System Message (plain text)"
+                                >
+                                  {copiedKey === `sys-full:${runKey}` ? (
+                                    <>
+                                      <Check className="w-2.5 h-2.5 text-emerald-400" />
+                                      <span className="text-emerald-400">
+                                        Đã copy
+                                      </span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Copy className="w-2.5 h-2.5" />
+                                      <span>Copy Full</span>
+                                    </>
+                                  )}
+                                </button>
+                              </div>
+
+                              {/* Formula chips */}
+                              <div className="flex flex-wrap items-center gap-1 bg-slate-950/80 p-1.5 rounded border border-slate-800">
+                                {r.system_prompt.sections
+                                  .filter((s) => s.included)
+                                  .map((sec, sIdx) => {
+                                    const st = getSectionStyle(sec);
+                                    return (
+                                      <React.Fragment key={sec.id}>
+                                        {sIdx > 0 && (
+                                          <span className="text-slate-500 font-bold">
+                                            +
+                                          </span>
+                                        )}
+                                        <span
+                                          className={`px-1.5 py-0.5 rounded border text-[9px] font-semibold ${st.chipClass}`}
+                                        >
+                                          {sec.name}
+                                        </span>
+                                      </React.Fragment>
+                                    );
+                                  })}
+                                {r.system_prompt.sections
+                                  .filter((s) => !s.included)
+                                  .map((sec) => (
+                                    <span
+                                      key={sec.id}
+                                      className="px-1.5 py-0.5 rounded border border-slate-800 bg-slate-900/60 text-[9px] text-slate-500"
+                                      title="Không được đưa vào lượt này"
+                                    >
+                                      {sec.name} (empty)
+                                    </span>
+                                  ))}
+                              </div>
+
+                              {/* Individual collapsible sections */}
+                              <div className="space-y-1">
+                                {r.system_prompt.sections
+                                  .filter((s) => s.included)
+                                  .map((sec) => {
+                                    const secKey = `${runKey}:${sec.id}`;
+                                    const isSecExp = !!expandedPromptSections[secKey];
+                                    const st = getSectionStyle(sec);
+                                    return (
+                                      <div
+                                        key={sec.id}
+                                        className="rounded border border-slate-800 bg-slate-950/70 overflow-hidden"
+                                      >
+                                        <div className="flex items-center justify-between px-2 py-1 hover:bg-slate-800/40 transition-colors">
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              togglePromptSection(secKey)
+                                            }
+                                            className="flex-1 min-w-0 flex items-center gap-1.5 text-left"
+                                          >
+                                            {isSecExp ? (
+                                              <ChevronDown className="w-3 h-3 text-slate-400 shrink-0" />
+                                            ) : (
+                                              <ChevronRight className="w-3 h-3 text-slate-400 shrink-0" />
+                                            )}
+                                            <span
+                                              className={`px-1 py-0.5 rounded border text-[8px] font-bold shrink-0 ${st.badgeClass}`}
+                                            >
+                                              {st.short}
+                                            </span>
+                                            <span className="text-slate-200 truncate">
+                                              {sec.name}
+                                            </span>
+                                            <span className="text-slate-500 text-[9px] shrink-0">
+                                              ({sec.char_count} chars)
+                                            </span>
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              copyToClipboard(
+                                                `sec:${secKey}`,
+                                                sec.content,
+                                              )
+                                            }
+                                            className="p-0.5 rounded text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors shrink-0"
+                                            title={`Copy ${sec.name}`}
+                                          >
+                                            {copiedKey === `sec:${secKey}` ? (
+                                              <Check className="w-2.5 h-2.5 text-emerald-400" />
+                                            ) : (
+                                              <Copy className="w-2.5 h-2.5" />
+                                            )}
+                                          </button>
+                                        </div>
+                                        {isSecExp && (
+                                          <pre className="p-2 border-t border-slate-800/80 bg-slate-950 text-slate-200 font-sans text-[11px] leading-relaxed whitespace-pre-wrap break-words max-h-60 overflow-y-auto">
+                                            {sec.content}
+                                          </pre>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                              </div>
                             </div>
                           )}
 
