@@ -21,11 +21,28 @@ To provide a seamless, performant, and scalable platform for browsing, purchasin
 - ✓ **Analytics and Dashboards** — existing statistics module for generating insights and administrative views (`statistics` module).
 - ✓ **Batch Processing** — existing background or scheduled batch operations (`batches` module).
 
-### Active
+### Active (Phạm vi hiện tại)
 
-- [ ] Set up monorepo for team collaboration (git flow, AGENTS, CI/CD).
-- [ ] Rename domain models from books to fashion/clothing products (future phase).
-- [ ] Establish formal automated testing strategy (unit and e2e) across both frontend and backend.
+- [ ] Hoàn thiện các module cốt lõi của Fashion Shop (sản phẩm, tài khoản, đơn hàng, thanh toán cơ bản).
+- [ ] Thiết lập quy trình kiểm thử tự động (unit test & e2e).
+
+### Định Hướng Tương Lai Xa (Long-Term Future Vision — Không thuộc phạm vi hiện tại)
+> **Lưu ý:** Các hạng mục dưới đây là backlog định hướng cho **tương lai xa**, khi hệ thống đã ổn định và mở rộng quy mô. Chi tiết xem tại **[Lộ trình Tương lai xa (docs/ROADMAP.md)](../docs/ROADMAP.md)**:
+
+- [ ] **Tương lai xa (Đợt 1)**:
+  - Flow hoàn tiền khi hủy đơn hàng / lỗi giao dịch & Quy trình Đổi / Trả hàng.
+  - Tích hợp cổng thanh toán chính thức & Xuất hóa đơn điện tử PDF.
+  - Đồng bộ giỏ hàng trên Server (Server-side synced cart & merge cart).
+- [ ] **Tương lai xa (Đợt 2)**:
+  - Đánh giá sản phẩm (Ratings 1-5 sao, bình luận, ảnh thực tế, like/helpful count, staff reply).
+  - Xuất báo cáo (Excel, CSV, PDF) & Module phân tích kinh doanh chuyên sâu.
+  - Siết chặt bảo mật (Rate Limiting, brute-force defense, audit logs, RBAC).
+- [ ] **Tương lai xa (Đợt 3)**:
+  - Blog quảng bá thời trang (CMS biên tập, SEO on-page, shoppable articles).
+  - Quản lý Bộ sưu tập & Lookbook thời trang theo mùa.
+  - AI Agent hỗ trợ Admin lên ý tưởng & tự động tạo Marketing Campaign.
+- [ ] **Tương lai xa (Đợt 4)**:
+  - Livechat CSKH trực tiếp giữa nhân viên (human) và khách hàng.
 
 ### Out of Scope
 

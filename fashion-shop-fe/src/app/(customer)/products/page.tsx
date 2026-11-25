@@ -29,6 +29,9 @@ function ProductsContent() {
   const categoryParam = searchParams.get("category");
   const brandParam = searchParams.get("brand");
   const searchQuery = searchParams.get("q");
+  const rawGender = searchParams.get("gender")?.toUpperCase();
+  const genderParam =
+    rawGender === "MALE" || rawGender === "FEMALE" ? rawGender : null;
 
   const { data: productsData, isLoading: isLoadingProducts } = useGetProducts();
 
@@ -115,6 +118,23 @@ function ProductsContent() {
         prod.brand?.name?.toLowerCase() === brandParam.toLowerCase(),
     );
   }
+
+  if (genderParam) {
+    // Sản phẩm UNISEX phù hợp với cả nam và nữ
+    filteredProducts = filteredProducts.filter(
+      (prod: Product) =>
+        prod.targetGender === genderParam || prod.targetGender === "UNISEX",
+    );
+  }
+
+  const buildGenderHref = (value: string | null): string => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("page");
+    if (value) params.set("gender", value);
+    else params.delete("gender");
+    const qs = params.toString();
+    return qs ? `${pathname}?${qs}` : pathname;
+  };
 
   if (searchQuery) {
     filteredProducts = filteredProducts.filter((prod: Product) => {
@@ -273,6 +293,32 @@ function ProductsContent() {
           <div className="bg-white rounded-xl shadow-xs border border-gray-100 overflow-hidden sticky top-24 divide-y divide-gray-100">
             <div className="p-4 bg-slate-50 flex items-center gap-2 font-bold text-gray-800 uppercase tracking-wider text-xs">
               <Filter className="w-4 h-4 text-rose-600" /> Bộ lọc thời trang
+            </div>
+
+            {/* Gender Filter */}
+            <div className="p-4">
+              <h3 className="font-semibold text-gray-800 text-sm mb-3">
+                Giới tính
+              </h3>
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  { value: null, label: "Tất cả" },
+                  { value: "MALE", label: "Nam" },
+                  { value: "FEMALE", label: "Nữ" },
+                ].map((g) => (
+                  <Link
+                    key={g.label}
+                    href={buildGenderHref(g.value)}
+                    className={`px-2.5 py-1 rounded-md text-xs font-medium border transition-colors ${
+                      genderParam === g.value
+                        ? "bg-rose-600 text-white border-rose-600"
+                        : "bg-gray-50 text-gray-700 border-gray-200 hover:border-gray-400"
+                    }`}
+                  >
+                    {g.label}
+                  </Link>
+                ))}
+              </div>
             </div>
 
             {/* Category Tree List */}

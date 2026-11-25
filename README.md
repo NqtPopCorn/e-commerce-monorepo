@@ -98,6 +98,13 @@ npm run dev:web
 | Variable | Description | Default |
 |---|---|---|
 | `NEXT_PUBLIC_API_URL` | Backend API URL | `http://localhost:3000/api` |
+| `NEXT_PUBLIC_AI_CHATBOT_URL` | FastAPI Chatbot Agent URL | `http://localhost:8000` |
+
+## Documentation
+
+- [Long-Term Future Vision (Định hướng tương lai xa)](./docs/ROADMAP.md)
+- [Chatbot AI & FastAPI Integration Guide](./docs/chatbot-fastapi-integration.md)
+- [Analytics Metrics Specification](./docs/analytics-metrics.md)
 
 ## Git Workflow
 
