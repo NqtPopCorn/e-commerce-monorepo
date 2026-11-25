@@ -221,7 +221,12 @@ export class OrdersService {
     const orders = await this.prisma.order.findMany({
       where: { userId },
       include: {
-        items: { include: { variant: { include: { product: true } } } },
+        items: {
+          include: {
+            variant: { include: { product: true } },
+            review: true,
+          },
+        },
         discountApplications: true,
         voucherApplications: true,
         transactions: {
@@ -260,7 +265,12 @@ export class OrdersService {
             phone: true,
           },
         },
-        items: { include: { variant: { include: { product: true } } } },
+        items: {
+          include: {
+            variant: { include: { product: true } },
+            review: true,
+          },
+        },
         discountApplications: true,
         voucherApplications: true,
         transactions: {

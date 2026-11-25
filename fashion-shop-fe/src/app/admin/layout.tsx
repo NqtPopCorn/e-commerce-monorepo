@@ -23,6 +23,7 @@ import {
   Megaphone,
   FolderTree,
   Tag,
+  Star,
 } from "lucide-react";
 import { AdminHeaderBar } from "@/components/admin";
 
@@ -48,6 +49,7 @@ const navGroups: NavGroup[] = [
       { name: "Sản phẩm", link: "/admin/products", icon: Shirt },
       { name: "Phân loại", link: "/admin/classifications", icon: FolderTree },
       { name: "Đơn hàng", link: "/admin/orders", icon: ShoppingBag },
+      { name: "Đánh giá", link: "/admin/reviews", icon: Star },
       { name: "Nhập kho", link: "/admin/purchase", icon: Truck },
     ],
   },

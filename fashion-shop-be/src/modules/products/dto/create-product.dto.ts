@@ -1,6 +1,7 @@
 import { Type } from "class-transformer";
 import {
   IsArray,
+  IsEnum,
   IsInt,
   IsNumber,
   IsOptional,
@@ -8,6 +9,7 @@ import {
   Min,
   ValidateNested,
 } from "class-validator";
+import { GenderTarget } from "@prisma/client";
 
 export class CreateProductVariantDto {
   @IsString() sku!: string;
@@ -38,6 +40,7 @@ export class CreateProductDto {
   @IsOptional() @IsString() careInstructions?: string;
   @IsOptional() @IsString() season?: string;
   @IsOptional() @IsString() provider?: string;
+  @IsOptional() @IsEnum(GenderTarget) targetGender?: GenderTarget;
 
   @IsOptional()
   @IsArray()

@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { EventEmitterModule } from "@nestjs/event-emitter";
 import { PrismaModule } from "./prisma/prisma.module";
@@ -22,6 +22,8 @@ import { AnalyticsModule } from "./modules/analytics/analytics.module";
 import { MailModule } from "./modules/mail/mail.module";
 import { SmsModule } from "./modules/sms/sms.module";
 import { PaymentsModule } from "./modules/payments/payments.module";
+import { ReviewsModule } from "./modules/reviews/reviews.module";
+import { HttpLoggerMiddleware } from "./common/middleware/http-logger.middleware";
 
 @Module({
   imports: [
@@ -34,6 +36,7 @@ import { PaymentsModule } from "./modules/payments/payments.module";
     BrandsModule,
     OrdersModule,
     PaymentsModule,
+    ReviewsModule,
     StatisticsModule,
     AnalyticsModule,
     CampaignsModule,
@@ -50,4 +53,8 @@ import { PaymentsModule } from "./modules/payments/payments.module";
   ],
   controllers: [HealthController],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(HttpLoggerMiddleware).forRoutes("*");
+  }
+}

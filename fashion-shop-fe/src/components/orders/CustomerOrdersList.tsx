@@ -21,6 +21,7 @@ import {
   Mail,
   Phone,
   AlertCircle,
+  Star,
 } from "lucide-react";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import {

@@ -38,8 +38,8 @@ export const useAuthStore = create<AuthState>()(
     {
       name: "fashion-shop-auth",
       partialize: (state) => ({ token: state.token, user: state.user }),
-      onRehydrateStorage: () => () => {
-        useAuthStore.setState({ hasHydrated: true });
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
       },
     },
   ),

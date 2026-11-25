@@ -1,6 +1,7 @@
 import React from "react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
+import { ChatWidget } from "@/components/chatbot";
 
 export default function CustomerLayout({
   children,
@@ -17,6 +18,9 @@ export default function CustomerLayout({
       </main>
 
       <Footer />
+
+      {/* AI Stylist Chatbot Widget */}
+      <ChatWidget />
     </div>
   );
 }

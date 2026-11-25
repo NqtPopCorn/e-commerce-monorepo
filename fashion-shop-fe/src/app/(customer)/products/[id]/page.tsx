@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useCartStore } from "@/stores/cart.store";
 import { toast } from "sonner";
+import { ProductReviewsSection } from "@/components/reviews/ProductReviewsSection";
 
 export default function ProductDetailPage({
   params,
@@ -235,6 +236,23 @@ export default function ProductDetailPage({
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900 leading-snug">
               {product.name}
             </h1>
+
+            {/* Rating Stars and Count */}
+            <div className="flex items-center gap-2 mt-2">
+              <div className="flex items-center gap-1 text-amber-500">
+                <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+                <span className="text-sm font-bold text-gray-900">
+                  {Number(product.ratingAverage || 0).toFixed(1)}
+                </span>
+              </div>
+              <span className="text-gray-300">•</span>
+              <a
+                href="#reviews"
+                className="text-xs text-rose-600 hover:underline font-medium"
+              >
+                {product.reviewCount || 0} đánh giá
+              </a>
+            </div>
           </div>
 
           {/* Price Box */}
@@ -491,6 +509,15 @@ export default function ProductDetailPage({
             </p>
           </div>
         )}
+      </div>
+
+      {/* Reviews & Ratings Section */}
+      <div id="reviews">
+        <ProductReviewsSection
+          productId={product.id}
+          productName={product.name}
+          productImageUrl={allImages[0]}
+        />
       </div>
     </div>
   );
