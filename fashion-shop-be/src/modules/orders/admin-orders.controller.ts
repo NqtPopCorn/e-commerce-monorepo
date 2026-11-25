@@ -25,6 +25,9 @@ export class AdminOrdersController {
   @Get() findAll(@Query("status") status?: string) {
     return this.service.findAll(status);
   }
+  @Get(":id") findOne(@Param("id", ParseIntPipe) id: number) {
+    return this.service.findOne(id);
+  }
   @Patch(":id/status") updateStatus(
     @Param("id", ParseIntPipe) id: number,
     @Body() dto: UpdateOrderStatusDto,
