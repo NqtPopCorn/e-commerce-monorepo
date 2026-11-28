@@ -11,6 +11,10 @@ export interface ChatRecommendedProduct {
   image_url?: string;
   category?: string;
   brand?: string;
+  variantId?: number;
+  variant_id?: number;
+  color?: string;
+  size?: string;
 }
 
 export interface ClarificationQuestion {

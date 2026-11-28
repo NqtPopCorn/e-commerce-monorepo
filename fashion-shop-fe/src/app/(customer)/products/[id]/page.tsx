@@ -1,8 +1,8 @@
 "use client";
 
-import React, { use, useState, useEffect } from "react";
+import React, { Suspense, use, useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useGetProduct } from "@/hooks/useProducts";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,8 +19,14 @@ import {
 import { useCartStore } from "@/stores/cart.store";
 import { toast } from "sonner";
 import { ProductReviewsSection } from "@/components/reviews/ProductReviewsSection";
+import {
+  buildProductVariantUrl,
+  resolveInitialVariant,
+  resolveVariantForColorChange,
+  resolveVariantImageIndex,
+} from "@/lib/product-variant";
 
-export default function ProductDetailPage({
+function ProductDetailContent({
   params,
 }: {
   params: Promise<{ id: string }>;
@@ -28,11 +34,19 @@ export default function ProductDetailPage({
   const resolvedParams = use(params);
   const { id } = resolvedParams;
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const variantIdParam = searchParams.get("variantId");
+  const colorParam = searchParams.get("color");
+  const sizeParam = searchParams.get("size");
+  const queryKey = `${id}|${variantIdParam ?? ""}|${colorParam ?? ""}|${sizeParam ?? ""}`;
 
   const [quantity, setQuantity] = useState(1);
   const [selectedSize, setSelectedSize] = useState<string>("");
   const [selectedColor, setSelectedColor] = useState<string>("");
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const lastAppliedQueryKeyRef = useRef<string | null>(null);
+  const skipNextUrlSyncKeyRef = useRef<string | null>(null);
 
   const addToCart = useCartStore((state) => state.add);
   const { data: product, isLoading } = useGetProduct(id);
@@ -55,27 +69,6 @@ export default function ProductDetailPage({
     return Array.from(colorMap.entries()).map(([name, hex]) => ({ name, hex }));
   }, [product]);
 
-  // Set default selection khi tải xong
-  useEffect(() => {
-    if (availableSizes.length > 0 && !selectedSize) {
-      setSelectedSize(availableSizes[0]);
-    }
-    if (availableColors.length > 0 && !selectedColor) {
-      setSelectedColor(availableColors[0].name);
-    }
-  }, [availableSizes, availableColors, selectedSize, selectedColor]);
-
-  // Tìm variant khớp với size và color đang chọn
-  const currentVariant = React.useMemo(() => {
-    if (!product?.variants || product.variants.length === 0) return null;
-    const match = product.variants.find(
-      (v: any) =>
-        (!selectedSize || v.size === selectedSize) &&
-        (!selectedColor || v.color === selectedColor),
-    );
-    return match || product.variants[0];
-  }, [product, selectedSize, selectedColor]);
-
   // Tất cả ảnh
   const allImages = React.useMemo(() => {
     const list: string[] = [];
@@ -96,6 +89,125 @@ export default function ProductDetailPage({
     }
     return list;
   }, [product]);
+
+  // Set default selection & jump to variant image khi load hoặc query param đổi từ bên ngoài
+  useEffect(() => {
+    if (!product?.variants || product.variants.length === 0) return;
+
+    if (skipNextUrlSyncKeyRef.current === queryKey) {
+      skipNextUrlSyncKeyRef.current = null;
+      lastAppliedQueryKeyRef.current = queryKey;
+      return;
+    }
+
+    if (lastAppliedQueryKeyRef.current === queryKey) {
+      return;
+    }
+    lastAppliedQueryKeyRef.current = queryKey;
+
+    const initialVariant = resolveInitialVariant(product.variants, {
+      variantId: variantIdParam,
+      color: colorParam,
+      size: sizeParam,
+    });
+
+    if (initialVariant) {
+      if (initialVariant.size) {
+        setSelectedSize(initialVariant.size);
+      }
+      if (initialVariant.color) {
+        setSelectedColor(initialVariant.color);
+      }
+      setActiveImageIndex(
+        resolveVariantImageIndex(allImages, initialVariant, product.variants),
+      );
+      return;
+    }
+
+    if (availableSizes.length > 0) {
+      setSelectedSize(availableSizes[0]);
+    }
+    if (availableColors.length > 0) {
+      setSelectedColor(availableColors[0].name);
+    }
+    setActiveImageIndex(0);
+  }, [
+    product,
+    queryKey,
+    variantIdParam,
+    colorParam,
+    sizeParam,
+    allImages,
+    availableSizes,
+    availableColors,
+  ]);
+
+  const syncUrlToVariant = (variantId?: number | null) => {
+    if (variantId && Number.isInteger(variantId) && variantId > 0) {
+      const nextKey = `${id}|${variantId}||`;
+      skipNextUrlSyncKeyRef.current = nextKey;
+      lastAppliedQueryKeyRef.current = nextKey;
+      router.replace(buildProductVariantUrl(id, { variantId }), {
+        scroll: false,
+      });
+    }
+  };
+
+  const handleSelectColor = (colorName: string) => {
+    const nextVariant = resolveVariantForColorChange(
+      product?.variants,
+      colorName,
+      selectedSize,
+    );
+    setSelectedColor(nextVariant?.color || colorName);
+    if (nextVariant?.size) {
+      setSelectedSize(nextVariant.size);
+    }
+    setActiveImageIndex(
+      resolveVariantImageIndex(allImages, nextVariant, product?.variants),
+    );
+    syncUrlToVariant(nextVariant?.id);
+  };
+
+  const handleSelectSize = (size: string) => {
+    setSelectedSize(size);
+    const variants = product?.variants || [];
+    const sameColorVariant = variants.find(
+      (v: any) =>
+        v.size === size && (!selectedColor || v.color === selectedColor),
+    );
+    if (sameColorVariant) {
+      syncUrlToVariant(sameColorVariant.id);
+      return;
+    }
+    const fallbackVariant =
+      variants.find((v: any) => v.size === size && Number(v.stock ?? 0) > 0) ||
+      variants.find((v: any) => v.size === size);
+    if (fallbackVariant) {
+      if (fallbackVariant.color && fallbackVariant.color !== selectedColor) {
+        setSelectedColor(fallbackVariant.color);
+      }
+      syncUrlToVariant(fallbackVariant.id);
+    }
+  };
+
+  // Tìm variant khớp với size và color đang chọn
+  const currentVariant = React.useMemo(() => {
+    if (!product?.variants || product.variants.length === 0) return null;
+    const match = product.variants.find(
+      (v: any) =>
+        (!selectedSize || v.size === selectedSize) &&
+        (!selectedColor || v.color === selectedColor),
+    );
+    if (match) return match;
+    if (selectedColor) {
+      const colorMatch = product.variants.find(
+        (v: any) => v.color === selectedColor,
+      );
+      if (colorMatch) return colorMatch;
+    }
+    return product.variants[0];
+  }, [product, selectedSize, selectedColor]);
 
   const handleAddToCart = () => {
     if (!product || !currentVariant) return;
@@ -296,7 +408,7 @@ export default function ProductDetailPage({
                 {availableSizes.map((size) => (
                   <button
                     key={size}
-                    onClick={() => setSelectedSize(size)}
+                    onClick={() => handleSelectSize(size)}
                     className={`min-w-12 px-4 py-2 border rounded-lg text-sm font-semibold transition-all ${
                       selectedSize === size
                         ? "border-rose-600 bg-rose-600 text-white shadow-sm"
@@ -323,7 +435,7 @@ export default function ProductDetailPage({
                 {availableColors.map((color) => (
                   <button
                     key={color.name}
-                    onClick={() => setSelectedColor(color.name)}
+                    onClick={() => handleSelectColor(color.name)}
                     className={`flex items-center gap-2 px-3.5 py-1.5 border rounded-lg text-sm transition-all ${
                       selectedColor === color.name
                         ? "border-rose-600 ring-2 ring-rose-600/20 font-semibold text-gray-900 bg-rose-50/50"
@@ -520,5 +632,23 @@ export default function ProductDetailPage({
         />
       </div>
     </div>
+  );
+}
+
+export default function ProductDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex justify-center items-center py-40">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-rose-600"></div>
+        </div>
+      }
+    >
+      <ProductDetailContent params={params} />
+    </Suspense>
   );
 }

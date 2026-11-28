@@ -6,13 +6,20 @@ import Link from "next/link";
 import { ExternalLink, Tag } from "lucide-react";
 import { ChatRecommendedProduct } from "@/types/chatbot";
 import { formatCurrency } from "@/lib/format";
+import { buildProductVariantUrl } from "@/lib/product-variant";
 
 interface ChatProductCardProps {
   product: ChatRecommendedProduct;
 }
 
 export const ChatProductCard: React.FC<ChatProductCardProps> = ({ product }) => {
-  const productUrl = `/products/${product.id}`;
+  const variantId = product.variantId ?? product.variant_id;
+  const productUrl = buildProductVariantUrl(product.id, {
+    variantId,
+    color: product.color,
+    size: product.size,
+  });
+  const variantLabel = [product.color, product.size].filter(Boolean).join(" · ");
   const imgUrl =
     product.imageUrl ||
     product.image_url ||
@@ -66,6 +73,11 @@ export const ChatProductCard: React.FC<ChatProductCardProps> = ({ product }) => 
               {product.name}
             </h4>
           </Link>
+          {variantLabel && (
+            <p className="mt-1 inline-block text-[10px] font-medium text-rose-700 bg-rose-50 border border-rose-100 px-1.5 py-0.5 rounded line-clamp-1">
+              {variantLabel}
+            </p>
+          )}
         </div>
 
         <div className="pt-1 border-t border-gray-50">

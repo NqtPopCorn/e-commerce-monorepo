@@ -310,13 +310,19 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
             {isExpanded ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 pt-1">
                 {message.products.map((product) => (
-                  <ChatProductCard key={product.id} product={product} />
+                  <ChatProductCard
+                    key={`${product.id}-${product.variantId ?? product.variant_id ?? product.color ?? "default"}`}
+                    product={product}
+                  />
                 ))}
               </div>
             ) : (
               <div className="flex gap-2.5 overflow-x-auto pb-2 pt-1 no-scrollbar -mx-1 px-1">
                 {message.products.map((product) => (
-                  <ChatProductCard key={product.id} product={product} />
+                  <ChatProductCard
+                    key={`${product.id}-${product.variantId ?? product.variant_id ?? product.color ?? "default"}`}
+                    product={product}
+                  />
                 ))}
               </div>
             )}

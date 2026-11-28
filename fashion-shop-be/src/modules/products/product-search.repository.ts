@@ -525,7 +525,7 @@ export class ProductSearchRepository {
         category: {
           include: { parent: true },
         },
-        variants: true,
+        variants: { orderBy: { id: "asc" } },
         images: { orderBy: { sortOrder: "asc" } },
       },
     });

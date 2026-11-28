@@ -69,7 +69,7 @@ export class ProductsService {
         category: {
           include: { parent: true },
         },
-        variants: true,
+        variants: { orderBy: { id: "asc" } },
         images: { orderBy: { sortOrder: "asc" } },
       },
     });
@@ -235,7 +235,7 @@ export class ProductsService {
             category: {
               include: { parent: true },
             },
-            variants: true,
+            variants: { orderBy: { id: "asc" } },
             images: { orderBy: { sortOrder: "asc" } },
           },
           orderBy: { createdAt: "desc" },
@@ -264,7 +264,7 @@ export class ProductsService {
         category: {
           include: { parent: true },
         },
-        variants: true,
+        variants: { orderBy: { id: "asc" } },
         images: { orderBy: { sortOrder: "asc" } },
       },
       orderBy: { createdAt: "desc" },
@@ -351,7 +351,7 @@ export class ProductsService {
         category: {
           include: { parent: true },
         },
-        variants: true,
+        variants: { orderBy: { id: "asc" } },
         images: { orderBy: { sortOrder: "asc" } },
       },
     });
@@ -367,7 +367,7 @@ export class ProductsService {
         category: {
           include: { parent: true },
         },
-        variants: true,
+        variants: { orderBy: { id: "asc" } },
         images: { orderBy: { sortOrder: "asc" } },
       },
     });

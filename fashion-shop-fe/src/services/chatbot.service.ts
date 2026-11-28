@@ -73,6 +73,18 @@ export function normalizeProduct(raw: any): ChatRecommendedProduct {
     raw.variants?.[0]?.image_url ||
     undefined;
 
+  const rawVariantId = raw.variantId ?? raw.variant_id;
+  const parsedVariantId =
+    rawVariantId !== undefined && rawVariantId !== null
+      ? Number(rawVariantId)
+      : undefined;
+  const variantId =
+    parsedVariantId !== undefined &&
+    Number.isInteger(parsedVariantId) &&
+    parsedVariantId > 0
+      ? parsedVariantId
+      : undefined;
+
   return {
     id: Number(raw.id),
     name: raw.name || raw.title || "Sản phẩm thời trang",
@@ -94,6 +106,10 @@ export function normalizeProduct(raw: any): ChatRecommendedProduct {
         : raw.category?.name || undefined,
     brand:
       typeof raw.brand === "string" ? raw.brand : raw.brand?.name || undefined,
+    variantId,
+    variant_id: variantId,
+    color: raw.color || undefined,
+    size: raw.size || undefined,
   };
 }
 
